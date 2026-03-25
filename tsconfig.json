@@ -18,9 +18,19 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     }
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS",
+      "moduleResolution": "node",
+      "baseUrl": ".",
+      "paths": { "@/*": ["./*"] }
+    },
+    "require": ["tsconfig-paths/register"]
   },
   "include": [
     "next-env.d.ts",

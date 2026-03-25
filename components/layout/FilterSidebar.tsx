@@ -1,0 +1,281 @@
+"use client";
+
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useCallback, useState } from "react";
+import {
+  Calendar,
+  Tag,
+  MapPin,
+  Rss,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { CATEGORY_LABELS, SF_NEIGHBORHOODS } from "@/lib/types";
+
+const ALL_CATEGORIES = Object.entries(CATEGORY_LABELS);
+
+interface Source {
+  slug: string;
+  name: string;
+}
+
+interface FilterSidebarProps {
+  sources: Source[];
+}
+
+export default function FilterSidebar({ sources }: FilterSidebarProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // Read current filter state from URL
+  const currentStartDate = searchParams.get("startDate") ?? "";
+  const currentEndDate = searchParams.get("endDate") ?? "";
+  const currentCategories = searchParams.getAll("category");
+  const currentNeighborhoods = searchParams.getAll("neighborhood");
+  const currentSources = searchParams.getAll("source");
+  const currentFreeOnly = searchParams.get("isFree") === "true";
+
+  // Local state (apply on button click)
+  const [startDate, setStartDate] = useState(currentStartDate);
+  const [endDate, setEndDate] = useState(currentEndDate);
+  const [categories, setCategories] = useState<string[]>(currentCategories);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>(currentNeighborhoods);
+  const [selectedSources, setSelectedSources] = useState<string[]>(currentSources);
+  const [freeOnly, setFreeOnly] = useState(currentFreeOnly);
+
+  const [openSections, setOpenSections] = useState({
+    date: true,
+    category: true,
+    neighborhood: false,
+    source: false,
+    price: false,
+  });
+
+  const toggleSection = (key: keyof typeof openSections) =>
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const toggleMulti = (
+    value: string,
+    list: string[],
+    setList: (v: string[]) => void
+  ) => {
+    setList(
+      list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
+    );
+  };
+
+  const applyFilters = useCallback(() => {
+    const params = new URLSearchParams();
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    categories.forEach((c) => params.append("category", c));
+    neighborhoods.forEach((n) => params.append("neighborhood", n));
+    selectedSources.forEach((s) => params.append("source", s));
+    if (freeOnly) params.set("isFree", "true");
+    // preserve search
+    const search = searchParams.get("search");
+    if (search) params.set("search", search);
+    router.push(`${pathname}?${params.toString()}`);
+  }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, searchParams, router, pathname]);
+
+  const clearFilters = () => {
+    setStartDate("");
+    setEndDate("");
+    setCategories([]);
+    setNeighborhoods([]);
+    setSelectedSources([]);
+    setFreeOnly(false);
+    router.push(pathname);
+  };
+
+  const hasFilters =
+    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly;
+
+  return (
+    <aside className="w-52 shrink-0 flex flex-col gap-1">
+      <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1">
+        Filters
+      </p>
+
+      {/* Date */}
+      <Section
+        icon={<Calendar size={13} />}
+        label="Date"
+        open={openSections.date}
+        onToggle={() => toggleSection("date")}
+        activeCount={(startDate ? 1 : 0) + (endDate ? 1 : 0)}
+      >
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body mb-1"
+        />
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body"
+        />
+      </Section>
+
+      {/* Category */}
+      <Section
+        icon={<Tag size={13} />}
+        label="Category"
+        open={openSections.category}
+        onToggle={() => toggleSection("category")}
+        activeCount={categories.length}
+      >
+        <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto no-scrollbar">
+          {ALL_CATEGORIES.map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => toggleMulti(value, categories, setCategories)}
+              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                categories.includes(value)
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* Neighborhood */}
+      <Section
+        icon={<MapPin size={13} />}
+        label="Neighborhood"
+        open={openSections.neighborhood}
+        onToggle={() => toggleSection("neighborhood")}
+        activeCount={neighborhoods.length}
+      >
+        <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto no-scrollbar">
+          {SF_NEIGHBORHOODS.map((n) => (
+            <button
+              key={n}
+              onClick={() => toggleMulti(n, neighborhoods, setNeighborhoods)}
+              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                neighborhoods.includes(n)
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* Source */}
+      <Section
+        icon={<Rss size={13} />}
+        label="Source"
+        open={openSections.source}
+        onToggle={() => toggleSection("source")}
+        activeCount={selectedSources.length}
+      >
+        <div className="flex flex-col gap-0.5">
+          {sources.map((s) => (
+            <button
+              key={s.slug}
+              onClick={() => toggleMulti(s.slug, selectedSources, setSelectedSources)}
+              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                selectedSources.includes(s.slug)
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* Free only */}
+      <Section
+        icon={<DollarSign size={13} />}
+        label="Price"
+        open={openSections.price}
+        onToggle={() => toggleSection("price")}
+        activeCount={freeOnly ? 1 : 0}
+      >
+        <button
+          onClick={() => setFreeOnly(!freeOnly)}
+          className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full ${
+            freeOnly
+              ? "bg-secondary-container text-on-secondary-container"
+              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+          }`}
+        >
+          Free only
+        </button>
+      </Section>
+
+      {/* Actions */}
+      <div className="mt-3 flex flex-col gap-2">
+        <button
+          onClick={applyFilters}
+          className="btn-primary w-full text-xs py-2.5 font-semibold"
+        >
+          Apply Filters
+        </button>
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="text-on-surface-variant hover:text-on-surface text-xs font-body text-center transition-colors"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function Section({
+  icon,
+  label,
+  open,
+  onToggle,
+  children,
+  activeCount,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  activeCount?: number;
+}) {
+  return (
+    <div className="rounded-DEFAULT overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-surface-container transition-colors"
+      >
+        <span className="flex items-center gap-2 text-on-surface-variant font-body text-xs font-medium uppercase tracking-wider">
+          {icon}
+          {label}
+        </span>
+        <span className="flex items-center gap-1.5">
+          {!open && !!activeCount && (
+            <span className="text-[0.6rem] font-semibold leading-none px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">
+              {activeCount}
+            </span>
+          )}
+          {open ? (
+            <ChevronUp size={12} className="text-on-surface-variant" />
+          ) : (
+            <ChevronDown size={12} className="text-on-surface-variant" />
+          )}
+        </span>
+      </button>
+      {open && <div className="px-3 pb-3 pt-1">{children}</div>}
+    </div>
+  );
+}

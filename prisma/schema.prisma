@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Source {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  name          String
+  url           String
+  scrapeType    ScrapeType
+  lastScrapedAt DateTime?
+  enabled       Boolean    @default(true)
+  events        Event[]
+  createdAt     DateTime   @default(now())
+
+  @@map("sources")
+}
+
+model Event {
+  id           String         @id @default(cuid())
+  externalId   String?
+  dedupeHash   String         @unique
+  title        String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime?
+  venueName    String?
+  venueAddress String?
+  city         String         @default("San Francisco")
+  neighborhood String?
+  latitude     Float?
+  longitude    Float?
+  category     EventCategory?
+  categoryRaw  String?
+  price        String?
+  isFree       Boolean        @default(false)
+  imageUrl     String?
+  sourceUrl    String
+  tags         String[]
+  geocoded     Boolean        @default(false)
+  categorized  Boolean        @default(false)
+  sourceId     String
+  source       Source         @relation(fields: [sourceId], references: [id])
+  scrapedAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([startDate])
+  @@index([neighborhood])
+  @@index([category])
+  @@index([sourceId])
+  @@index([startDate, neighborhood, category])
+  @@map("events")
+}
+
+enum ScrapeType {
+  CHEERIO
+  PLAYWRIGHT
+  API
+}
+
+enum EventCategory {
+  MUSIC_ELECTRONIC
+  MUSIC_ROCK_PUNK
+  MUSIC_JAZZ_BLUES
+  MUSIC_HIPHOP
+  MUSIC_CLASSICAL
+  MUSIC_OTHER
+  ART_GALLERY
+  ART_PERFORMANCE
+  COMEDY
+  FOOD_DRINK
+  NIGHTLIFE
+  COMMUNITY
+  TECH
+  SPORTS_FITNESS
+  FILM
+  THEATER
+  OUTDOOR
+  FAMILY
+  OTHER
+}

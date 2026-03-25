@@ -25,7 +25,7 @@ async function main() {
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const category = await categorizeEvent(event as ScrapedEvent);
+    const category = await categorizeEvent(event as unknown as ScrapedEvent);
     if (category !== "OTHER") {
       await prisma.event.update({
         where: { id: event.id },

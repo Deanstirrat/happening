@@ -14,6 +14,21 @@ import type { ScrapedEvent } from "./base";
  * Source URL: https://partiful.com/e/{id}
  */
 
+/**
+ * Convert a Firebase Storage URL (firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/PATH)
+ * to a public Partiful imgix CDN URL (partiful.imgix.net/PATH).
+ * The explore page strips auth tokens from Firebase URLs, making them 403 — imgix serves the same
+ * files publicly without a token.
+ */
+function toImgixUrl(firebaseUrl: string): string {
+  const match = firebaseUrl.match(
+    /firebasestorage\.googleapis\.com\/v0\/b\/getpartiful\.appspot\.com\/o\/([^?]+)/
+  );
+  if (!match) return firebaseUrl;
+  const path = decodeURIComponent(match[1]);
+  return `https://partiful.imgix.net/${path}`;
+}
+
 /** Safely extract an image URL from whatever shape Partiful returns for the image field */
 function extractImageUrl(image: unknown): string | undefined {
   if (!image) return undefined;
@@ -21,7 +36,11 @@ function extractImageUrl(image: unknown): string | undefined {
   if (typeof image === "object") {
     const obj = image as Record<string, unknown>;
     const candidate = obj.url ?? obj.src ?? obj.uri ?? obj.path;
-    if (typeof candidate === "string") return candidate || undefined;
+    if (typeof candidate === "string" && candidate) {
+      return candidate.includes("firebasestorage.googleapis.com")
+        ? toImgixUrl(candidate)
+        : candidate;
+    }
   }
   return undefined;
 }

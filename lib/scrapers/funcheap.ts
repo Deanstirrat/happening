@@ -6,10 +6,13 @@ import type { ScrapedEvent } from "./base";
 /**
  * Funcheap SF — sf.funcheap.com
  *
- * Events are in div.hentry containers. Each has:
- *   - span.title.entry-title a  — title + URL
- *   - div.date-time[data-event-date]  — ISO datetime in data attribute ("YYYY-MM-DD HH:MM")
- *   - span.cost  — price label; venue follows as last <span> in the date-time div
+ * Events are in .hentry containers. Each has:
+ *   - span.title.entry-title a    — title + URL
+ *   - .date-time                  — date/time as text with embedded spans:
+ *       "Wednesday, March 25 – <span class=fc-event-start-time>4:30 pm</span>
+ *        <span class=fc-event-end-time>...<span>Ends at </span>10:00 pm</span>"
+ *   - a.tt                        — price text (tooltip inside; first line is price)
+ *   - last <span> in .date-time   — venue name
  */
 export class FuncheapScraper extends BaseScraper {
   readonly sourceSlug = "funcheap";
@@ -60,37 +63,58 @@ export class FuncheapScraper extends BaseScraper {
       if (!title) return;
       const sourceUrl = titleEl.attr("href") ?? this.BASE_URL;
 
-      // Date: data-event-date="YYYY-MM-DD HH:MM" on the .date-time div
+      // Date: text before "–" in .date-time (e.g. "Wednesday, March 25")
+      // Start time: .fc-event-start-time span text
+      // End time: .fc-event-end-time text (last text node, after "Ends at ")
       const dateTimeEl = $el.find(".date-time").first();
-      const dateAttr = dateTimeEl.attr("data-event-date");
-      if (!dateAttr) return;
-      const startDate = new Date(dateAttr.replace(" ", "T"));
+      if (!dateTimeEl.length) return;
+
+      const startTimeStr = dateTimeEl.find(".fc-event-start-time").first().text().trim();
+      if (!startTimeStr) return;
+
+      // Extract the date part from the raw text before the "–" separator
+      const rawDateTimeText = dateTimeEl.clone().find(".fc-event-end-time, .fc-event-start-time, .cost, a.tt, span.cost").remove().end().text();
+      const dashMatch = rawDateTimeText.match(/^(.+?)\s*[–-]/);
+      if (!dashMatch) return;
+      const datePart = dashMatch[1].replace(/^[A-Za-z]+,\s*/, "").trim(); // strip day-of-week
+
+      const year = new Date().getFullYear();
+      const startDate = new Date(`${datePart} ${year} ${startTimeStr}`);
       if (isNaN(startDate.getTime())) return;
 
-      const endAttr = dateTimeEl.attr("data-event-date-end");
-      const endDate = endAttr ? new Date(endAttr.replace(" ", "T")) : undefined;
+      // End time: last text node in .fc-event-end-time (after stripping "Ends at" spans)
+      let endDate: Date | undefined;
+      const endTimeEl = dateTimeEl.find(".fc-event-end-time").first();
+      if (endTimeEl.length) {
+        const endTimeRaw = endTimeEl.clone().find("span").remove().end().text().trim();
+        if (endTimeRaw) {
+          const d = new Date(`${datePart} ${year} ${endTimeRaw}`);
+          if (!isNaN(d.getTime())) endDate = d;
+        }
+      }
 
-      // Price: text node after <span class="cost"> and before <a class="tt">
-      // The .tt anchor wraps the actual price text
-      const priceText = dateTimeEl.find("a.tt").first().text().trim().split("\n")[0].trim();
-      const isFree =
-        this.parseFree(priceText) ||
-        priceText.toLowerCase().includes("free");
+      // Price: first line of a.tt text (tooltip div is inside it; take text before the tooltip)
+      const ttEl = dateTimeEl.find("a.tt").first();
+      const priceText = ttEl.clone().find(".tooltip").remove().end().text().trim().split("\n")[0].trim();
+      const isFree = this.parseFree(priceText) || priceText.toLowerCase().startsWith("free");
       const price = priceText || undefined;
 
-      // Venue: last <span> in the .date-time div (no class)
-      const venueSpan = dateTimeEl.find("span").last();
+      // Venue: last plain <span> in .date-time (no class)
+      const venueSpan = dateTimeEl.find("span:not([class])").last();
       const venueName = venueSpan.text().trim() || undefined;
 
-      // Image
+      // Image: prefer noscript src (real URL) over lazy-loaded data URI
+      const noscriptImg = $el.find("noscript img").first();
+      const regularImg = $el.find("img").first();
       const imgSrc =
-        $el.find("img").first().attr("src") ??
-        $el.find("img").first().attr("data-src");
+        noscriptImg.attr("src") ??
+        regularImg.attr("src") ??
+        regularImg.attr("data-src");
 
       events.push({
         title,
         startDate,
-        endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
+        endDate,
         venueName,
         price,
         isFree,

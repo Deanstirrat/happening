@@ -106,6 +106,14 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               className="object-cover"
               sizes="64px"
             />
+          ) : categoryImageSrc ? (
+            <Image
+              src={categoryImageSrc}
+              alt={categoryLabel ?? ""}
+              fill
+              className="object-cover"
+              sizes="64px"
+            />
           ) : (
             <div
               className="absolute inset-0"
@@ -156,6 +164,7 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
   const time = format(new Date(event.startDate), "h:mm a");
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const categoryImageSrc = event.category ? CATEGORY_IMAGES[event.category] : undefined;
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
@@ -166,6 +175,14 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
             <Image
               src={event.imageUrl}
               alt={event.title}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          ) : categoryImageSrc ? (
+            <Image
+              src={categoryImageSrc}
+              alt={categoryLabel ?? ""}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, 25vw"

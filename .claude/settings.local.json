@@ -19,7 +19,16 @@
       "Bash(kill 7847 46409)",
       "Bash(node -e \"const pkg = require\\(''./node_modules/tailwindcss/package.json''\\); console.log\\(pkg.version\\)\")",
       "Bash(npx ts-node:*)",
-      "Bash(curl -s -A \"Mozilla/5.0 \\(compatible; happening-sf/1.0\\)\" \"https://sf.funcheap.com/\")"
+      "Bash(curl -s -A \"Mozilla/5.0 \\(compatible; happening-sf/1.0\\)\" \"https://sf.funcheap.com/\")",
+      "WebFetch(domain:sf.funcheap.com)",
+      "Bash(curl -I https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FtubqHzsMKtl8XgrfITGX%2Fw0h9ny9ngqs29Kt5RT-DP?alt=media)",
+      "Bash(curl -s \"https://partiful.com/e/SgNMTvSJBvdEyOJDKqEz\" -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -H \"Accept: text/html\")",
+      "Bash(curl -s \"https://partiful.com/explore/sf\" -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -H \"Accept: text/html\")",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(curl -s \"https://partiful.com/e/SgNMTvSJBvdEyOJDKqEz\" -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\")",
+      "Bash(kill 51023)",
+      "Bash(curl -I \"https://partiful.imgix.net/external/user/tubqHzsMKtl8XgrfITGX/w0h9ny9ngqs29Kt5RT-DP?w=1000&h=1000&fit=clip\")",
+      "Bash(psql postgresql://meganrileyg@localhost:5432/happening -c \":*)"
     ]
   }
 }

@@ -1,5 +1,5 @@
 [deploy]
-startCommand = "npx prisma migrate deploy && npm start"
+startCommand = "npx prisma migrate deploy && npm start -- -p ${PORT:-3000}"
 healthcheckPath = "/"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"

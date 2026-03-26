@@ -4,9 +4,10 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import MapViewWrapper from "@/components/map/MapViewWrapper";
-import { addDays, startOfDay, endOfDay } from "date-fns";
+import { addDays } from "date-fns";
 import type { EventSummary } from "@/lib/types";
 import { Prisma } from "@prisma/client";
+import { sfDayStart, sfDayEnd, sfDayKey } from "@/lib/sfDate";
 
 interface SearchParams {
   startDate?: string;
@@ -27,11 +28,11 @@ async function getSources() {
 
 async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
   const startDate = params.startDate
-    ? new Date(params.startDate + "T00:00:00.000Z")
-    : startOfDay(new Date());
+    ? sfDayStart(params.startDate)
+    : sfDayStart(sfDayKey(new Date()));
   const endDate = params.endDate
-    ? new Date(params.endDate + "T23:59:59.999Z")
-    : endOfDay(addDays(new Date(), 30));
+    ? sfDayEnd(params.endDate)
+    : sfDayEnd(sfDayKey(addDays(new Date(), 30)));
 
   const categories = params.category
     ? Array.isArray(params.category) ? params.category : [params.category]

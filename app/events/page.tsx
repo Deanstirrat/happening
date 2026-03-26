@@ -33,7 +33,7 @@ async function getEvents(params: SearchParams): Promise<{
   total: number;
 }> {
   const page = parseInt(params.page ?? "1");
-  const limit = 60;
+  const limit = 150;
   const skip = (page - 1) * limit;
 
   const startDate = params.startDate

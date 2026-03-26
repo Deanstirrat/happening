@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const search = p.get("search") ?? "";
   const view = p.get("view") ?? "list";
   const page = Math.max(1, parseInt(p.get("page") ?? "1"));
-  const limit = Math.min(200, parseInt(p.get("limit") ?? "60"));
+  const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
 
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
 import type { EventSummary } from "@/lib/types";
-import { startOfDay, endOfDay, addDays, parseISO } from "date-fns";
+import { startOfDay, endOfDay, addDays } from "date-fns";
 import { Prisma } from "@prisma/client";
 
 interface SearchParams {
@@ -36,10 +36,10 @@ async function getEvents(params: SearchParams): Promise<{
   const skip = (page - 1) * limit;
 
   const startDate = params.startDate
-    ? startOfDay(parseISO(params.startDate))
+    ? new Date(params.startDate + "T00:00:00.000Z")
     : startOfDay(new Date());
   const endDate = params.endDate
-    ? endOfDay(parseISO(params.endDate))
+    ? new Date(params.endDate + "T23:59:59.999Z")
     : endOfDay(addDays(new Date(), 30));
 
   const categories = params.category

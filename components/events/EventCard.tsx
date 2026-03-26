@@ -4,8 +4,6 @@ import { MapPin, Clock } from "lucide-react";
 import { formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
-import { CATEGORY_IMAGES } from "@/lib/categoryImages";
-
 interface EventCardProps {
   event: EventSummary;
   featured?: boolean;
@@ -15,7 +13,6 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
-  const categoryImageSrc = event.category ? CATEGORY_IMAGES[event.category] : undefined;
 
   if (featured) {
     return (
@@ -25,14 +22,6 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             <Image
               src={event.imageUrl}
               alt={event.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, 60vw"
-            />
-          ) : categoryImageSrc ? (
-            <Image
-              src={categoryImageSrc}
-              alt={categoryLabel ?? ""}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 60vw"
@@ -106,14 +95,6 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               className="object-cover"
               sizes="64px"
             />
-          ) : categoryImageSrc ? (
-            <Image
-              src={categoryImageSrc}
-              alt={categoryLabel ?? ""}
-              fill
-              className="object-cover"
-              sizes="64px"
-            />
           ) : (
             <div
               className="absolute inset-0"
@@ -164,7 +145,6 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
   const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
-  const categoryImageSrc = event.category ? CATEGORY_IMAGES[event.category] : undefined;
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
@@ -175,14 +155,6 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
             <Image
               src={event.imageUrl}
               alt={event.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-          ) : categoryImageSrc ? (
-            <Image
-              src={categoryImageSrc}
-              alt={categoryLabel ?? ""}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, 25vw"

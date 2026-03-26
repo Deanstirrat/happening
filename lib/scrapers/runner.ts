@@ -48,9 +48,32 @@ export async function runScraper(
   for (const event of events) {
     const dedupeHash = scraper.computeDedupeHash(event);
 
-    // Skip if already exists
+    // Skip if already exists, but enrich with better data if available
+    const LOW_QUALITY_DOMAINS = ["foopee.com", "19hz.info"];
     const exists = await prisma.event.findUnique({ where: { dedupeHash } });
-    if (exists) continue;
+    if (exists) {
+      const enrichments: Record<string, unknown> = {};
+
+      if (!exists.imageUrl && event.imageUrl) {
+        enrichments.imageUrl = event.imageUrl;
+      }
+
+      const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) =>
+        exists.sourceUrl.includes(d)
+      );
+      const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) =>
+        event.sourceUrl.includes(d)
+      );
+      if (existingIsLowQuality && incomingIsHighQuality) {
+        enrichments.sourceUrl = event.sourceUrl;
+        enrichments.sourceId = source.id;
+      }
+
+      if (Object.keys(enrichments).length > 0) {
+        await prisma.event.update({ where: { dedupeHash }, data: enrichments });
+      }
+      continue;
+    }
 
     // Geocode
     const geo = await geocodeEvent(event);

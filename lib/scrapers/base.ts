@@ -18,7 +18,7 @@ export abstract class BaseScraper {
       .replace(/[^a-z0-9\s]/g, "")
       .replace(/\s+/g, " ")
       .trim();
-    const raw = `${this.sourceSlug}::${dateStr}::${normalizedTitle}`;
+    const raw = `${dateStr}::${normalizedTitle}`;
     return createHash("sha256").update(raw).digest("hex");
   }
 

@@ -12,6 +12,7 @@ import { ResidentAdvisorScraper } from "./residentadvisor";
 import { LumaScraper } from "./luma";
 import { PartifulScraper } from "./partiful";
 import { SfliveScraper } from "./sflive";
+import { PoshScraper } from "./posh";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -20,6 +21,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   luma: new LumaScraper(),
   partiful: new PartifulScraper(),
   sflive: new SfliveScraper(),
+  posh: new PoshScraper(),
   // meetup: paid API only — skipped for now
 };
 

@@ -8,13 +8,28 @@ import type { ScrapedEvent } from "./base";
  * Uses the WordPress REST API with the Vibemap plugin's custom post type.
  * Events are at /wp-json/wp/v2/vibemap_event with standard WP pagination via
  * the X-WP-TotalPages response header.
+ *
+ * Custom fields live under item.meta (WP REST API nested meta).
+ *
+ * The WP plugin stores individual occurrence posts for recurring events, each
+ * with its own dated slug and vibemap_event_start_date. We simply read the
+ * stored start date and filter to the upcoming 60-day window — no RRULE
+ * expansion needed.
+ *
+ * Lat/lng are provided directly by the API — we pass them through to skip
+ * Nominatim geocoding.
  */
 export class SfliveScraper extends BaseScraper {
   readonly sourceSlug = "sflive";
   private readonly BASE_URL = "https://sflive.art";
   private readonly PER_PAGE = 100;
+  private readonly WINDOW_DAYS = 60;
 
   async scrape(): Promise<ScrapedEvent[]> {
+    const now = new Date();
+    const windowEnd = new Date();
+    windowEnd.setDate(windowEnd.getDate() + this.WINDOW_DAYS);
+
     const events: ScrapedEvent[] = [];
     let page = 1;
     let totalPages = 1;
@@ -41,7 +56,7 @@ export class SfliveScraper extends BaseScraper {
 
         const items: any[] = response.data;
         for (const item of items) {
-          const event = this.parseItem(item);
+          const event = this.parseItem(item, now, windowEnd);
           if (event) events.push(event);
         }
       } catch (err: any) {
@@ -56,32 +71,61 @@ export class SfliveScraper extends BaseScraper {
     return events;
   }
 
-  private parseItem(item: any): ScrapedEvent | null {
+  private parseItem(
+    item: any,
+    now: Date,
+    windowEnd: Date
+  ): ScrapedEvent | null {
     // Title is HTML-encoded; strip tags
     const title = (item.title?.rendered ?? "")
       .replace(/<[^>]+>/g, "")
       .trim();
     if (!title) return null;
 
-    const startRaw: string = item.vibemap_event_start_date ?? "";
+    // Custom fields live under item.meta (WP REST API nested meta)
+    const m = item.meta ?? {};
+
+    const startRaw: string = m.vibemap_event_start_date ?? "";
     if (!startRaw) return null;
     const startDate = new Date(startRaw.replace(" ", "T"));
     if (isNaN(startDate.getTime())) return null;
 
-    const endRaw: string = item.vibemap_event_end_date ?? "";
+    // Only include events within the upcoming window
+    if (startDate < now || startDate > windowEnd) return null;
+
+    const endRaw: string = m.vibemap_event_end_date ?? "";
     const endDate =
       endRaw ? new Date(endRaw.replace(" ", "T")) : undefined;
 
     const venueName: string | undefined =
-      item.vibemap_event_venue_name || undefined;
+      m.vibemap_event_venue_name || undefined;
     const venueAddress: string | undefined =
-      item.vibemap_event_venue_address || undefined;
+      m.vibemap_event_venue_address || undefined;
 
-    const priceRaw: string = item.vibemap_event_price ?? "";
+    // Use coordinates from the API directly to skip Nominatim geocoding
+    const latRaw = m.vibemap_event_venue_latitude;
+    const lngRaw = m.vibemap_event_venue_longitude;
+    const latitude =
+      latRaw != null && latRaw !== "" && latRaw !== 0
+        ? parseFloat(String(latRaw))
+        : undefined;
+    const longitude =
+      lngRaw != null && lngRaw !== "" && lngRaw !== 0
+        ? parseFloat(String(lngRaw))
+        : undefined;
+
+    const priceRaw: string = m.vibemap_event_price ?? "";
     const price = priceRaw || undefined;
     const isFree = this.parseFree(price);
 
-    const sourceUrl: string = item.link ?? this.BASE_URL;
+    // vibemap_event_images can be an empty string or an array
+    const imagesRaw = m.vibemap_event_images;
+    const imageUrl: string | undefined =
+      Array.isArray(imagesRaw) && imagesRaw[0]?.url
+        ? imagesRaw[0].url
+        : undefined;
+
+    const sourceUrl: string = m.vibemap_event_url || item.link || this.BASE_URL;
 
     return {
       title,
@@ -89,8 +133,11 @@ export class SfliveScraper extends BaseScraper {
       endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
       venueName,
       venueAddress,
+      latitude: latitude && !isNaN(latitude) ? latitude : undefined,
+      longitude: longitude && !isNaN(longitude) ? longitude : undefined,
       price,
       isFree,
+      imageUrl,
       sourceUrl,
       tags: ["sf", "arts", "curated"],
     };

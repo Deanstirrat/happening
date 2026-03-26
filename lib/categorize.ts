@@ -9,6 +9,7 @@ const CATEGORIES = [
   "MUSIC_ROCK_PUNK",
   "MUSIC_JAZZ_BLUES",
   "MUSIC_HIPHOP",
+  "MUSIC_RNB_SOUL",
   "MUSIC_CLASSICAL",
   "MUSIC_OTHER",
   "ART_GALLERY",
@@ -26,8 +27,32 @@ const CATEGORIES = [
   "OTHER",
 ] as const;
 
+// Tags that foopee (and some other sources) apply to all events regardless of genre.
+// These are not meaningful signals and must be excluded before categorization.
+const GENERIC_SOURCE_TAGS = new Set(["punk", "rock", "diy"]);
+
 const CATEGORY_PROMPT = `Categorize the following SF Bay Area event into exactly one category from this list:
-${CATEGORIES.join(", ")}
+MUSIC_ELECTRONIC, MUSIC_ROCK_PUNK, MUSIC_JAZZ_BLUES, MUSIC_HIPHOP, MUSIC_RNB_SOUL, MUSIC_CLASSICAL, MUSIC_OTHER, ART_GALLERY, ART_PERFORMANCE, COMEDY, FOOD_DRINK, NIGHTLIFE, COMMUNITY, TECH, SPORTS_FITNESS, FILM, THEATER, OUTDOOR, FAMILY, OTHER
+
+Category guidance:
+- MUSIC_ELECTRONIC: techno, house, ambient, EDM, industrial, synthwave, EBM, darkwave, noise, DJ sets
+- MUSIC_ROCK_PUNK: guitar-driven rock, indie rock, punk, hardcore, emo, metal, alternative, folk-rock
+- MUSIC_JAZZ_BLUES: jazz, blues, swing, soul-jazz, big band, gospel
+- MUSIC_HIPHOP: rap, hip-hop, trap, conscious hip-hop, spoken word rap
+- MUSIC_RNB_SOUL: R&B, soul, funk, neo-soul, Afrobeats, reggae, Latin music, world music
+- MUSIC_CLASSICAL: orchestral, chamber music, opera, contemporary classical
+- MUSIC_OTHER: concerts or music events that don't fit the above music genres
+- NIGHTLIFE: DJ parties, club nights, dance parties, bar events where the primary draw is the social/dance experience rather than a specific artist
+- ART_PERFORMANCE: dance performances, circus, spoken word, immersive art, variety shows
+- THEATER: plays, musicals, improv, stand-up comedy shows at theaters, magic shows
+- COMEDY: comedy showcases, open mics, stand-up shows at bars/clubs
+- COMMUNITY: neighborhood events, social mixers, networking, activism, markets
+- TECH: tech talks, hackathons, startup events, science lectures
+- SPORTS_FITNESS: athletic events, fitness classes, recreational sports (not viewing parties)
+- OUTDOOR: hikes, nature events, park activities
+- OTHER: anything that clearly doesn't fit any category above
+
+Ignore generic tags like "punk", "rock", or "diy" if they contradict the title and description.
 
 Event title: {title}
 Description: {description}
@@ -39,11 +64,12 @@ Reply with ONLY the category name, nothing else.`;
 export async function categorizeEvent(event: ScrapedEvent): Promise<EventCategory> {
   if (!process.env.ANTHROPIC_API_KEY) return "OTHER";
 
+  const tags = (event.tags ?? []).filter((t) => !GENERIC_SOURCE_TAGS.has(t.toLowerCase()));
   const prompt = CATEGORY_PROMPT
     .replace("{title}", event.title)
     .replace("{description}", (event.description ?? "").slice(0, 400))
     .replace("{venue}", event.venueName ?? "")
-    .replace("{tags}", (event.tags ?? []).join(", "));
+    .replace("{tags}", tags.join(", "));
 
   try {
     const msg = await client.messages.create({

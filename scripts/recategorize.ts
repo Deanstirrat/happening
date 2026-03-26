@@ -6,14 +6,28 @@ import { categorizeEvent } from "../lib/categorize";
 import type { ScrapedEvent } from "../lib/types";
 
 async function main() {
+  // Target events that are likely miscategorized:
+  // 1. All OTHER events
+  // 2. MUSIC_ROCK_PUNK events from foopee — foopee tags every event with "punk, rock, diy"
+  //    regardless of genre, causing the AI to over-assign MUSIC_ROCK_PUNK
   const events = await prisma.event.findMany({
-    where: { category: "OTHER" },
+    where: {
+      OR: [
+        { category: "OTHER" },
+        {
+          category: "MUSIC_ROCK_PUNK",
+          source: { slug: "foopee" },
+        },
+      ],
+    },
     select: {
       id: true,
       title: true,
       description: true,
       venueName: true,
       tags: true,
+      category: true,
+      source: { select: { slug: true } },
     },
   });
 
@@ -25,8 +39,8 @@ async function main() {
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const category = await categorizeEvent(event as unknown as ScrapedEvent);
-    if (category !== "OTHER") {
+    const category = await categorizeEvent(event as ScrapedEvent);
+    if (category !== event.category) {
       await prisma.event.update({
         where: { id: event.id },
         data: { category, categorized: true },

@@ -139,6 +139,7 @@ export async function POST(req: NextRequest) {
       venueName,
       venueAddress,
       sourceUrl: sourceUrl || "https://happening.app",
+      startDate,
     });
 
     // Categorize
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
       venueName,
       tags,
       sourceUrl: sourceUrl || "https://happening.app",
+      startDate,
     });
 
     const event = await prisma.event.create({

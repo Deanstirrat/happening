@@ -56,7 +56,7 @@ export default async function EventDetailPage({
   const endTimeLabel = event.endDate ? format(event.endDate, "h:mm a") : null;
 
   return (
-    <div className="max-w-screen-xl mx-auto px-6 py-8">
+    <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Back nav */}
       <div className="flex items-center justify-between mb-8">
         <Link
@@ -72,7 +72,7 @@ export default async function EventDetailPage({
       </div>
 
       {/* Main grid: flyer left, details right */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12 lg:mb-16">
         {/* Flyer */}
         <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container">
           {event.imageUrl ? (

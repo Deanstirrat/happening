@@ -26,7 +26,7 @@ export default function NavBar() {
 
   return (
     <header className="sticky top-0 z-50 glass">
-      <nav className="max-w-screen-xl mx-auto px-6 py-3 flex items-center gap-8">
+      <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-6">
         {/* Logo */}
         <Link
           href="/events"

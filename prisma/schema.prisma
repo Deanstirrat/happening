@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Source {
@@ -67,6 +68,7 @@ enum EventCategory {
   MUSIC_ROCK_PUNK
   MUSIC_JAZZ_BLUES
   MUSIC_HIPHOP
+  MUSIC_SOUL_RNB
   MUSIC_CLASSICAL
   MUSIC_OTHER
   ART_GALLERY

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import MapViewWrapper from "@/components/map/MapViewWrapper";
-import { addDays, startOfDay, endOfDay, parseISO } from "date-fns";
+import { addDays, startOfDay, endOfDay } from "date-fns";
 import type { EventSummary } from "@/lib/types";
 import { Prisma } from "@prisma/client";
 
@@ -27,10 +27,10 @@ async function getSources() {
 
 async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
   const startDate = params.startDate
-    ? startOfDay(parseISO(params.startDate))
+    ? new Date(params.startDate + "T00:00:00.000Z")
     : startOfDay(new Date());
   const endDate = params.endDate
-    ? endOfDay(parseISO(params.endDate))
+    ? new Date(params.endDate + "T23:59:59.999Z")
     : endOfDay(addDays(new Date(), 30));
 
   const categories = params.category
@@ -93,16 +93,16 @@ export default async function MapPage({
   const [sources, events] = await Promise.all([getSources(), getMapEvents(params)]);
 
   return (
-    <div className="flex h-[calc(100vh-52px)]">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-52px)]">
       {/* Filter sidebar */}
-      <div className="w-52 shrink-0 bg-surface-container-low overflow-y-auto py-6 px-4">
+      <div className="w-full lg:w-52 lg:shrink-0 bg-surface-container-low overflow-y-auto py-4 lg:py-6 px-4 max-h-64 lg:max-h-none">
         <Suspense>
           <FilterSidebar sources={sources} />
         </Suspense>
       </div>
 
       {/* Map */}
-      <div className="flex-1 relative isolate">
+      <div className="flex-1 relative isolate h-[60vh] lg:h-auto">
         <MapViewWrapper events={events} />
       </div>
     </div>

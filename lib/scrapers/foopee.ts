@@ -1,10 +1,6 @@
-import { chromium } from "playwright-extra";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
-
-chromium.use(StealthPlugin());
 
 const BASE = "http://www.foopee.com/punk/the-list/";
 
@@ -22,6 +18,9 @@ export class FoopeeScraper extends BaseScraper {
   readonly sourceSlug = "foopee";
 
   async scrape(): Promise<ScrapedEvent[]> {
+    const { chromium } = await import("playwright-extra");
+    const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
+    chromium.use(StealthPlugin());
     const browser = await chromium.launch({ headless: true, channel: "chrome" });
     const page = await browser.newPage();
 

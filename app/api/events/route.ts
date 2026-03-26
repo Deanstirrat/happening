@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { addDays, endOfDay, parseISO, startOfDay } from "date-fns";
+import { addDays, endOfDay, startOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
 
   const startDate = p.get("startDate")
-    ? startOfDay(parseISO(p.get("startDate")!))
+    ? new Date(p.get("startDate")! + "T00:00:00.000Z")
     : startOfDay(new Date());
   const endDate = p.get("endDate")
-    ? endOfDay(parseISO(p.get("endDate")!))
+    ? new Date(p.get("endDate")! + "T23:59:59.999Z")
     : endOfDay(addDays(new Date(), 30));
 
   const categories = p.getAll("category");

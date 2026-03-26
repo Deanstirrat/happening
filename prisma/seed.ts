@@ -85,6 +85,13 @@ const sources = [
     scrapeType: ScrapeType.API,
     enabled: false,
   },
+  {
+    slug: "posh",
+    name: "Posh",
+    url: "https://posh.vip/explore",
+    scrapeType: ScrapeType.API,
+    enabled: true,
+  },
 ];
 
 async function main() {

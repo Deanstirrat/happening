@@ -41,7 +41,8 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "rrule": "^2.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

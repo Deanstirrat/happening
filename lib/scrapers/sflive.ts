@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 
@@ -18,19 +19,25 @@ import type { ScrapedEvent } from "./base";
  *
  * Lat/lng are provided directly by the API — we pass them through to skip
  * Nominatim geocoding.
+ *
+ * Images: vibemap_event_images (JSON-encoded string) has images for some events.
+ * For the rest, we fetch the sflive.art event page and extract the image from
+ * the Yoast SEO JSON-LD schema block, in concurrent batches.
  */
 export class SfliveScraper extends BaseScraper {
   readonly sourceSlug = "sflive";
   private readonly BASE_URL = "https://sflive.art";
   private readonly PER_PAGE = 100;
   private readonly WINDOW_DAYS = 60;
+  private readonly IMAGE_CONCURRENCY = 10;
 
   async scrape(): Promise<ScrapedEvent[]> {
     const now = new Date();
     const windowEnd = new Date();
     windowEnd.setDate(windowEnd.getDate() + this.WINDOW_DAYS);
 
-    const events: ScrapedEvent[] = [];
+    // Collect events alongside their sflive.art page links for image fallback
+    const collected: { event: ScrapedEvent; pageLink: string }[] = [];
     let page = 1;
     let totalPages = 1;
 
@@ -56,8 +63,8 @@ export class SfliveScraper extends BaseScraper {
 
         const items: any[] = response.data;
         for (const item of items) {
-          const event = this.parseItem(item, now, windowEnd);
-          if (event) events.push(event);
+          const result = this.parseItem(item, now, windowEnd);
+          if (result) collected.push(result);
         }
       } catch (err: any) {
         if (err.response?.status === 400) break; // WP returns 400 past last page
@@ -68,18 +75,29 @@ export class SfliveScraper extends BaseScraper {
       page++;
     } while (page <= totalPages);
 
-    return events;
+    // Fill in missing images by scraping event pages in concurrent batches
+    const needsImage = collected.filter((c) => !c.event.imageUrl);
+    for (let i = 0; i < needsImage.length; i += this.IMAGE_CONCURRENCY) {
+      const batch = needsImage.slice(i, i + this.IMAGE_CONCURRENCY);
+      await Promise.all(
+        batch.map(async (c) => {
+          const url = await this.fetchPageImage(c.pageLink);
+          if (url) c.event.imageUrl = url;
+        })
+      );
+    }
+
+    return collected.map((c) => c.event);
   }
 
   private parseItem(
     item: any,
     now: Date,
     windowEnd: Date
-  ): ScrapedEvent | null {
-    // Title is HTML-encoded; strip tags
-    const title = (item.title?.rendered ?? "")
-      .replace(/<[^>]+>/g, "")
-      .trim();
+  ): { event: ScrapedEvent; pageLink: string } | null {
+    // Title is HTML-encoded; use cheerio to strip tags and decode entities
+    const titleHtml = item.title?.rendered ?? "";
+    const title = cheerio.load(titleHtml)("body").text().trim();
     if (!title) return null;
 
     // Custom fields live under item.meta (WP REST API nested meta)
@@ -135,20 +153,55 @@ export class SfliveScraper extends BaseScraper {
     }
 
     const sourceUrl: string = m.vibemap_event_url || item.link || this.BASE_URL;
+    const pageLink: string = item.link || this.BASE_URL;
 
     return {
-      title,
-      startDate,
-      endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
-      venueName,
-      venueAddress,
-      latitude: latitude && !isNaN(latitude) ? latitude : undefined,
-      longitude: longitude && !isNaN(longitude) ? longitude : undefined,
-      price,
-      isFree,
-      imageUrl,
-      sourceUrl,
-      tags: ["sf", "arts", "curated"],
+      event: {
+        title,
+        startDate,
+        endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
+        venueName,
+        venueAddress,
+        latitude: latitude && !isNaN(latitude) ? latitude : undefined,
+        longitude: longitude && !isNaN(longitude) ? longitude : undefined,
+        price,
+        isFree,
+        imageUrl,
+        sourceUrl,
+        tags: ["sf", "arts", "curated"],
+      },
+      pageLink,
     };
+  }
+
+  /** Fetch an sflive.art event page and extract the image from Yoast JSON-LD. */
+  private async fetchPageImage(url: string): Promise<string | undefined> {
+    try {
+      const { data: html } = await axios.get(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
+        timeout: 10000,
+      });
+      const $ = cheerio.load(html);
+      let imageUrl: string | undefined;
+      $('script[type="application/ld+json"]').each((_, el) => {
+        if (imageUrl) return;
+        try {
+          const schema = JSON.parse($(el).html() ?? "");
+          const graphs: any[] = schema?.["@graph"] ?? (Array.isArray(schema) ? schema : [schema]);
+          for (const node of graphs) {
+            const img = node?.image?.url ?? node?.image?.contentUrl ?? node?.thumbnailUrl;
+            if (typeof img === "string" && img) {
+              imageUrl = img;
+              return;
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
+      });
+      return imageUrl;
+    } catch {
+      return undefined;
+    }
   }
 }

@@ -26,6 +26,8 @@ async function main() {
       description: true,
       venueName: true,
       tags: true,
+      startDate: true,
+      sourceUrl: true,
       category: true,
       source: { select: { slug: true } },
     },

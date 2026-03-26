@@ -16,6 +16,8 @@ async function main() {
       tags: true,
       startDate: true,
       sourceUrl: true,
+      category: true,
+      source: { select: { slug: true } },
     },
   });
 

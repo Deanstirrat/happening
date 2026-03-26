@@ -5,7 +5,7 @@ export const CATEGORY_IMAGES: Record<EventCategory, string> = {
   MUSIC_ROCK_PUNK: "/category-images/punk.jpg",
   MUSIC_JAZZ_BLUES: "/category-images/jazz.jpg",
   MUSIC_HIPHOP: "/category-images/hiphop.jpg",
-  MUSIC_SOUL_RNB: "/category-images/soul.jpg",
+  MUSIC_RNB_SOUL: "/category-images/rnb.jpg",
   MUSIC_CLASSICAL: "/category-images/classical.jpg",
   MUSIC_OTHER: "/category-images/music.jpg",
   ART_GALLERY: "/category-images/gallery.jpg",

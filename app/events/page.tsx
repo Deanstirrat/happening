@@ -137,7 +137,7 @@ export default async function EventsPage({
   const hasEvents = days.length > 0;
 
   return (
-    <div className="max-w-screen-xl mx-auto px-6 py-8 flex gap-8">
+    <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-6 lg:gap-8">
       {/* Filter sidebar */}
       <Suspense>
         <FilterSidebar sources={sources} />
@@ -147,7 +147,7 @@ export default async function EventsPage({
       <div className="flex-1 min-w-0">
         {/* Hero headline */}
         <div className="mb-8">
-          <h1 className="font-headline font-black text-6xl text-on-surface lowercase leading-none">
+          <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
             san francisco
           </h1>
           <p className="font-body text-on-surface-variant text-sm mt-2">

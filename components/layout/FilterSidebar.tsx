@@ -10,6 +10,7 @@ import {
   DollarSign,
   ChevronDown,
   ChevronUp,
+  Filter,
 } from "lucide-react";
 import { CATEGORY_LABELS, SF_NEIGHBORHOODS } from "@/lib/types";
 
@@ -93,9 +94,36 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const hasFilters =
     startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly;
 
+  const activeFilterCount =
+    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0);
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <aside className="w-52 shrink-0 flex flex-col gap-1">
-      <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1">
+    <div className="w-full lg:w-52 lg:shrink-0">
+      {/* Mobile toggle button */}
+      <button
+        className="lg:hidden w-full flex items-center justify-between px-3 py-2.5 bg-surface-container rounded-DEFAULT font-body text-xs mb-1"
+        onClick={() => setMobileOpen((v) => !v)}
+      >
+        <span className="flex items-center gap-2 font-semibold uppercase tracking-widest text-on-surface-variant">
+          <Filter size={13} />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="text-[0.6rem] font-semibold leading-none px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">
+              {activeFilterCount}
+            </span>
+          )}
+        </span>
+        {mobileOpen ? (
+          <ChevronUp size={12} className="text-on-surface-variant" />
+        ) : (
+          <ChevronDown size={12} className="text-on-surface-variant" />
+        )}
+      </button>
+
+    <aside className={`flex flex-col gap-1 ${mobileOpen ? "" : "hidden"} lg:flex`}>
+      <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
         Filters
       </p>
 
@@ -234,6 +262,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         )}
       </div>
     </aside>
+    </div>
   );
 }
 

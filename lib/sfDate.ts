@@ -2,6 +2,29 @@
 
 const TZ = "America/Los_Angeles";
 
+/** Returns the UTC timestamp for midnight (start of day) in SF timezone for a YYYY-MM-DD string */
+export function sfDayStart(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  // Use noon UTC as a reference (safe from DST boundary issues)
+  const ref = new Date(Date.UTC(y, m - 1, d, 12));
+  const sfHourAtNoonUTC = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false }).format(ref)
+  );
+  const offsetHours = sfHourAtNoonUTC - 12; // e.g. -7 for PDT, -8 for PST
+  return new Date(Date.UTC(y, m - 1, d, -offsetHours));
+}
+
+/** Returns the UTC timestamp for 23:59:59.999 (end of day) in SF timezone for a YYYY-MM-DD string */
+export function sfDayEnd(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const ref = new Date(Date.UTC(y, m - 1, d, 12));
+  const sfHourAtNoonUTC = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false }).format(ref)
+  );
+  const offsetHours = sfHourAtNoonUTC - 12;
+  return new Date(Date.UTC(y, m - 1, d, 23 - offsetHours, 59, 59, 999));
+}
+
 /** Returns YYYY-MM-DD in SF timezone */
 export function sfDayKey(date: Date): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(date);

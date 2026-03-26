@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",
     "scrape:one": "tsx scripts/scrape.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:recategorize": "tsx scripts/recategorize.ts"
+    "db:recategorize": "tsx scripts/recategorize.ts",
+    "postinstall": "playwright install --with-deps chromium"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

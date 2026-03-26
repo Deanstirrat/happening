@@ -100,6 +100,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   MUSIC_ROCK_PUNK: "Rock / Punk",
   MUSIC_JAZZ_BLUES: "Jazz & Blues",
   MUSIC_HIPHOP: "Hip-Hop",
+  MUSIC_SOUL_RNB: "Soul / R&B",
   MUSIC_CLASSICAL: "Classical",
   MUSIC_OTHER: "Music",
   ART_GALLERY: "Art & Gallery",

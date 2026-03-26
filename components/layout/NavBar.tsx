@@ -37,11 +37,14 @@ export default function NavBar() {
 
         {/* Nav links */}
         <div className="flex items-center gap-1">
-          <NavLink href="/events" active={isActive("/events") && !isActive("/map")}>
+          <NavLink href="/events" active={isActive("/events") && !isActive("/map") && !isActive("/submit")}>
             explore
           </NavLink>
           <NavLink href="/map" active={isActive("/map")}>
             map
+          </NavLink>
+          <NavLink href="/submit" active={isActive("/submit")}>
+            submit
           </NavLink>
         </div>
 

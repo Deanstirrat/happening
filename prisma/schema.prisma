@@ -41,9 +41,11 @@ model Event {
   imageUrl     String?
   sourceUrl    String
   tags         String[]
-  geocoded     Boolean        @default(false)
-  categorized  Boolean        @default(false)
-  sourceId     String
+  status        EventStatus    @default(PUBLISHED)
+  submitterNote String?
+  geocoded      Boolean        @default(false)
+  categorized   Boolean        @default(false)
+  sourceId      String
   source       Source         @relation(fields: [sourceId], references: [id])
   scrapedAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -53,6 +55,7 @@ model Event {
   @@index([category])
   @@index([sourceId])
   @@index([startDate, neighborhood, category])
+  @@index([status])
   @@map("events")
 }
 
@@ -60,6 +63,13 @@ enum ScrapeType {
   CHEERIO
   PLAYWRIGHT
   API
+  MANUAL
+}
+
+enum EventStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
 }
 
 enum EventCategory {

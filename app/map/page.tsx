@@ -45,6 +45,7 @@ async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
     : [];
 
   const where: Prisma.EventWhereInput = {
+    status: "PUBLISHED",
     latitude: { not: null },
     longitude: { not: null },
     startDate: { gte: startDate, lte: endDate },

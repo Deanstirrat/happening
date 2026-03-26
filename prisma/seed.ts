@@ -92,6 +92,13 @@ const sources = [
     scrapeType: ScrapeType.API,
     enabled: true,
   },
+  {
+    slug: "community",
+    name: "Community Submissions",
+    url: "https://happening.app",
+    scrapeType: ScrapeType.MANUAL,
+    enabled: true,
+  },
 ];
 
 async function main() {

@@ -60,6 +60,7 @@ async function getEvents(params: SearchParams): Promise<{
     : [];
 
   const where: Prisma.EventWhereInput = {
+    status: "PUBLISHED",
     startDate: { gte: startDate, lte: endDate },
     ...(categories.length > 0 && {
       category: { in: categories as any },

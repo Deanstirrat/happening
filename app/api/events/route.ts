@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(200, parseInt(p.get("limit") ?? "60"));
 
   const where: Prisma.EventWhereInput = {
+    status: "PUBLISHED",
     startDate: { gte: startDate, lte: endDate },
     ...(categories.length > 0 && { category: { in: categories as any } }),
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),

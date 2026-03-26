@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/types";
-import { format } from "date-fns";
+import { formatDateTimeSF } from "@/lib/sfDate";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -188,7 +188,7 @@ export default function MapView({ events }: { events: EventSummary[] }) {
               {selectedEvent.title}
             </h3>
             <p className="text-on-surface-variant text-xs font-body mb-3">
-              {format(new Date(selectedEvent.startDate), "MMM d · h:mm a")}
+              {formatDateTimeSF(new Date(selectedEvent.startDate))}
               {selectedEvent.venueName ? ` · ${selectedEvent.venueName}` : ""}
             </p>
             <div className="flex items-center justify-between">

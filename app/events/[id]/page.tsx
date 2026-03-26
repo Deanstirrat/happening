@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
-import { format } from "date-fns";
+import { formatDateLongSF, formatTimeSF, formatDateShortSF, formatGCalSF } from "@/lib/sfDate";
 import { ArrowLeft, Share2, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 
 async function getEvent(id: string) {
@@ -51,9 +51,9 @@ export default async function EventDetailPage({
 
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
-  const dateLabel = format(event.startDate, "EEEE, MMMM d, yyyy");
-  const timeLabel = format(event.startDate, "h:mm a");
-  const endTimeLabel = event.endDate ? format(event.endDate, "h:mm a") : null;
+  const dateLabel = formatDateLongSF(event.startDate);
+  const timeLabel = formatTimeSF(event.startDate);
+  const endTimeLabel = event.endDate ? formatTimeSF(event.endDate) : null;
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -158,7 +158,7 @@ export default async function EventDetailPage({
               <ExternalLink size={13} />
             </a>
             <a
-              href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${format(event.startDate, "yyyyMMdd'T'HHmmss")}/${format(event.endDate ?? event.startDate, "yyyyMMdd'T'HHmmss")}&details=${encodeURIComponent(event.sourceUrl)}&location=${encodeURIComponent(event.venueAddress ?? event.venueName ?? "")}`}
+              href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatGCalSF(event.startDate)}/${formatGCalSF(event.endDate ?? event.startDate)}&details=${encodeURIComponent(event.sourceUrl)}&location=${encodeURIComponent(event.venueAddress ?? event.venueName ?? "")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-secondary text-center py-3 text-sm"
@@ -265,7 +265,7 @@ export default async function EventDetailPage({
                     )}
                     <div className="absolute top-2 left-2">
                       <span className="chip text-[0.6rem]">
-                        {format(e.startDate, "MMM d")}
+                        {formatDateShortSF(e.startDate)}
                       </span>
                     </div>
                   </div>

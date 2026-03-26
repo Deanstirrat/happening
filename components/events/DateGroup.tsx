@@ -1,4 +1,4 @@
-import { format, isToday, isTomorrow } from "date-fns";
+import { isTodaySF, isTomorrowSF, formatDateMediumSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import EventCard, { EventCardGrid } from "./EventCard";
 
@@ -9,9 +9,9 @@ interface DateGroupProps {
 }
 
 function formatDateLabel(date: Date): string {
-  if (isToday(date)) return "today";
-  if (isTomorrow(date)) return "tomorrow";
-  return format(date, "EEEE, MMM d").toLowerCase();
+  if (isTodaySF(date)) return "today";
+  if (isTomorrowSF(date)) return "tomorrow";
+  return formatDateMediumSF(date);
 }
 
 export default function DateGroup({ date, events, featured = false }: DateGroupProps) {

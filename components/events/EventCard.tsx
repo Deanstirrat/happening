@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Clock } from "lucide-react";
-import { format } from "date-fns";
+import { formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
@@ -12,7 +12,7 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, featured = false }: EventCardProps) {
-  const time = format(new Date(event.startDate), "h:mm a");
+  const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImageSrc = event.category ? CATEGORY_IMAGES[event.category] : undefined;
@@ -161,7 +161,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
 
 // Grid variant (used in tuesday, etc.)
 export function EventCardGrid({ event }: { event: EventSummary }) {
-  const time = format(new Date(event.startDate), "h:mm a");
+  const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImageSrc = event.category ? CATEGORY_IMAGES[event.category] : undefined;

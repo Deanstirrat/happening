@@ -6,6 +6,7 @@ import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
 import type { EventSummary } from "@/lib/types";
 import { startOfDay, endOfDay, addDays } from "date-fns";
+import { sfDayKey } from "@/lib/sfDate";
 import { Prisma } from "@prisma/client";
 
 interface SearchParams {
@@ -110,7 +111,7 @@ async function getEvents(params: SearchParams): Promise<{
   // Group by day
   const grouped: Record<string, EventSummary[]> = {};
   for (const event of events) {
-    const dayKey = startOfDay(event.startDate).toISOString();
+    const dayKey = sfDayKey(event.startDate); // YYYY-MM-DD in SF timezone
     if (!grouped[dayKey]) grouped[dayKey] = [];
     grouped[dayKey].push({
       ...event,
@@ -161,7 +162,7 @@ export default async function EventsPage({
           days.map((dayKey, i) => (
             <DateGroup
               key={dayKey}
-              date={new Date(dayKey)}
+              date={new Date(dayKey + "T12:00:00Z")}
               events={grouped[dayKey]}
               featured={i === 0}
             />

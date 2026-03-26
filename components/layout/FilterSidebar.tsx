@@ -81,6 +81,18 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     router.push(`${pathname}?${params.toString()}`);
   }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, searchParams, router, pathname]);
 
+  const applyToday = useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    setStartDate(today);
+    setEndDate(today);
+    const params = new URLSearchParams();
+    params.set("startDate", today);
+    params.set("endDate", today);
+    const search = searchParams.get("search");
+    if (search) params.set("search", search);
+    router.push(`${pathname}?${params.toString()}`);
+  }, [searchParams, router, pathname]);
+
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
@@ -135,6 +147,17 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         onToggle={() => toggleSection("date")}
         activeCount={(startDate ? 1 : 0) + (endDate ? 1 : 0)}
       >
+        <button
+          onClick={applyToday}
+          className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full mb-2 ${
+            currentStartDate === new Date().toISOString().slice(0, 10) &&
+            currentEndDate === new Date().toISOString().slice(0, 10)
+              ? "bg-secondary-container text-on-secondary-container"
+              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+          }`}
+        >
+          Today
+        </button>
         <input
           type="date"
           value={startDate}

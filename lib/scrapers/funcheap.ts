@@ -103,13 +103,20 @@ export class FuncheapScraper extends BaseScraper {
       const venueSpan = dateTimeEl.find("span:not([class])").last();
       const venueName = venueSpan.text().trim() || undefined;
 
-      // Image: prefer noscript src (real URL) over lazy-loaded data URI
-      const noscriptImg = $el.find("noscript img").first();
-      const regularImg = $el.find("img").first();
-      const imgSrc =
-        noscriptImg.attr("src") ??
-        regularImg.attr("src") ??
-        regularImg.attr("data-src");
+      // Image: SPAI replaces img src with base64 SVG placeholders;
+      // real URLs are inside <noscript> tags as raw text (not parsed as DOM).
+      let imgSrc: string | undefined;
+      const noscriptEl = $el.find("noscript").first();
+      if (noscriptEl.length) {
+        const $ns = cheerio.load(noscriptEl.html() ?? "");
+        imgSrc = $ns("img").first().attr("src");
+      }
+      if (!imgSrc) {
+        const regularImg = $el.find("img").first();
+        const candidate = regularImg.attr("src") ?? regularImg.attr("data-src");
+        // Skip base64 placeholder data URIs
+        if (candidate && !candidate.startsWith("data:")) imgSrc = candidate;
+      }
 
       events.push({
         title,

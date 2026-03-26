@@ -28,6 +28,7 @@ async function main() {
       tags: true,
       startDate: true,
       sourceUrl: true,
+      category: true,
     },
   });
 

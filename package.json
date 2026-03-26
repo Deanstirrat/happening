@@ -4,16 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy && next build",
-    "postinstall": "prisma generate",
+    "build": "next build",
+    "postinstall": "prisma generate && playwright install --with-deps chromium",
     "start": "next start",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",
     "scrape:one": "tsx scripts/scrape.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:recategorize": "tsx scripts/recategorize.ts",
-    "postinstall": "playwright install --with-deps chromium"
+    "db:recategorize": "tsx scripts/recategorize.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

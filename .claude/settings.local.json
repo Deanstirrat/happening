@@ -28,7 +28,10 @@
       "Bash(curl -s \"https://partiful.com/e/SgNMTvSJBvdEyOJDKqEz\" -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\")",
       "Bash(kill 51023)",
       "Bash(curl -I \"https://partiful.imgix.net/external/user/tubqHzsMKtl8XgrfITGX/w0h9ny9ngqs29Kt5RT-DP?w=1000&h=1000&fit=clip\")",
-      "Bash(psql postgresql://meganrileyg@localhost:5432/happening -c \":*)"
+      "Bash(psql postgresql://meganrileyg@localhost:5432/happening -c \":*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

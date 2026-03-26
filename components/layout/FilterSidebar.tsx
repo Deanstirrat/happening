@@ -112,7 +112,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="w-full lg:w-52 lg:shrink-0">
+    <div className="w-full">
       {/* Mobile toggle button */}
       <button
         className="lg:hidden w-full flex items-center justify-between px-3 py-2.5 bg-surface-container rounded-DEFAULT font-body text-xs mb-1"

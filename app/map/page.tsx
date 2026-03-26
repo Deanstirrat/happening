@@ -96,14 +96,14 @@ export default async function MapPage({
   return (
     <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-52px)]">
       {/* Filter sidebar */}
-      <div className="w-full lg:w-52 lg:shrink-0 bg-surface-container-low overflow-y-auto py-4 lg:py-6 px-4 max-h-64 lg:max-h-none">
+      <div className="relative w-full lg:w-52 lg:shrink-0 bg-surface-container-low overflow-y-auto py-4 lg:py-6 px-4 max-h-64 lg:max-h-none z-10">
         <Suspense>
           <FilterSidebar sources={sources} />
         </Suspense>
       </div>
 
       {/* Map */}
-      <div className="flex-1 relative isolate h-[60vh] lg:h-auto">
+      <div className="shrink-0 h-[60vh] lg:flex-1 lg:h-auto relative isolate">
         <MapViewWrapper events={events} />
       </div>
     </div>

@@ -31,7 +31,8 @@
       "Bash(psql postgresql://meganrileyg@localhost:5432/happening -c \":*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(curl -s \"https://sflive.art/wp-json/wp/v2/vibemap_event?per_page=2&_embed=true\")"
     ]
   }
 }

@@ -41,10 +41,11 @@ export default function MapView({ events }: { events: EventSummary[] }) {
 
       L.control.zoom({ position: "topright" }).addTo(map);
 
-      // Dark tile layer — invert via CSS applied in globals.css
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-        className: "map-tiles",
+      // CartoDB Dark Matter — native dark tiles, no CSS filter needed
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
       }).addTo(map);
 
       // Load SF neighborhoods GeoJSON

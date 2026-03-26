@@ -118,12 +118,21 @@ export class SfliveScraper extends BaseScraper {
     const price = priceRaw || undefined;
     const isFree = this.parseFree(price);
 
-    // vibemap_event_images can be an empty string or an array
+    // vibemap_event_images is stored as a JSON-encoded string or empty string
     const imagesRaw = m.vibemap_event_images;
-    const imageUrl: string | undefined =
-      Array.isArray(imagesRaw) && imagesRaw[0]?.url
-        ? imagesRaw[0].url
-        : undefined;
+    let imageUrl: string | undefined;
+    try {
+      const parsed =
+        typeof imagesRaw === "string" && imagesRaw
+          ? JSON.parse(imagesRaw)
+          : imagesRaw;
+      if (Array.isArray(parsed) && parsed[0]) {
+        imageUrl =
+          typeof parsed[0] === "string" ? parsed[0] : parsed[0]?.url;
+      }
+    } catch {
+      // malformed JSON — no image
+    }
 
     const sourceUrl: string = m.vibemap_event_url || item.link || this.BASE_URL;
 

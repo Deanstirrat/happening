@@ -140,9 +140,11 @@ export default async function EventsPage({
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-6 lg:gap-8">
       {/* Filter sidebar */}
-      <Suspense>
-        <FilterSidebar sources={sources} />
-      </Suspense>
+      <div className="w-full lg:w-52 lg:shrink-0">
+        <Suspense>
+          <FilterSidebar sources={sources} />
+        </Suspense>
+      </div>
 
       {/* Main content */}
       <div className="flex-1 min-w-0">

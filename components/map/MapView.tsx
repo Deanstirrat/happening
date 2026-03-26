@@ -14,6 +14,11 @@ export default function MapView({ events }: { events: EventSummary[] }) {
   const leafletMapRef = useRef<any>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventSummary | null>(null);
   const [stats, setStats] = useState({ neighborhoods: 0 });
+  const [legendOpen, setLegendOpen] = useState(true);
+
+  const activeCategories = Array.from(
+    new Set(events.map((e) => e.category).filter(Boolean))
+  ) as string[];
 
   useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
@@ -134,6 +139,34 @@ export default function MapView({ events }: { events: EventSummary[] }) {
     <div className="relative w-full h-full">
       {/* Map */}
       <div ref={mapRef} className="absolute inset-0" />
+
+      {/* Category legend */}
+      {activeCategories.length > 0 && (
+        <div className="absolute top-4 left-4 z-[1000] glass rounded-lg overflow-hidden">
+          <button
+            onClick={() => setLegendOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-body font-semibold text-on-surface-variant uppercase tracking-wider hover:text-on-surface transition-colors"
+          >
+            <span>Legend</span>
+            <span className="ml-4 text-[10px]">{legendOpen ? "▲" : "▼"}</span>
+          </button>
+          {legendOpen && (
+            <div className="px-3 pb-3 flex flex-col gap-1.5">
+              {activeCategories.map((cat) => (
+                <div key={cat} className="flex items-center gap-2">
+                  <div
+                    style={{ background: CATEGORY_COLORS[cat] ?? "#78716c" }}
+                    className="w-3 h-3 rounded-full shrink-0"
+                  />
+                  <span className="text-xs font-body text-on-surface whitespace-nowrap">
+                    {CATEGORY_LABELS[cat] ?? cat}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Selected event popup */}
       {selectedEvent && (

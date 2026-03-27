@@ -1,0 +1,174 @@
+import { createHash } from "crypto";
+import { parse, isValid } from "date-fns";
+import { prisma } from "@/lib/prisma";
+import { geocodeEvent } from "@/lib/geocode";
+import { categorizeEvent } from "@/lib/categorize";
+
+const DATE_FORMATS = [
+  "yyyy-MM-dd",
+  "M/d/yyyy",
+  "M/d/yy",
+  "EEEE, MMMM d, yyyy",
+  "EEEE MMMM d, yyyy",
+  "EEEE, MMM d, yyyy",
+  "EEEE MMM d, yyyy",
+  "EEEE MMMM d yyyy",
+  "EEEE MMM d yyyy",
+  "EEEE MMMM d",
+  "EEEE MMM d",
+  "MMMM d, yyyy",
+  "MMMM d yyyy",
+  "MMM d, yyyy",
+  "MMM d yyyy",
+  "MMMM d",
+  "MMM d",
+  "M/d",
+];
+
+function startTimeOnly(timeRaw: string): string {
+  return timeRaw.split(/\s*[-–]\s*/)[0].trim();
+}
+
+function tryParse(str: string, fmt: string, refYear: number): Date | null {
+  const parsed = parse(str.trim(), fmt, new Date(refYear, 0, 1));
+  if (!isValid(parsed)) return null;
+  const diffDays = (parsed.getTime() - Date.now()) / 86400000;
+  if (diffDays < -60) parsed.setFullYear(refYear + 1);
+  return parsed;
+}
+
+export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null {
+  const currentYear = new Date().getFullYear();
+  const startTime = timeRaw ? startTimeOnly(timeRaw) : null;
+  const combined = startTime ? `${dateRaw} ${startTime}` : null;
+
+  const timeSuffixes = ["h:mma", "h:mm a", "ha", "h a"];
+
+  for (const fmt of DATE_FORMATS) {
+    const attempts = [
+      ...(combined ? timeSuffixes.map((t) => [combined, `${fmt} ${t}`] as [string, string]) : []),
+      [dateRaw, fmt] as [string, string],
+    ];
+    for (const [str, f] of attempts) {
+      const result = tryParse(str, f, currentYear);
+      if (result) return result;
+    }
+  }
+
+  const native = new Date(dateRaw);
+  if (isValid(native)) {
+    const diffDays = (native.getTime() - Date.now()) / 86400000;
+    if (diffDays < -60) native.setFullYear(currentYear + 1);
+    return native;
+  }
+
+  return null;
+}
+
+export function computeDedupeHash(startDate: Date, title: string): string {
+  const dateStr = startDate.toISOString().slice(0, 10);
+  const normalizedTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return createHash("sha256").update(`${dateStr}::${normalizedTitle}`).digest("hex");
+}
+
+export interface EventFields {
+  title: string;
+  dateRaw: string;
+  timeRaw?: string | null;
+  venueName?: string | null;
+  venueAddress?: string | null;
+  price?: string | null;
+  isFree?: boolean;
+  description?: string | null;
+  tags?: string[];
+  sourceUrl?: string | null;
+  submitterNote?: string | null;
+}
+
+export type CreateEventResult =
+  | { success: true; eventId: string; title: string }
+  | { duplicate: true; eventId: string }
+  | { parseError: true; message: string };
+
+export async function createEvent(fields: EventFields): Promise<CreateEventResult> {
+  const {
+    title,
+    dateRaw,
+    timeRaw,
+    venueName,
+    venueAddress,
+    price,
+    isFree,
+    description,
+    tags,
+    sourceUrl,
+    submitterNote,
+  } = fields;
+
+  const startDate = parseDate(dateRaw, timeRaw);
+  if (!startDate) {
+    return {
+      parseError: true,
+      message: `Could not parse date: "${dateRaw}". Please use a format like "April 5, 2026" or "4/5/2026".`,
+    };
+  }
+
+  const dedupeHash = computeDedupeHash(startDate, title);
+
+  const existing = await prisma.event.findUnique({ where: { dedupeHash } });
+  if (existing) {
+    return { duplicate: true, eventId: existing.id };
+  }
+
+  const source = await prisma.source.findUnique({ where: { slug: "community" } });
+  if (!source) throw new Error("Community source not found");
+
+  const resolvedSourceUrl = sourceUrl || "https://happening.app";
+
+  const geo = await geocodeEvent({
+    title,
+    venueName: venueName ?? undefined,
+    venueAddress: venueAddress ?? undefined,
+    sourceUrl: resolvedSourceUrl,
+    startDate,
+  });
+
+  const category = await categorizeEvent({
+    title,
+    description: description ?? undefined,
+    venueName: venueName ?? undefined,
+    tags: tags ?? [],
+    sourceUrl: resolvedSourceUrl,
+    startDate,
+  });
+
+  const event = await prisma.event.create({
+    data: {
+      dedupeHash,
+      title: title.trim(),
+      description: description ?? null,
+      startDate,
+      venueName: venueName || null,
+      venueAddress: venueAddress || null,
+      neighborhood: geo.neighborhood,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      price: price || null,
+      isFree: Boolean(isFree),
+      sourceUrl: resolvedSourceUrl,
+      tags: Array.isArray(tags) ? tags : [],
+      category,
+      geocoded: geo.latitude != null,
+      categorized: true,
+      status: "PENDING",
+      submitterNote: submitterNote || null,
+      sourceId: source.id,
+    },
+  });
+
+  return { success: true, eventId: event.id, title: event.title };
+}

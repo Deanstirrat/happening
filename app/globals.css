@@ -142,6 +142,17 @@ body {
   color: #002955;
 }
 
+/* Fix mobile webkit text visibility in inputs */
+input[type="text"],
+input[type="search"] {
+  -webkit-text-fill-color: #e5e2e1;
+}
+
+input[type="date"] {
+  color-scheme: dark;
+  -webkit-text-fill-color: #e5e2e1;
+}
+
 /* Leaflet map dark overrides */
 .leaflet-container {
   background: #0a0a0a;

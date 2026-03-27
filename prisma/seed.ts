@@ -74,9 +74,9 @@ const sources = [
   {
     slug: "eventbrite",
     name: "Eventbrite",
-    url: "https://www.eventbrite.com",
-    scrapeType: ScrapeType.API,
-    enabled: false,
+    url: "https://www.eventbrite.com/d/ca--san-francisco/events/",
+    scrapeType: ScrapeType.CHEERIO,
+    enabled: true,
   },
   {
     slug: "meetup",

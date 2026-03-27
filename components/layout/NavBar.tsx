@@ -66,7 +66,7 @@ export default function NavBar() {
               onChange={(e) => setSearchVal(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
-              className="w-full bg-surface-container-low text-on-surface text-sm pl-9 pr-4 py-2 rounded-full outline-none focus:bg-surface-container placeholder:text-on-surface-variant font-body transition-colors"
+              className="w-full bg-surface-container-low text-on-surface text-base sm:text-sm pl-9 pr-4 py-2 rounded-full outline-none focus:bg-surface-container placeholder:text-on-surface-variant font-body transition-colors"
             />
           </div>
         </form>

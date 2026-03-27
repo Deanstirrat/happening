@@ -37,20 +37,42 @@ export class KqedScraper extends BaseScraper {
       return [];
     }
 
-    // Extract window.__INITIAL_STATE__ JSON blob.
-    // Inside JSON, "};" only appears at the very end of the assignment (not
-    // within string values), so the lazy quantifier reliably stops there.
-    const match = html.match(
-      /window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/
-    );
-    if (!match) {
+    // Extract window.__INITIAL_STATE__ JSON blob using bracket counting.
+    // The blob is ~200KB and has no trailing semicolon, so regex approaches
+    // are both incorrect and slow; bracket counting is O(n) and exact.
+    const assignIdx = html.indexOf("window.__INITIAL_STATE__=");
+    if (assignIdx === -1) {
       console.error("[kqed] Could not find window.__INITIAL_STATE__");
+      return [];
+    }
+    const jsonStart = html.indexOf("{", assignIdx);
+    if (jsonStart === -1) {
+      console.error("[kqed] Could not find JSON start after __INITIAL_STATE__");
+      return [];
+    }
+
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let jsonEnd = -1;
+    for (let i = jsonStart; i < html.length; i++) {
+      const c = html[i];
+      if (esc) { esc = false; continue; }
+      if (c === "\\" && inStr) { esc = true; continue; }
+      if (c === '"' && !esc) { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (c === "{") depth++;
+      if (c === "}") { depth--; if (depth === 0) { jsonEnd = i; break; } }
+    }
+
+    if (jsonEnd === -1) {
+      console.error("[kqed] Could not find JSON end");
       return [];
     }
 
     let state: any;
     try {
-      state = JSON.parse(match[1]);
+      state = JSON.parse(html.slice(jsonStart, jsonEnd + 1));
     } catch {
       console.error("[kqed] Failed to parse __INITIAL_STATE__");
       return [];

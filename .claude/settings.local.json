@@ -43,7 +43,8 @@
       "Bash(grep SCRAPE_SECRET /Users/meganrileyg/happening/.env*)",
       "WebFetch(domain:www.bandsintown.com)",
       "Bash(node -e \"console.log\\(Intl.DateTimeFormat\\(\\).resolvedOptions\\(\\).timeZone, new Date\\(\\).toString\\(\\)\\)\")",
-      "Bash(md5 /Users/meganrileyg/happening/components/layout/NavBar.tsx)"
+      "Bash(md5 /Users/meganrileyg/happening/components/layout/NavBar.tsx)",
+      "Bash(node -e \":*)"
     ]
   }
 }

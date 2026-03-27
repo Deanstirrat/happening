@@ -3,6 +3,17 @@ import Image from "next/image";
 import { formatCarouselDateSF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
+
+const NEIGHBORHOOD_DISPLAY: Record<string, string> = {
+  "South of Market": "SoMa",
+};
+
+function formatPrice(price: string): string {
+  const num = parseFloat(price.replace(/[^0-9.]/g, ""));
+  if (isNaN(num)) return price;
+  return `$${Math.round(num)}`;
+}
+
 interface EventCardProps {
   event: EventSummary;
   featured?: boolean;
@@ -13,6 +24,9 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const neighborhood = event.neighborhood
+    ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
+    : null;
 
   if (featured) {
     return (
@@ -36,14 +50,9 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
           <div className="absolute bottom-0 left-0 right-0 p-5">
             {/* Chips row */}
             <div className="flex gap-2 mb-2">
-              {event.featured && (
-                <span className="chip text-[0.6rem] uppercase tracking-wider bg-[#ffb3b5]/30 text-[#ffb3b5]">
-                  weekly featured
-                </span>
-              )}
-              {event.neighborhood && (
-                <span className="chip text-[0.6rem] uppercase tracking-wider">
-                  {event.neighborhood}
+              {neighborhood && (
+                <span className="chip text-[0.6rem] uppercase tracking-wider truncate max-w-[9rem]">
+                  {neighborhood}
                 </span>
               )}
               {categoryLabel && (
@@ -61,13 +70,10 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               {event.title}
             </h3>
 
-            {/* Date/time + Quick View */}
-            <div className="flex items-center justify-between gap-4">
+            {/* Date/time */}
+            <div className="flex items-center gap-4">
               <span className="text-white/70 text-xs font-body uppercase tracking-wide">
                 {carouselDate}
-              </span>
-              <span className="shrink-0 text-xs font-body font-semibold text-white border border-white/60 rounded-full px-4 py-1.5 uppercase tracking-wider">
-                Quick View
               </span>
             </div>
           </div>
@@ -110,11 +116,6 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             {event.venueName ? ` · ${event.venueName}` : ""}
           </p>
           <div className="flex items-center gap-1.5 mt-1.5">
-            {event.featured && (
-              <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full font-body font-medium bg-[#ffb3b5]/20 text-[#ffb3b5]">
-                ★ featured
-              </span>
-            )}
             {categoryLabel && (
               <span
                 className="text-[0.6rem] px-1.5 py-0.5 rounded-full font-body font-medium"
@@ -130,7 +131,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             )}
             {event.price && !event.isFree && (
               <span className="text-[0.6rem] text-on-surface-variant font-body">
-                {event.price}
+                {formatPrice(event.price)}
               </span>
             )}
           </div>
@@ -145,6 +146,9 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
   const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const neighborhood = event.neighborhood
+    ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
+    : null;
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
@@ -167,33 +171,33 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
               }}
             />
           )}
-          {event.neighborhood && (
+          {neighborhood && (
             <div className="absolute top-2 left-2">
-              <span className="chip text-[0.6rem] uppercase tracking-wider">
-                {event.neighborhood}
+              <span className="chip text-[0.6rem] uppercase tracking-wider truncate max-w-[9rem]">
+                {neighborhood}
               </span>
             </div>
           )}
         </div>
 
         {/* Info */}
-        <div className="p-3">
-          <h3 className="font-body font-semibold text-sm text-on-surface leading-tight line-clamp-2 mb-1 group-hover:text-primary transition-colors">
+        <div className="p-3 h-[5.5rem] overflow-hidden flex flex-col">
+          <h3 className="font-body font-semibold text-sm text-on-surface leading-tight line-clamp-2 mb-0.5 group-hover:text-primary transition-colors">
             {event.title}
           </h3>
-          <p className="text-on-surface-variant text-xs font-body">
+          <p className="text-on-surface-variant text-xs font-body truncate">
             {time}
             {event.venueName ? ` · ${event.venueName}` : ""}
           </p>
-          <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center justify-between mt-auto">
             <span
               className="text-[0.6rem] font-body font-medium"
               style={{ color: categoryColor }}
             >
               {categoryLabel}
             </span>
-            <span className="text-xs font-body text-on-surface-variant">
-              {event.isFree ? "Free Admission" : event.price ?? ""}
+            <span className="text-[0.6rem] font-body font-medium text-on-surface-variant">
+              {event.isFree ? "Free" : event.price ? formatPrice(event.price) : ""}
             </span>
           </div>
         </div>
@@ -201,3 +205,4 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
     </Link>
   );
 }
+

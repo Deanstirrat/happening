@@ -12,7 +12,8 @@
     "scrape:one": "tsx scripts/scrape.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:recategorize": "tsx scripts/recategorize.ts"
+    "db:recategorize": "tsx scripts/recategorize.ts",
+    "db:populate-descriptions": "tsx scripts/populate-descriptions.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

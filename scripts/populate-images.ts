@@ -179,9 +179,56 @@ async function backfill19hz() {
   console.log(`Done — ${updated}/${events.length} updated.`);
 }
 
+async function backfillBandsintown() {
+  console.log("\n=== Backfilling Bandsintown events missing images ===");
+  const events = await prisma.event.findMany({
+    where: { imageUrl: null, source: { slug: "bandsintown" } },
+    select: { id: true, title: true, sourceUrl: true },
+  });
+  console.log(`Found ${events.length} events without images`);
+  if (events.length === 0) return;
+
+  // Bandsintown is a JS SPA — og:image is only available after JS renders.
+  // We reuse a single Playwright browser instance for all fetches.
+  const { chromium } = await import("playwright-extra");
+  const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
+  chromium.use(StealthPlugin());
+  const browser = await chromium.launch({ headless: true, channel: "chrome" });
+
+  let updated = 0;
+  try {
+    const page = await browser.newPage();
+    for (const event of events) {
+      try {
+        await page.goto(event.sourceUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
+        const ogImage = await page.evaluate(() => {
+          const meta = document.querySelector('meta[property="og:image"]');
+          return meta?.getAttribute("content") ?? null;
+        });
+        if (ogImage && !ogImage.includes("assets.prod.bandsintown.com") && !ogImage.includes("/null.")) {
+          // Upgrade thumbnail to large image (same as scraper does)
+          const imageUrl = ogImage.replace("/thumb/", "/large/");
+          await prisma.event.update({ where: { id: event.id }, data: { imageUrl } });
+          console.log(`  ✓ ${event.title} → ${imageUrl}`);
+          updated++;
+        } else {
+          console.log(`  ✗ ${event.title} (no usable image)`);
+        }
+      } catch {
+        console.log(`  ✗ ${event.title} (fetch failed)`);
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+
+  console.log(`Done — ${updated}/${events.length} updated.`);
+}
+
 async function main() {
   await backfillFuncheap();
   await backfill19hz();
+  await backfillBandsintown();
   await prisma.$disconnect();
 }
 

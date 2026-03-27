@@ -114,15 +114,21 @@ export class FuncheapScraper extends BaseScraper {
         const timeStr = $el.find("td").first().text().trim();
         if (!timeStr) return;
 
-        // Walk back through previous siblings to find the date header row
-        // which has a single <td colspan="3">Friday, March 27, 2026</td>.
+        // Walk back through previous siblings to find the date header row.
+        // Date headers look like: <tr><td colspan="3">Friday, March 27, 2026</td></tr>
+        // Non-date colspan rows also exist (SPAI images, ad scripts) — validate
+        // that the text matches a date pattern before accepting it.
         let prevRow = $el.prev("tr");
         let dateHeaderText = "";
         while (prevRow.length) {
           const td = prevRow.find("td[colspan]");
           if (td.length) {
-            dateHeaderText = td.first().text().trim();
-            break;
+            const text = td.first().text().trim();
+            // Must look like "Friday, March 27, 2026" and contain no HTML or script
+            if (/^[A-Za-z]+,\s*[A-Za-z]+\s+\d+,\s*\d{4}$/.test(text)) {
+              dateHeaderText = text;
+              break;
+            }
           }
           prevRow = prevRow.prev("tr");
         }

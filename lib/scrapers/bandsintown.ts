@@ -144,7 +144,7 @@ export class BandsintownScraper extends BaseScraper {
     if (!artist) return null;
 
     const sourceUrl = `${BASE_URL}${path}`;
-    const imageUrl = imgSrc && !imgSrc.includes("assets.prod.bandsintown.com") ? imgSrc : undefined;
+    const imageUrl = imgSrc && !imgSrc.includes("assets.prod.bandsintown.com") && !imgSrc.includes("/null.") ? imgSrc : undefined;
 
     return {
       title: artist,

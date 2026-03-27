@@ -83,6 +83,9 @@ export default async function MetricsPage({ searchParams }: Props) {
             <Link href={`/admin/bug-reports?secret=${secret}`} className="hover:text-on-surface">
               bug reports
             </Link>
+            <Link href={`/admin/events?secret=${secret}`} className="hover:text-on-surface">
+              events
+            </Link>
           </div>
         </div>
 

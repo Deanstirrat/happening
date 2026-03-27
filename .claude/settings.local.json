@@ -39,7 +39,8 @@
       "Bash(grep -A10 Event$interactionsArgs /Users/meganrileyg/happening/node_modules/.prisma/client/index.d.ts)",
       "Bash(grep -A15 \"export type Event$interactionsArgs\" /Users/meganrileyg/happening/node_modules/.prisma/client/index.d.ts)",
       "Bash(source /Users/meganrileyg/happening/.env.local)",
-      "Bash(psql \"$DATABASE_URL\" -c \"UPDATE events SET featured=true, \"\"featuredAt\"\"=NOW\\(\\) WHERE id=''cmn7v2xam006mj1r6rujdf1kh'';\")"
+      "Bash(psql \"$DATABASE_URL\" -c \"UPDATE events SET featured=true, \"\"featuredAt\"\"=NOW\\(\\) WHERE id=''cmn7v2xam006mj1r6rujdf1kh'';\")",
+      "Bash(grep SCRAPE_SECRET /Users/meganrileyg/happening/.env*)"
     ]
   }
 }

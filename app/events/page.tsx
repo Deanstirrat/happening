@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
 import FeaturedCarousel from "@/components/events/FeaturedCarousel";
+import TimeFilterTabs from "@/components/events/TimeFilterTabs";
 import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
@@ -207,9 +208,14 @@ export default async function EventsPage({
       <div className="flex-1 min-w-0">
         {/* Hero headline */}
         <div className="mb-8">
-          <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
-            san francisco
-          </h1>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
+              san francisco
+            </h1>
+            <Suspense>
+              <TimeFilterTabs />
+            </Suspense>
+          </div>
           <p className="font-body text-on-surface-variant text-sm mt-2">
             {total > 0
               ? `${total} event${total !== 1 ? "s" : ""} found`
@@ -227,7 +233,6 @@ export default async function EventsPage({
               key={dayKey}
               date={new Date(dayKey + "T12:00:00Z")}
               events={grouped[dayKey]}
-              featured
             />
           ))
         ) : (

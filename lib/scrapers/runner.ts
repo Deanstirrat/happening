@@ -79,6 +79,7 @@ export async function runScraper(
   // Get source record
   const source = await prisma.source.findUnique({ where: { slug } });
   if (!source) throw new Error(`Source not found in DB: ${slug}`);
+  const sourceId = source.id;
   if (!source.enabled) {
     console.log(`[${slug}] Skipping disabled source`);
     return { scraped: 0, inserted: 0 };
@@ -120,7 +121,7 @@ export async function runScraper(
       const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) => event.sourceUrl.includes(d));
       if (existingIsLowQuality && incomingIsHighQuality) {
         enrichments.sourceUrl = event.sourceUrl;
-        enrichments.sourceId = source.id;
+        enrichments.sourceId = sourceId;
       }
       if (Object.keys(enrichments).length > 0) {
         await prisma.event.update({ where: { id: existingId }, data: enrichments });

@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { EventSummary } from "@/lib/types";
 import EventCard from "./EventCard";
 import FeaturedTracker from "./FeaturedTracker";
-import { formatDateShortSF } from "@/lib/sfDate";
 
 interface FeaturedCarouselProps {
   events: EventSummary[];
@@ -21,7 +19,6 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
   }, [events.length]);
 
   const next = useCallback(() => goTo(index + 1), [goTo, index]);
-  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
 
   useEffect(() => {
     if (paused || events.length <= 1) return;
@@ -38,13 +35,6 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
 
   return (
     <section className="mb-12">
-      <h2 className="font-headline font-bold text-2xl text-on-surface mb-4 lowercase">
-        this week
-        <span className="chip ml-3 text-[0.6rem] uppercase tracking-wider bg-[#ffb3b5]/30 text-[#ffb3b5]">
-          ★ featured
-        </span>
-      </h2>
-
       <div
         className="relative"
         onMouseEnter={() => setPaused(true)}
@@ -57,44 +47,20 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
           </FeaturedTracker>
         </div>
 
-        {/* Date chip — top-right */}
-        <div className="absolute top-4 right-4 z-10 pointer-events-none">
-          <span className="chip text-[0.6rem] uppercase tracking-wider">
-            {formatDateShortSF(new Date(event.startDate))}
-          </span>
-        </div>
-
-        {/* Prev/Next */}
-        {multi && (
-          <>
-            <button
-              onClick={prev}
-              aria-label="Previous event"
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              onClick={next}
-              aria-label="Next event"
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </>
-        )}
-
         {/* Dot indicators */}
         {multi && (
-          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 items-center">
             {events.map((_, i) => (
               <button
                 key={i}
                 onClick={() => goTo(i)}
                 aria-label={`Go to slide ${i + 1}`}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  i === index ? "bg-white" : "bg-white/40"
-                }`}
+                className="rounded-full transition-all duration-300"
+                style={
+                  i === index
+                    ? { width: "1rem", height: "0.375rem", background: "linear-gradient(135deg, #ffb3b5, #ff727c)" }
+                    : { width: "0.375rem", height: "0.375rem", background: "rgba(255,255,255,0.4)" }
+                }
               />
             ))}
           </div>

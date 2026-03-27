@@ -138,8 +138,8 @@ body {
   transition: background 0.15s ease, color 0.15s ease;
 }
 .chip.active {
-  background: #3891fe;
-  color: #002955;
+  background: linear-gradient(135deg, #ffb3b5, #ff727c);
+  color: #fff;
 }
 
 /* Fix mobile webkit text visibility in inputs */

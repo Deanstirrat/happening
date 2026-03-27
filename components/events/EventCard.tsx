@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Clock } from "lucide-react";
-import { formatTimeSF } from "@/lib/sfDate";
+import { formatCarouselDateSF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 interface EventCardProps {
@@ -10,6 +9,7 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, featured = false }: EventCardProps) {
+  const carouselDate = formatCarouselDateSF(new Date(event.startDate));
   const time = formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
@@ -32,54 +32,44 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
           {/* Bottom gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-          {/* Chips */}
-          <div className="absolute top-4 left-4 flex gap-2">
-            {event.featured && (
-              <span className="chip text-[0.6rem] uppercase tracking-wider bg-[#ffb3b5]/30 text-[#ffb3b5]">
-                ★ featured
-              </span>
-            )}
-            {event.neighborhood && (
-              <span className="chip text-[0.6rem] uppercase tracking-wider">
-                {event.neighborhood}
-              </span>
-            )}
-            {categoryLabel && (
-              <span
-                className="chip text-[0.6rem] uppercase tracking-wider"
-                style={{ background: categoryColor, color: "#0e0e0e" }}
-              >
-                {categoryLabel}
-              </span>
-            )}
-          </div>
-
           {/* Bottom content */}
-          <div className="absolute bottom-0 left-0 right-0 p-5 flex items-end justify-between gap-4">
-            <div>
-              <h3 className="font-headline font-bold text-2xl text-white leading-tight mb-1 lowercase">
-                {event.title}
-              </h3>
-              <div className="flex items-center gap-3 text-white/70 text-xs font-body">
-                <span className="flex items-center gap-1">
-                  <Clock size={11} />
-                  {time}
+          <div className="absolute bottom-0 left-0 right-0 p-5">
+            {/* Chips row */}
+            <div className="flex gap-2 mb-2">
+              {event.featured && (
+                <span className="chip text-[0.6rem] uppercase tracking-wider bg-[#ffb3b5]/30 text-[#ffb3b5]">
+                  weekly featured
                 </span>
-                {event.venueName && (
-                  <span className="flex items-center gap-1">
-                    <MapPin size={11} />
-                    {event.venueName}
-                  </span>
-                )}
-              </div>
+              )}
+              {event.neighborhood && (
+                <span className="chip text-[0.6rem] uppercase tracking-wider">
+                  {event.neighborhood}
+                </span>
+              )}
+              {categoryLabel && (
+                <span
+                  className="chip text-[0.6rem] uppercase tracking-wider"
+                  style={{ background: categoryColor, color: "#0e0e0e" }}
+                >
+                  {categoryLabel}
+                </span>
+              )}
             </div>
-            {(event.price || event.isFree) && (
-              <div className="shrink-0">
-                <span className="btn-primary text-xs px-4 py-2">
-                  {event.isFree ? "Free" : event.price}
-                </span>
-              </div>
-            )}
+
+            {/* Title */}
+            <h3 className="font-headline font-bold text-2xl text-white leading-tight mb-3 lowercase">
+              {event.title}
+            </h3>
+
+            {/* Date/time + Quick View */}
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-white/70 text-xs font-body uppercase tracking-wide">
+                {carouselDate}
+              </span>
+              <span className="shrink-0 text-xs font-body font-semibold text-white border border-white/60 rounded-full px-4 py-1.5 uppercase tracking-wider">
+                Quick View
+              </span>
+            </div>
           </div>
         </div>
       </Link>

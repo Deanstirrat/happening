@@ -93,6 +93,19 @@ export function formatDateTimeSF(date: Date): string {
   return `${formatDateShortSF(date)} · ${formatTimeSF(date)}`;
 }
 
+/** "MON, OCT 21 • 10:00 PM" — for featured carousel overlay */
+export function formatCarouselDateSF(date: Date): string {
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+    .format(date)
+    .toUpperCase();
+  return `${datePart} • ${formatTimeSF(date)}`;
+}
+
 /** "20260325T180000" for Google Calendar links */
 export function formatGCalSF(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {

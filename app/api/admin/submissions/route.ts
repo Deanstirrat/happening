@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-function checkAuth(req: NextRequest): boolean {
-  const secret = process.env.SCRAPE_SECRET;
-  if (!secret) return false;
-  return req.headers.get("x-scrape-secret") === secret;
-}
+import { checkAuth } from "@/lib/adminAuth";
 
 export async function GET(req: NextRequest) {
   if (!checkAuth(req)) {
@@ -43,8 +38,13 @@ export async function POST(req: NextRequest) {
 
   const { id, action } = await req.json();
 
-  if (!id || !["approve", "reject"].includes(action)) {
+  if (!id || !["approve", "reject", "delete"].includes(action)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  if (action === "delete") {
+    await prisma.event.delete({ where: { id } });
+    return NextResponse.json({ success: true, status: "DELETED" });
   }
 
   const status = action === "approve" ? "PUBLISHED" : "REJECTED";

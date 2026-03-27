@@ -96,7 +96,7 @@ async function getEvents(params: SearchParams): Promise<{
       where,
       skip,
       take: limit,
-      orderBy: { startDate: "asc" },
+      orderBy: [{ featured: "desc" }, { featuredAt: "desc" }, { startDate: "asc" }],
       select: {
         id: true,
         title: true,
@@ -113,6 +113,8 @@ async function getEvents(params: SearchParams): Promise<{
         tags: true,
         latitude: true,
         longitude: true,
+        featured: true,
+        featuredAt: true,
         source: { select: { slug: true, name: true } },
       },
     }),
@@ -128,6 +130,7 @@ async function getEvents(params: SearchParams): Promise<{
       ...event,
       startDate: event.startDate.toISOString(),
       endDate: event.endDate?.toISOString() ?? null,
+      featuredAt: event.featuredAt?.toISOString() ?? null,
     } as EventSummary);
   }
 

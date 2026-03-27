@@ -32,7 +32,10 @@
       "Bash(git push:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(curl -s \"https://sflive.art/wp-json/wp/v2/vibemap_event?per_page=2&_embed=true\")"
+      "Bash(curl -s \"https://sflive.art/wp-json/wp/v2/vibemap_event?per_page=2&_embed=true\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/bug-reports -H \"Content-Type: application/json\" -d '{\"\"\"\"description\"\"\"\":\"\"\"\"Test bug report\"\"\"\",\"\"\"\"pageUrl\"\"\"\":\"\"\"\"http://localhost:3000/events\"\"\"\",\"\"\"\"userAgent\"\"\"\":\"\"\"\"curl\"\"\"\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:3000/api/feature-requests -H \"Content-Type: application/json\" -d '{\"\"\"\"name\"\"\"\":\"\"\"\"Test User\"\"\"\",\"\"\"\"email\"\"\"\":\"\"\"\"test@example.com\"\"\"\",\"\"\"\"eventName\"\"\"\":\"\"\"\"Test Event\"\"\"\",\"\"\"\"message\"\"\"\":\"\"\"\"This is a test feature request\"\"\"\"}')"
     ]
   }
 }

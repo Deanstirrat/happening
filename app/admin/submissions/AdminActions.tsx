@@ -7,7 +7,7 @@ export default function AdminActions({ id, secret }: { id: string; secret: strin
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  async function act(action: "approve" | "reject") {
+  async function act(action: "approve" | "reject" | "delete") {
     setLoading(true);
     await fetch("/api/admin/submissions", {
       method: "POST",
@@ -36,6 +36,17 @@ export default function AdminActions({ id, secret }: { id: string; secret: strin
         className="font-body text-sm font-semibold px-4 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-50"
       >
         Reject
+      </button>
+      <button
+        onClick={() => {
+          if (window.confirm("Delete this event? This cannot be undone.")) {
+            act("delete");
+          }
+        }}
+        disabled={loading}
+        className="font-body text-sm font-semibold px-4 py-1.5 rounded-full bg-[#ef4444]/15 text-[#ef4444] hover:bg-[#ef4444]/25 transition-colors disabled:opacity-50"
+      >
+        Delete
       </button>
     </div>
   );

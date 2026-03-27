@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { format } from "date-fns";
 import AdminActions from "./AdminActions";
+import FeaturedToggle from "./FeaturedToggle";
 
 interface Props {
   searchParams: Promise<{ secret?: string }>;
@@ -20,105 +21,167 @@ export default async function SubmissionsPage({ searchParams }: Props) {
     );
   }
 
-  const events = await prisma.event.findMany({
-    where: { status: "PENDING" },
-    orderBy: { scrapedAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      startDate: true,
-      venueName: true,
-      venueAddress: true,
-      neighborhood: true,
-      category: true,
-      price: true,
-      isFree: true,
-      description: true,
-      sourceUrl: true,
-      tags: true,
-      submitterNote: true,
-      scrapedAt: true,
-    },
-  });
+  const [events, featuredEvents] = await Promise.all([
+    prisma.event.findMany({
+      where: { status: "PENDING" },
+      orderBy: { scrapedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        venueName: true,
+        venueAddress: true,
+        neighborhood: true,
+        category: true,
+        price: true,
+        isFree: true,
+        description: true,
+        sourceUrl: true,
+        tags: true,
+        submitterNote: true,
+        scrapedAt: true,
+      },
+    }),
+    prisma.event.findMany({
+      where: { status: "PUBLISHED", featured: true },
+      orderBy: { featuredAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        venueName: true,
+        neighborhood: true,
+        featured: true,
+        featuredAt: true,
+      },
+    }),
+  ]);
 
   return (
-    <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="font-headline font-black text-3xl text-on-surface lowercase">
-          pending submissions
-        </h1>
-        <p className="font-body text-on-surface-variant text-sm mt-1">
-          {events.length} event{events.length !== 1 ? "s" : ""} awaiting review
-        </p>
-      </div>
+    <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-12">
+      {/* Pending submissions */}
+      <section>
+        <div className="mb-8">
+          <h1 className="font-headline font-black text-3xl text-on-surface lowercase">
+            pending submissions
+          </h1>
+          <p className="font-body text-on-surface-variant text-sm mt-1">
+            {events.length} event{events.length !== 1 ? "s" : ""} awaiting review
+          </p>
+        </div>
 
-      {events.length === 0 ? (
-        <p className="font-body text-on-surface-variant">Nothing to review.</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {events.map((event) => (
-            <div
-              key={event.id}
-              className="bg-surface-container rounded-2xl p-5 flex flex-col gap-3"
-            >
-              <div className="flex items-start justify-between gap-4">
+        {events.length === 0 ? (
+          <p className="font-body text-on-surface-variant">Nothing to review.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {events.map((event) => (
+              <div
+                key={event.id}
+                className="bg-surface-container rounded-2xl p-5 flex flex-col gap-3"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">
+                      {event.title}
+                    </h2>
+                    <p className="font-body text-on-surface-variant text-sm mt-0.5">
+                      {format(event.startDate, "EEE, MMM d yyyy")}
+                      {event.venueName && ` · ${event.venueName}`}
+                      {event.neighborhood && ` · ${event.neighborhood}`}
+                    </p>
+                  </div>
+                  {event.category && (
+                    <span className="chip shrink-0 text-xs">
+                      {CATEGORY_LABELS[event.category] ?? event.category}
+                    </span>
+                  )}
+                </div>
+
+                {event.description && (
+                  <p className="font-body text-on-surface text-sm">{event.description}</p>
+                )}
+
+                <div className="flex flex-wrap gap-2 text-xs font-body text-on-surface-variant">
+                  {event.price && <span>{event.price}</span>}
+                  {event.isFree && <span>Free</span>}
+                  {event.venueAddress && <span>{event.venueAddress}</span>}
+                  {event.tags.map((t) => (
+                    <span key={t} className="chip">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                {event.submitterNote && (
+                  <p className="font-body text-on-surface-variant text-xs italic">
+                    Note: {event.submitterNote}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-3 mt-1">
+                  <a
+                    href={event.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-body text-xs text-on-surface-variant hover:text-on-surface underline truncate max-w-xs"
+                  >
+                    {event.sourceUrl}
+                  </a>
+                  <span className="font-body text-xs text-on-surface-variant ml-auto">
+                    submitted {format(event.scrapedAt, "MMM d h:mma")}
+                  </span>
+                </div>
+
+                <AdminActions id={event.id} secret={secret} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Featured events */}
+      <section>
+        <div className="mb-6">
+          <h2 className="font-headline font-black text-2xl text-on-surface lowercase">
+            featured events
+          </h2>
+          <p className="font-body text-on-surface-variant text-sm mt-1">
+            {featuredEvents.length} event{featuredEvents.length !== 1 ? "s" : ""} currently featured
+          </p>
+        </div>
+
+        {featuredEvents.length === 0 ? (
+          <p className="font-body text-on-surface-variant text-sm">
+            No events are featured. Approve and feature published events to pin them to the top of the explore page.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {featuredEvents.map((event) => (
+              <div
+                key={event.id}
+                className="bg-surface-container rounded-2xl p-4 flex items-center gap-4"
+              >
                 <div className="flex-1 min-w-0">
-                  <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">
+                  <h3 className="font-body font-semibold text-sm text-on-surface truncate">
                     {event.title}
-                  </h2>
-                  <p className="font-body text-on-surface-variant text-sm mt-0.5">
+                  </h3>
+                  <p className="font-body text-on-surface-variant text-xs mt-0.5">
                     {format(event.startDate, "EEE, MMM d yyyy")}
                     {event.venueName && ` · ${event.venueName}`}
                     {event.neighborhood && ` · ${event.neighborhood}`}
                   </p>
+                  {event.featuredAt && (
+                    <p className="font-body text-on-surface-variant text-xs mt-0.5">
+                      featured {format(event.featuredAt, "MMM d h:mma")}
+                    </p>
+                  )}
                 </div>
-                {event.category && (
-                  <span className="chip shrink-0 text-xs">
-                    {CATEGORY_LABELS[event.category] ?? event.category}
-                  </span>
-                )}
+                <FeaturedToggle id={event.id} featured={event.featured} secret={secret} />
               </div>
-
-              {event.description && (
-                <p className="font-body text-on-surface text-sm">{event.description}</p>
-              )}
-
-              <div className="flex flex-wrap gap-2 text-xs font-body text-on-surface-variant">
-                {event.price && <span>{event.price}</span>}
-                {event.isFree && <span>Free</span>}
-                {event.venueAddress && <span>{event.venueAddress}</span>}
-                {event.tags.map((t) => (
-                  <span key={t} className="chip">
-                    {t}
-                  </span>
-                ))}
-              </div>
-
-              {event.submitterNote && (
-                <p className="font-body text-on-surface-variant text-xs italic">
-                  Note: {event.submitterNote}
-                </p>
-              )}
-
-              <div className="flex items-center gap-3 mt-1">
-                <a
-                  href={event.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-body text-xs text-on-surface-variant hover:text-on-surface underline truncate max-w-xs"
-                >
-                  {event.sourceUrl}
-                </a>
-                <span className="font-body text-xs text-on-surface-variant ml-auto">
-                  submitted {format(event.scrapedAt, "MMM d h:mma")}
-                </span>
-              </div>
-
-              <AdminActions id={event.id} secret={secret} />
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

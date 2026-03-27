@@ -47,6 +47,8 @@ model Event {
   categorized   Boolean        @default(false)
   sourceId      String
   source       Source         @relation(fields: [sourceId], references: [id])
+  featured     Boolean        @default(false)
+  featuredAt   DateTime?
   scrapedAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -56,7 +58,38 @@ model Event {
   @@index([sourceId])
   @@index([startDate, neighborhood, category])
   @@index([status])
+  @@index([status, featured, featuredAt])
   @@map("events")
+}
+
+model BugReport {
+  id          String   @id @default(cuid())
+  description String
+  pageUrl     String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@map("bug_reports")
+}
+
+enum FeaturedRequestStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+model FeaturedRequest {
+  id        String                @id @default(cuid())
+  name      String
+  email     String
+  eventName String
+  eventDate String?
+  eventUrl  String?
+  message   String
+  status    FeaturedRequestStatus @default(NEW)
+  createdAt DateTime              @default(now())
+
+  @@map("featured_requests")
 }
 
 enum ScrapeType {

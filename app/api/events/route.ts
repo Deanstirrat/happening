@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       where,
       skip: (page - 1) * limit,
       take: limit,
-      orderBy: { startDate: "asc" },
+      orderBy: [{ featured: "desc" }, { featuredAt: "desc" }, { startDate: "asc" }],
       select: {
         id: true,
         title: true,
@@ -74,6 +74,8 @@ export async function GET(req: NextRequest) {
         tags: true,
         latitude: true,
         longitude: true,
+        featured: true,
+        featuredAt: true,
         source: { select: { slug: true, name: true } },
       },
     }),

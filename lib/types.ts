@@ -18,6 +18,8 @@ export interface EventSummary {
   tags: string[];
   latitude: number | null;
   longitude: number | null;
+  featured: boolean;
+  featuredAt: string | null;
   source: {
     slug: string;
     name: string;

@@ -34,6 +34,11 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
 
           {/* Chips */}
           <div className="absolute top-4 left-4 flex gap-2">
+            {event.featured && (
+              <span className="chip text-[0.6rem] uppercase tracking-wider bg-[#ffb3b5]/30 text-[#ffb3b5]">
+                ★ featured
+              </span>
+            )}
             {event.neighborhood && (
               <span className="chip text-[0.6rem] uppercase tracking-wider">
                 {event.neighborhood}
@@ -115,6 +120,11 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             {event.venueName ? ` · ${event.venueName}` : ""}
           </p>
           <div className="flex items-center gap-1.5 mt-1.5">
+            {event.featured && (
+              <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full font-body font-medium bg-[#ffb3b5]/20 text-[#ffb3b5]">
+                ★ featured
+              </span>
+            )}
             {categoryLabel && (
               <span
                 className="text-[0.6rem] px-1.5 py-0.5 rounded-full font-body font-medium"

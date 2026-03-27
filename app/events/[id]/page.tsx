@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF, formatGCalSF } from "@/lib/sfDate";
 import { ArrowLeft, Share2, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
+import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 
 async function getEvent(id: string) {
   return prisma.event.findUnique({
@@ -40,10 +41,13 @@ async function getSimilarEvents(event: NonNullable<Awaited<ReturnType<typeof get
 
 export default async function EventDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ secret?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { secret }] = await Promise.all([params, searchParams]);
+  const isAdmin = secret && secret === process.env.SCRAPE_SECRET;
   const event = await getEvent(id);
   if (!event) notFound();
 
@@ -57,6 +61,14 @@ export default async function EventDetailPage({
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      {/* Admin bar */}
+      {isAdmin && (
+        <div className="mb-4 flex items-center gap-3 bg-surface-container-high rounded-xl px-4 py-3">
+          <span className="font-body text-xs text-on-surface-variant">admin</span>
+          <FeaturedToggle id={event.id} featured={event.featured} secret={secret!} />
+        </div>
+      )}
+
       {/* Back nav */}
       <div className="flex items-center justify-between mb-8">
         <Link

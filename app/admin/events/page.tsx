@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { format } from "date-fns";
 import Link from "next/link";
+import { Suspense } from "react";
 import DeleteButton from "./DeleteButton";
+import EventSearch from "./EventSearch";
 import { EventStatus } from "@prisma/client";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; status?: string }>;
+  searchParams: Promise<{ secret?: string; status?: string; q?: string }>;
 }
 
 const STATUS_LABELS: Record<EventStatus, string> = {
@@ -24,7 +26,7 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 };
 
 export default async function AdminEventsPage({ searchParams }: Props) {
-  const { secret, status } = await searchParams;
+  const { secret, status, q } = await searchParams;
 
   if (!secret || secret !== process.env.SCRAPE_SECRET) {
     return (
@@ -38,10 +40,19 @@ export default async function AdminEventsPage({ searchParams }: Props) {
     ? (status as EventStatus)
     : undefined;
 
+  const search = q?.trim();
+
   const events = await prisma.event.findMany({
-    where: statusFilter ? { status: statusFilter } : undefined,
-    orderBy: { startDate: "desc" },
-    take: 100,
+    where: {
+      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(search ? {
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { venueName: { contains: search, mode: "insensitive" } },
+        ],
+      } : {}),
+    },
+    orderBy: { startDate: "asc" },
     select: {
       id: true,
       title: true,
@@ -69,20 +80,21 @@ export default async function AdminEventsPage({ searchParams }: Props) {
         <p className="font-body text-on-surface-variant text-sm mt-1">
           {events.length} event{events.length !== 1 ? "s" : ""}
           {statusFilter ? ` · ${STATUS_LABELS[statusFilter].toLowerCase()}` : ""}
+          {search ? ` · "${search}"` : ""}
         </p>
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-4">
         {tabs.map((tab) => {
           const isActive = (tab.value === "" && !statusFilter) || tab.value === statusFilter;
-          const href = tab.value
-            ? `/admin/events?secret=${secret}&status=${tab.value}`
-            : `/admin/events?secret=${secret}`;
+          const params = new URLSearchParams({ secret });
+          if (tab.value) params.set("status", tab.value);
+          if (search) params.set("q", search);
           return (
             <Link
               key={tab.value}
-              href={href}
+              href={`/admin/events?${params.toString()}`}
               className={`font-body text-sm px-4 py-1.5 rounded-full transition-colors ${
                 isActive
                   ? "bg-on-surface text-surface font-semibold"
@@ -93,6 +105,13 @@ export default async function AdminEventsPage({ searchParams }: Props) {
             </Link>
           );
         })}
+      </div>
+
+      {/* Search */}
+      <div className="mb-6">
+        <Suspense>
+          <EventSearch secret={secret} status={statusFilter} />
+        </Suspense>
       </div>
 
       {events.length === 0 ? (

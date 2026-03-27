@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import EditEventForm from "./EditEventForm";
+import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -37,6 +38,7 @@ export default async function EditEventPage({ params, searchParams }: Props) {
       tags: true,
       sourceUrl: true,
       status: true,
+      featured: true,
     },
   });
 
@@ -57,6 +59,10 @@ export default async function EditEventPage({ params, searchParams }: Props) {
         <p className="font-body text-on-surface-variant text-sm mt-1 truncate">
           {event.title}
         </p>
+      </div>
+      <div className="mb-6 flex items-center gap-3">
+        <span className="font-body text-sm text-on-surface-variant">Featured:</span>
+        <FeaturedToggle id={event.id} featured={event.featured} secret={secret} />
       </div>
       <EditEventForm event={event} secret={secret} />
     </div>

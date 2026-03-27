@@ -20,6 +20,7 @@ interface EventData {
   isFree: boolean;
   tags: string[];
   sourceUrl: string;
+  imageUrl: string | null;
   status: EventStatus;
 }
 
@@ -45,6 +46,7 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
   const [isFree, setIsFree] = useState(event.isFree);
   const [tags, setTags] = useState(event.tags.join(", "));
   const [sourceUrl, setSourceUrl] = useState(event.sourceUrl);
+  const [imageUrl, setImageUrl] = useState(event.imageUrl ?? "");
   const [status, setStatus] = useState<EventStatus>(event.status);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -71,6 +73,7 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
         isFree,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         sourceUrl,
+        imageUrl: imageUrl || null,
         status,
       }),
     });
@@ -231,6 +234,24 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
           required
           className={inputClass}
         />
+      </div>
+
+      <div>
+        <label className={labelClass}>Image URL</label>
+        <input
+          type="url"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="https://…"
+          className={inputClass}
+        />
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt="Event image preview"
+            className="mt-2 rounded-xl w-full max-h-48 object-cover"
+          />
+        )}
       </div>
 
       <div>

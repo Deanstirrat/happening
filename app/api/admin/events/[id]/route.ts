@@ -26,6 +26,7 @@ export async function PATCH(
     isFree,
     tags,
     sourceUrl,
+    imageUrl,
     status,
   } = body;
 
@@ -44,6 +45,7 @@ export async function PATCH(
       ...(isFree !== undefined && { isFree }),
       ...(tags !== undefined && { tags }),
       ...(sourceUrl !== undefined && { sourceUrl }),
+      ...(imageUrl !== undefined && { imageUrl }),
       ...(status !== undefined && { status }),
     },
   });

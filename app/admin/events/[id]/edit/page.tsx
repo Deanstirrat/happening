@@ -37,6 +37,7 @@ export default async function EditEventPage({ params, searchParams }: Props) {
       isFree: true,
       tags: true,
       sourceUrl: true,
+      imageUrl: true,
       status: true,
       featured: true,
     },

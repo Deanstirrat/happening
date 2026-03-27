@@ -1,6 +1,7 @@
 import { isTodaySF, isTomorrowSF, formatDateMediumSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import EventCard, { EventCardGrid } from "./EventCard";
+import FeaturedTracker from "./FeaturedTracker";
 
 interface DateGroupProps {
   date: Date;
@@ -33,7 +34,9 @@ export default function DateGroup({ date, events, featured = false }: DateGroupP
         <>
           {/* Featured layout: big card left + side cards right */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 mb-4">
-            <EventCard event={featuredEvent} featured />
+            <FeaturedTracker eventId={featuredEvent.id}>
+              <EventCard event={featuredEvent} featured />
+            </FeaturedTracker>
             <div className="flex flex-col gap-3">
               {rest.slice(0, 3).map((e) => (
                 <EventCard key={e.id} event={e} />

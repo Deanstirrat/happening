@@ -35,7 +35,11 @@
       "Bash(curl -s \"https://sflive.art/wp-json/wp/v2/vibemap_event?per_page=2&_embed=true\")",
       "Bash(curl -s -X POST http://localhost:3000/api/bug-reports -H \"Content-Type: application/json\" -d '{\"\"\"\"description\"\"\"\":\"\"\"\"Test bug report\"\"\"\",\"\"\"\"pageUrl\"\"\"\":\"\"\"\"http://localhost:3000/events\"\"\"\",\"\"\"\"userAgent\"\"\"\":\"\"\"\"curl\"\"\"\"}')",
       "Bash(python3 -m json.tool)",
-      "Bash(curl -s -X POST http://localhost:3000/api/feature-requests -H \"Content-Type: application/json\" -d '{\"\"\"\"name\"\"\"\":\"\"\"\"Test User\"\"\"\",\"\"\"\"email\"\"\"\":\"\"\"\"test@example.com\"\"\"\",\"\"\"\"eventName\"\"\"\":\"\"\"\"Test Event\"\"\"\",\"\"\"\"message\"\"\"\":\"\"\"\"This is a test feature request\"\"\"\"}')"
+      "Bash(curl -s -X POST http://localhost:3000/api/feature-requests -H \"Content-Type: application/json\" -d '{\"\"\"\"name\"\"\"\":\"\"\"\"Test User\"\"\"\",\"\"\"\"email\"\"\"\":\"\"\"\"test@example.com\"\"\"\",\"\"\"\"eventName\"\"\"\":\"\"\"\"Test Event\"\"\"\",\"\"\"\"message\"\"\"\":\"\"\"\"This is a test feature request\"\"\"\"}')",
+      "Bash(grep -A10 Event$interactionsArgs /Users/meganrileyg/happening/node_modules/.prisma/client/index.d.ts)",
+      "Bash(grep -A15 \"export type Event$interactionsArgs\" /Users/meganrileyg/happening/node_modules/.prisma/client/index.d.ts)",
+      "Bash(source /Users/meganrileyg/happening/.env.local)",
+      "Bash(psql \"$DATABASE_URL\" -c \"UPDATE events SET featured=true, \"\"featuredAt\"\"=NOW\\(\\) WHERE id=''cmn7v2xam006mj1r6rujdf1kh'';\")"
     ]
   }
 }

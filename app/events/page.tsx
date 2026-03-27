@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
+import FeaturedCarousel from "@/components/events/FeaturedCarousel";
 import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
@@ -20,6 +21,47 @@ interface SearchParams {
   search?: string;
   page?: string;
   hideMusic?: string;
+}
+
+async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
+  const todayKey = sfDayKey(new Date());
+  const todayStart = sfDayStart(todayKey);
+  const weekEnd = addDays(sfDayEnd(todayKey), 6);
+  const events = await prisma.event.findMany({
+    where: {
+      status: "PUBLISHED",
+      featured: true,
+      startDate: { gte: todayStart, lte: weekEnd },
+    },
+    orderBy: [{ featuredAt: "desc" }, { startDate: "asc" }],
+    take: 10,
+    select: {
+      id: true,
+      title: true,
+      startDate: true,
+      endDate: true,
+      venueName: true,
+      venueAddress: true,
+      neighborhood: true,
+      category: true,
+      price: true,
+      isFree: true,
+      imageUrl: true,
+      sourceUrl: true,
+      tags: true,
+      latitude: true,
+      longitude: true,
+      featured: true,
+      featuredAt: true,
+      source: { select: { slug: true, name: true } },
+    },
+  });
+  return events.map((e) => ({
+    ...e,
+    startDate: e.startDate.toISOString(),
+    endDate: e.endDate?.toISOString() ?? null,
+    featuredAt: e.featuredAt?.toISOString() ?? null,
+  })) as EventSummary[];
 }
 
 async function getSources() {
@@ -143,9 +185,10 @@ export default async function EventsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const [sources, { grouped, total }] = await Promise.all([
+  const [sources, { grouped, total }, weeklyFeatured] = await Promise.all([
     getSources(),
     getEvents(params),
+    getWeeklyFeaturedEvents(),
   ]);
 
   const days = Object.keys(grouped).sort();
@@ -174,13 +217,17 @@ export default async function EventsPage({
           </p>
         </div>
 
+        {weeklyFeatured.length > 0 && (
+          <FeaturedCarousel events={weeklyFeatured} />
+        )}
+
         {hasEvents ? (
-          days.map((dayKey, i) => (
+          days.map((dayKey) => (
             <DateGroup
               key={dayKey}
               date={new Date(dayKey + "T12:00:00Z")}
               events={grouped[dayKey]}
-              featured={i === 0}
+              featured
             />
           ))
         ) : (

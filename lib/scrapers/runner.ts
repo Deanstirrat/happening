@@ -28,6 +28,48 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   // meetup: paid API only — skipped for now
 };
 
+const IMAGE_BACKFILL_CONCURRENCY = 5;
+
+async function fetchImageFromSourceUrl(url: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    const html = await res.text();
+
+    // OG image meta tag (try both attribute orderings)
+    const match =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    let ogImage = match?.[1];
+    if (!ogImage) return undefined;
+
+    // Unescape HTML entities
+    ogImage = ogImage.replace(/&amp;/g, "&");
+
+    // If it's a Next.js image proxy (/_next/image?url=...) extract the real URL
+    const nextImageMatch = ogImage.match(/[?&]url=([^&]+)/);
+    if (nextImageMatch) {
+      let inner = decodeURIComponent(nextImageMatch[1]);
+      // img.evbuc.com uses path-based proxying: https://img.evbuc.com/<encoded-cdn-url>
+      if (inner.includes("img.evbuc.com/")) {
+        const pathPart = inner.replace(/^https?:\/\/img\.evbuc\.com\//, "");
+        return decodeURIComponent(pathPart).split("?")[0];
+      }
+      return inner.split("?")[0];
+    }
+
+    return ogImage;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function runScraper(
   slug: string
 ): Promise<{ scraped: number; inserted: number }> {
@@ -45,6 +87,21 @@ export async function runScraper(
   console.log(`[${slug}] Scraping...`);
   const events = await scraper.scrape();
   console.log(`[${slug}] Got ${events.length} events`);
+
+  // Backfill images for events the scraper didn't provide one for
+  const missingImage = events.filter((e) => !e.imageUrl);
+  if (missingImage.length > 0) {
+    console.log(`[${slug}] Backfilling images for ${missingImage.length} events...`);
+    for (let i = 0; i < missingImage.length; i += IMAGE_BACKFILL_CONCURRENCY) {
+      const batch = missingImage.slice(i, i + IMAGE_BACKFILL_CONCURRENCY);
+      await Promise.all(
+        batch.map(async (event) => {
+          const imageUrl = await fetchImageFromSourceUrl(event.sourceUrl);
+          if (imageUrl) event.imageUrl = imageUrl;
+        })
+      );
+    }
+  }
 
   let inserted = 0;
 

@@ -95,6 +95,16 @@ export const SF_NEIGHBORHOODS = [
   "Western Addition",
 ] as const;
 
+export const MUSIC_CATEGORIES = [
+  "MUSIC_ELECTRONIC",
+  "MUSIC_ROCK_PUNK",
+  "MUSIC_JAZZ_BLUES",
+  "MUSIC_HIPHOP",
+  "MUSIC_SOUL_RNB",
+  "MUSIC_CLASSICAL",
+  "MUSIC_OTHER",
+] as const;
+
 export const CATEGORY_LABELS: Record<string, string> = {
   MUSIC_ELECTRONIC: "Electronic",
   MUSIC_ROCK_PUNK: "Rock / Punk",
@@ -117,6 +127,22 @@ export const CATEGORY_LABELS: Record<string, string> = {
   FAMILY: "Family",
   OTHER: "Other",
 };
+
+export const NON_MUSIC_CATEGORIES = [
+  "ART_GALLERY",
+  "ART_PERFORMANCE",
+  "COMEDY",
+  "FOOD_DRINK",
+  "NIGHTLIFE",
+  "COMMUNITY",
+  "TECH",
+  "SPORTS_FITNESS",
+  "FILM",
+  "THEATER",
+  "OUTDOOR",
+  "FAMILY",
+  "OTHER",
+] as const;
 
 export const CATEGORY_COLORS: Record<string, string> = {
   MUSIC_ELECTRONIC: "#a855f7",

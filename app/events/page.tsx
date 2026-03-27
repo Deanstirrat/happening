@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
 import type { EventSummary } from "@/lib/types";
+import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { Prisma } from "@prisma/client";
@@ -18,6 +19,7 @@ interface SearchParams {
   isFree?: string;
   search?: string;
   page?: string;
+  hideMusic?: string;
 }
 
 async function getSources() {
@@ -59,11 +61,19 @@ async function getEvents(params: SearchParams): Promise<{
       : [params.source]
     : [];
 
+  // When hiding music, use non-music categories as inclusion list
+  const effectiveCategories =
+    params.hideMusic === "true" && categories.length === 0
+      ? NON_MUSIC_CATEGORIES
+      : params.hideMusic === "true"
+      ? categories.filter((c) => !c.startsWith("MUSIC_"))
+      : categories;
+
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
     startDate: { gte: startDate, lte: endDate },
-    ...(categories.length > 0 && {
-      category: { in: categories as any },
+    ...(effectiveCategories.length > 0 && {
+      category: { in: effectiveCategories as any },
     }),
     ...(neighborhoods.length > 0 && {
       neighborhood: { in: neighborhoods },

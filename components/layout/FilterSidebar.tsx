@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
+  Music,
 } from "lucide-react";
 import { CATEGORY_LABELS, SF_NEIGHBORHOODS } from "@/lib/types";
 
@@ -37,6 +38,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const currentNeighborhoods = searchParams.getAll("neighborhood");
   const currentSources = searchParams.getAll("source");
   const currentFreeOnly = searchParams.get("isFree") === "true";
+  const currentHideMusic = searchParams.get("hideMusic") === "true";
 
   // Local state (apply on button click)
   const [startDate, setStartDate] = useState(currentStartDate);
@@ -103,11 +105,21 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     router.push(pathname);
   };
 
+  const toggleHideMusic = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (currentHideMusic) {
+      params.delete("hideMusic");
+    } else {
+      params.set("hideMusic", "true");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }, [currentHideMusic, searchParams, router, pathname]);
+
   const hasFilters =
-    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly;
+    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly || currentHideMusic;
 
   const activeFilterCount =
-    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0);
+    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0) + (currentHideMusic ? 1 : 0);
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -138,6 +150,19 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
       <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
         Filters
       </p>
+
+      {/* Hide Music quick toggle */}
+      <button
+        onClick={toggleHideMusic}
+        className={`w-full flex items-center gap-2 px-3 py-2 rounded-DEFAULT font-body text-xs font-medium transition-colors mb-1 ${
+          currentHideMusic
+            ? "bg-secondary-container text-on-secondary-container"
+            : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+        }`}
+      >
+        <Music size={13} />
+        {currentHideMusic ? "Music hidden" : "Hide music"}
+      </button>
 
       {/* Date */}
       <Section

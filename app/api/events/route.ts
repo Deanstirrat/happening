@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addDays, endOfDay, startOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
+import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -17,15 +18,23 @@ export async function GET(req: NextRequest) {
   const neighborhoods = p.getAll("neighborhood");
   const sources = p.getAll("source");
   const isFree = p.get("isFree") === "true";
+  const hideMusic = p.get("hideMusic") === "true";
   const search = p.get("search") ?? "";
   const view = p.get("view") ?? "list";
   const page = Math.max(1, parseInt(p.get("page") ?? "1"));
   const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
 
+  const effectiveCategories =
+    hideMusic && categories.length === 0
+      ? NON_MUSIC_CATEGORIES
+      : hideMusic
+      ? categories.filter((c) => !c.startsWith("MUSIC_"))
+      : categories;
+
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
     startDate: { gte: startDate, lte: endDate },
-    ...(categories.length > 0 && { category: { in: categories as any } }),
+    ...(effectiveCategories.length > 0 && { category: { in: effectiveCategories as any } }),
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),
     ...(sources.length > 0 && { source: { slug: { in: sources } } }),
     ...(isFree && { isFree: true }),

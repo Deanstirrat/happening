@@ -55,7 +55,7 @@ export class EventbriteScraper extends BaseScraper {
   }
 
   private extractEvents(
-    $: cheerio.CheerioAPI,
+    $: ReturnType<typeof cheerio.load>,
     html: string
   ): ScrapedEvent[] {
     // --- Strategy 1: window.__SERVER_DATA__ hydration blob ---
@@ -169,7 +169,7 @@ export class EventbriteScraper extends BaseScraper {
     };
   }
 
-  private extractFromJsonLd($: cheerio.CheerioAPI): ScrapedEvent[] {
+  private extractFromJsonLd($: ReturnType<typeof cheerio.load>): ScrapedEvent[] {
     const events: ScrapedEvent[] = [];
 
     $('script[type="application/ld+json"]').each((_, el) => {

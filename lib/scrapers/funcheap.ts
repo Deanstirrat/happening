@@ -17,7 +17,7 @@ import type { ScrapedEvent } from "./base";
 export class FuncheapScraper extends BaseScraper {
   readonly sourceSlug = "funcheap";
   private readonly MAX_PAGES = parseInt(process.env.MAX_PAGES_FUNCHEAP ?? "8");
-  private readonly BASE_URL = "https://sf.funcheap.com";
+  private readonly BASE_URL = "https://sf.funcheap.com/events/san-francisco";
 
   async scrape(): Promise<ScrapedEvent[]> {
     const events: ScrapedEvent[] = [];
@@ -25,7 +25,7 @@ export class FuncheapScraper extends BaseScraper {
     for (let page = 1; page <= this.MAX_PAGES; page++) {
       const url =
         page === 1
-          ? this.BASE_URL
+          ? `${this.BASE_URL}/`
           : `${this.BASE_URL}/page/${page}/`;
 
       try {
@@ -63,72 +63,89 @@ export class FuncheapScraper extends BaseScraper {
       if (!title) return;
       const sourceUrl = titleEl.attr("href") ?? this.BASE_URL;
 
-      // Date: text before "–" in .date-time (e.g. "Wednesday, March 25")
-      // Start time: .fc-event-start-time span text
-      // End time: .fc-event-end-time text (last text node, after "Ends at ")
       const dateTimeEl = $el.find(".date-time").first();
-      if (!dateTimeEl.length) return;
 
-      const startTimeStr = dateTimeEl.find(".fc-event-start-time").first().text().trim();
-      if (!startTimeStr) return;
+      if (dateTimeEl.length) {
+        // ── CARD LAYOUT (featured / Top Picks section) ──────────────────────
+        // .date-time div present with .fc-event-start-time span inside it.
+        const startTimeStr = dateTimeEl.find(".fc-event-start-time").first().text().trim();
+        if (!startTimeStr) return;
 
-      // Extract the date part from the raw text before the "–" separator
-      const rawDateTimeText = dateTimeEl.clone().find(".fc-event-end-time, .fc-event-start-time, .cost, a.tt, span.cost").remove().end().text();
-      const dashMatch = rawDateTimeText.match(/^(.+?)\s*[–-]/);
-      if (!dashMatch) return;
-      const datePart = dashMatch[1].replace(/^[A-Za-z]+,\s*/, "").trim(); // strip day-of-week
+        const rawDateTimeText = dateTimeEl.clone().find(".fc-event-end-time, .fc-event-start-time, .cost, a.tt, span.cost").remove().end().text();
+        const dashMatch = rawDateTimeText.match(/^(.+?)\s*[–-]/);
+        if (!dashMatch) return;
+        const datePart = dashMatch[1].replace(/^[A-Za-z]+,\s*/, "").trim();
 
-      const year = new Date().getFullYear();
-      const startDate = new Date(`${datePart} ${year} ${startTimeStr}`);
-      if (isNaN(startDate.getTime())) return;
+        const year = new Date().getFullYear();
+        const startDate = new Date(`${datePart} ${year} ${startTimeStr}`);
+        if (isNaN(startDate.getTime())) return;
 
-      // End time: last text node in .fc-event-end-time (after stripping "Ends at" spans)
-      let endDate: Date | undefined;
-      const endTimeEl = dateTimeEl.find(".fc-event-end-time").first();
-      if (endTimeEl.length) {
-        const endTimeRaw = endTimeEl.clone().find("span").remove().end().text().trim();
-        if (endTimeRaw) {
-          const d = new Date(`${datePart} ${year} ${endTimeRaw}`);
-          if (!isNaN(d.getTime())) endDate = d;
+        let endDate: Date | undefined;
+        const endTimeEl = dateTimeEl.find(".fc-event-end-time").first();
+        if (endTimeEl.length) {
+          const endTimeRaw = endTimeEl.clone().find("span").remove().end().text().trim();
+          if (endTimeRaw) {
+            const d = new Date(`${datePart} ${year} ${endTimeRaw}`);
+            if (!isNaN(d.getTime())) endDate = d;
+          }
         }
+
+        const ttEl = dateTimeEl.find("a.tt").first();
+        const priceText = ttEl.clone().find(".tooltip").remove().end().text().trim().split("\n")[0].trim();
+        const isFree = this.parseFree(priceText) || priceText.toLowerCase().startsWith("free");
+
+        const venueSpan = dateTimeEl.find("span:not([class])").last();
+        const venueName = venueSpan.text().trim() || undefined;
+
+        events.push({
+          title,
+          startDate,
+          endDate,
+          venueName,
+          price: priceText || undefined,
+          isFree,
+          sourceUrl,
+          tags: ["free", "cheap", "sf"],
+        });
+      } else {
+        // ── TABLE LAYOUT (main calendar listing) ────────────────────────────
+        // <tr class="hentry"> with three <td>s: time | title | price.
+        // Date comes from the nearest preceding <tr> with a <td colspan>.
+        const timeStr = $el.find("td").first().text().trim();
+        if (!timeStr) return;
+
+        // Walk back through previous siblings to find the date header row
+        // which has a single <td colspan="3">Friday, March 27, 2026</td>.
+        let prevRow = $el.prev("tr");
+        let dateHeaderText = "";
+        while (prevRow.length) {
+          const td = prevRow.find("td[colspan]");
+          if (td.length) {
+            dateHeaderText = td.first().text().trim();
+            break;
+          }
+          prevRow = prevRow.prev("tr");
+        }
+        if (!dateHeaderText) return;
+
+        // Strip leading day-of-week ("Friday, ") → "March 27, 2026"
+        const datePart = dateHeaderText.replace(/^[A-Za-z]+,\s*/, "").trim();
+        const startDate = new Date(`${datePart} ${timeStr}`);
+        if (isNaN(startDate.getTime())) return;
+
+        const ttEl = $el.find("a.tt").first();
+        const priceText = ttEl.clone().find(".tooltip").remove().end().text().trim().split("\n")[0].trim();
+        const isFree = this.parseFree(priceText) || priceText.toLowerCase().startsWith("free");
+
+        events.push({
+          title,
+          startDate,
+          price: priceText || undefined,
+          isFree,
+          sourceUrl,
+          tags: ["free", "cheap", "sf"],
+        });
       }
-
-      // Price: first line of a.tt text (tooltip div is inside it; take text before the tooltip)
-      const ttEl = dateTimeEl.find("a.tt").first();
-      const priceText = ttEl.clone().find(".tooltip").remove().end().text().trim().split("\n")[0].trim();
-      const isFree = this.parseFree(priceText) || priceText.toLowerCase().startsWith("free");
-      const price = priceText || undefined;
-
-      // Venue: last plain <span> in .date-time (no class)
-      const venueSpan = dateTimeEl.find("span:not([class])").last();
-      const venueName = venueSpan.text().trim() || undefined;
-
-      // Image: SPAI replaces img src with base64 SVG placeholders;
-      // real URLs are inside <noscript> tags as raw text (not parsed as DOM).
-      let imgSrc: string | undefined;
-      const noscriptEl = $el.find("noscript").first();
-      if (noscriptEl.length) {
-        const $ns = cheerio.load(noscriptEl.html() ?? "");
-        imgSrc = $ns("img").first().attr("src");
-      }
-      if (!imgSrc) {
-        const regularImg = $el.find("img").first();
-        const candidate = regularImg.attr("src") ?? regularImg.attr("data-src");
-        // Skip base64 placeholder data URIs
-        if (candidate && !candidate.startsWith("data:")) imgSrc = candidate;
-      }
-
-      events.push({
-        title,
-        startDate,
-        endDate,
-        venueName,
-        price,
-        isFree,
-        imageUrl: imgSrc || undefined,
-        sourceUrl,
-        tags: ["free", "cheap", "sf"],
-      });
     });
 
     return events;

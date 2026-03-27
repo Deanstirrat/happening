@@ -93,6 +93,13 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "bandsintown",
+    name: "Bandsintown SF",
+    url: "https://www.bandsintown.com/c/san-francisco-ca",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    enabled: true,
+  },
+  {
     slug: "community",
     name: "Community Submissions",
     url: "https://happening.app",

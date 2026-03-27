@@ -152,7 +152,7 @@ export default function MapView({ events }: { events: EventSummary[] }) {
             <span className="ml-4 text-[10px]">{legendOpen ? "▲" : "▼"}</span>
           </button>
           {legendOpen && (
-            <div className="px-3 pb-3 flex flex-col gap-1.5">
+            <div className="px-3 pb-3 flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto">
               {activeCategories.map((cat) => (
                 <div key={cat} className="flex items-center gap-2">
                   <div

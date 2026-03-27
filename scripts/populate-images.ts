@@ -3,95 +3,185 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { prisma } from "../lib/prisma";
 
-const EVENT_IDS = [
-  "cmn6peph5012zygr67el8muqh",
-  "cmn6pe5hi012eygr69f13r6eb",
-];
+const CONCURRENCY = 5;
 
 async function fetchImage(url: string): Promise<string | undefined> {
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml",
-    },
-  });
-  const html = await res.text();
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    const html = await res.text();
 
-  // For Eventbrite: extract image from embedded __SERVER_DATA__ JSON
-  if (url.includes("eventbrite.com")) {
-    const serverDataMatch = html.match(
-      /window\.__SERVER_DATA__\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/
-    );
-    if (serverDataMatch) {
+    // For Eventbrite: extract image from embedded __SERVER_DATA__ JSON
+    if (url.includes("eventbrite.com")) {
+      const serverDataMatch = html.match(
+        /window\.__SERVER_DATA__\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/
+      );
+      if (serverDataMatch) {
+        try {
+          const data = JSON.parse(serverDataMatch[1]);
+          const event =
+            data?.event ??
+            data?.eventPage?.event ??
+            data?.components?.event_detail?.event;
+          const imageUrl =
+            event?.image?.url ?? event?.logo?.url ?? event?.image_url;
+          if (imageUrl) return imageUrl;
+        } catch {
+          // fall through
+        }
+      }
+    }
+
+    // Generic fallback: OG image meta tag
+    const match =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    let ogImage = match?.[1];
+    if (!ogImage) return undefined;
+
+    ogImage = ogImage.replace(/&amp;/g, "&");
+
+    const nextImageMatch = ogImage.match(/[?&]url=([^&]+)/);
+    if (nextImageMatch) {
+      let inner = decodeURIComponent(nextImageMatch[1]);
+      if (inner.includes("img.evbuc.com/")) {
+        const pathPart = inner.replace(/^https?:\/\/img\.evbuc\.com\//, "");
+        inner = decodeURIComponent(pathPart).split("?")[0];
+      }
       try {
-        const data = JSON.parse(serverDataMatch[1]);
-        const event =
-          data?.event ??
-          data?.eventPage?.event ??
-          data?.components?.event_detail?.event;
-        const imageUrl =
-          event?.image?.url ?? event?.logo?.url ?? event?.image_url;
-        if (imageUrl) return imageUrl;
+        const parsed = new URL(inner);
+        if (!parsed.hostname.includes("_next") && !parsed.pathname.includes("_next")) {
+          return `${parsed.protocol}//${parsed.hostname}${parsed.pathname}`;
+        }
       } catch {
         // fall through
       }
+      return inner.split("?")[0];
     }
+
+    return ogImage;
+  } catch {
+    return undefined;
   }
+}
 
-  // Generic fallback: OG image meta tag
-  const match =
-    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
-    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-  let ogImage = match?.[1];
-  if (!ogImage) return undefined;
+/**
+ * For funcheap detail pages that lack og:image, extract from noscript SPAI
+ * tags and strip the WordPress resize suffix to get the original full-size image.
+ */
+async function fetchFuncheapImage(url: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    const html = await res.text();
 
-  // Unescape HTML entities
-  ogImage = ogImage.replace(/&amp;/g, "&");
+    // First try og:image
+    const ogMatch =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    if (ogMatch?.[1]) return ogMatch[1];
 
-  // If it's a Next.js image proxy (/_next/image?url=...) extract the real URL
-  const nextImageMatch = ogImage.match(/[?&]url=([^&]+)/);
-  if (nextImageMatch) {
-    let inner = decodeURIComponent(nextImageMatch[1]);
-    // img.evbuc.com uses path-based proxying: https://img.evbuc.com/<encoded-cdn-url>
-    if (inner.includes("img.evbuc.com/")) {
-      const pathPart = inner.replace(/^https?:\/\/img\.evbuc\.com\//, "");
-      inner = decodeURIComponent(pathPart).split("?")[0];
+    // Funcheap uses SPAI — real URLs are in <noscript> tags.
+    // Find the first noscript that has an upload image (not a theme/logo image).
+    const noscriptMatches = [...html.matchAll(/<noscript[^>]*>([\s\S]*?)<\/noscript>/gi)];
+    for (const m of noscriptMatches) {
+      const imgMatch = m[1].match(/src=["']([^"']+)["']/i);
+      if (!imgMatch?.[1]) continue;
+      const src = imgMatch[1];
+      // Only consider images from wp-content/uploads (not theme files)
+      if (!src.includes("wp-content/uploads") && !src.includes("cdn.funcheap.com/wp-content/uploads")) continue;
+      let imgUrl = src;
+      // Strip SPAI proxy: cdn.shortpixel.ai/spai/<params>/<actual-url>
+      const spaiMatch = imgUrl.match(/cdn\.shortpixel\.ai\/spai\/[^/]+\/(.+)/);
+      if (spaiMatch) imgUrl = `https://${spaiMatch[1]}`;
+      // Strip WordPress resize suffix: -NNNxNNN before extension
+      imgUrl = imgUrl.replace(/-\d+x\d+(\.[a-z]+)$/i, "$1");
+      return imgUrl;
     }
-    // Strip crop/resize query params and take just the base image URL
-    try {
-      const parsed = new URL(inner);
-      // Keep the path only if it's a cdn.evbuc or similar final CDN
-      if (!parsed.hostname.includes("_next") && !parsed.pathname.includes("_next")) {
-        return `${parsed.protocol}//${parsed.hostname}${parsed.pathname}`;
-      }
-    } catch {
-      // fall through
-    }
-    return inner.split("?")[0];
+
+    return undefined;
+  } catch {
+    return undefined;
   }
+}
 
-  return ogImage;
+async function backfillFuncheap() {
+  console.log("\n=== Backfilling funcheap event images from detail pages ===");
+  // Fetch og:image from each funcheap event's detail page (full-res), replacing
+  // any previously stored low-res thumbnails (including stripped SPAI URLs).
+  const events = await prisma.event.findMany({
+    where: { source: { slug: "funcheap" } },
+    select: { id: true, title: true, sourceUrl: true, imageUrl: true },
+  });
+  console.log(`Found ${events.length} funcheap events`);
+
+  let updated = 0;
+  for (let i = 0; i < events.length; i += CONCURRENCY) {
+    const batch = events.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (event) => {
+        const imageUrl = await fetchFuncheapImage(event.sourceUrl);
+        if (imageUrl && imageUrl !== event.imageUrl) {
+          await prisma.event.update({ where: { id: event.id }, data: { imageUrl } });
+          console.log(`  ✓ ${event.title}`);
+          console.log(`    → ${imageUrl}`);
+          updated++;
+        } else if (!imageUrl) {
+          console.log(`  ✗ ${event.title} (no image found)`);
+        }
+      })
+    );
+  }
+  console.log(`Done — ${updated}/${events.length} updated.`);
+}
+
+async function backfill19hz() {
+  console.log("\n=== Backfilling 19hz events missing images ===");
+  const events = await prisma.event.findMany({
+    where: {
+      imageUrl: null,
+      source: { slug: "19hz" },
+    },
+    select: { id: true, title: true, sourceUrl: true },
+  });
+  console.log(`Found ${events.length} events without images`);
+
+  let updated = 0;
+  for (let i = 0; i < events.length; i += CONCURRENCY) {
+    const batch = events.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (event) => {
+        // Skip 19hz.info listing page itself — no useful image there
+        if (event.sourceUrl.includes("19hz.info")) return;
+        const imageUrl = await fetchImage(event.sourceUrl);
+        if (imageUrl) {
+          await prisma.event.update({ where: { id: event.id }, data: { imageUrl } });
+          console.log(`  ✓ ${event.title} → ${imageUrl}`);
+          updated++;
+        } else {
+          console.log(`  ✗ ${event.title} (${event.sourceUrl})`);
+        }
+      })
+    );
+  }
+  console.log(`Done — ${updated}/${events.length} updated.`);
 }
 
 async function main() {
-  const events = await prisma.event.findMany({
-    where: { id: { in: EVENT_IDS } },
-    select: { id: true, title: true, sourceUrl: true, imageUrl: true },
-  });
-
-  for (const event of events) {
-    console.log(`\n[${event.title}]`);
-    console.log(`  sourceUrl: ${event.sourceUrl}`);
-    const imageUrl = await fetchImage(event.sourceUrl);
-    if (!imageUrl) {
-      console.log("  ✗ No og:image found");
-      continue;
-    }
-    await prisma.event.update({ where: { id: event.id }, data: { imageUrl } });
-    console.log(`  ✓ imageUrl set: ${imageUrl}`);
-  }
-
+  await backfillFuncheap();
+  await backfill19hz();
   await prisma.$disconnect();
 }
 

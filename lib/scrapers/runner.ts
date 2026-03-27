@@ -15,6 +15,7 @@ import { PartifulScraper } from "./partiful";
 import { SfliveScraper } from "./sflive";
 import { PoshScraper } from "./posh";
 import { EventbriteScraper } from "./eventbrite";
+import { BandsintownScraper } from "./bandsintown";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -25,6 +26,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   sflive: new SfliveScraper(),
   posh: new PoshScraper(),
   eventbrite: new EventbriteScraper(),
+  bandsintown: new BandsintownScraper(),
   // meetup: paid API only — skipped for now
 };
 
@@ -62,6 +64,24 @@ async function fetchImageFromSourceUrl(url: string): Promise<string | undefined>
         return decodeURIComponent(pathPart).split("?")[0];
       }
       return inner.split("?")[0];
+    }
+
+    // Funcheap detail pages often lack og:image; the featured image is in a
+    // <noscript> tag (SPAI pattern). Strip the SPAI proxy and WordPress resize
+    // suffix to get the full-res original.
+    if (url.includes("funcheap.com")) {
+      const noscriptMatches = [...html.matchAll(/<noscript[^>]*>([\s\S]*?)<\/noscript>/gi)];
+      for (const m of noscriptMatches) {
+        const imgMatch = m[1].match(/src=["']([^"']+)["']/i);
+        if (!imgMatch?.[1]) continue;
+        const src = imgMatch[1];
+        if (!src.includes("wp-content/uploads")) continue;
+        let imgUrl = src;
+        const spaiMatch = imgUrl.match(/cdn\.shortpixel\.ai\/spai\/[^/]+\/(.+)/);
+        if (spaiMatch) imgUrl = `https://${spaiMatch[1]}`;
+        imgUrl = imgUrl.replace(/-\d+x\d+(\.[a-z]+)$/i, "$1");
+        return imgUrl;
+      }
     }
 
     return ogImage;
@@ -134,9 +154,12 @@ export async function runScraper(
       continue;
     }
 
-    // Fuzzy match: check events on the same calendar day
+    // Day-scoped duplicate checks: fuzzy title match + venue-as-title match.
+    // Fetch dayEvents whenever either check might apply.
     const incomingTokens = tokenize(event.title);
-    if (incomingTokens.size >= MIN_TOKENS) {
+    const needsDayCheck = incomingTokens.size >= MIN_TOKENS || Boolean(event.venueName);
+
+    if (needsDayCheck) {
       const dayStart = new Date(event.startDate);
       dayStart.setUTCHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart);
@@ -144,22 +167,67 @@ export async function runScraper(
 
       const dayEvents = await prisma.event.findMany({
         where: { startDate: { gte: dayStart, lt: dayEnd } },
-        select: { id: true, title: true, sourceUrl: true, imageUrl: true },
+        select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true },
       });
 
-      const fuzzyMatch = dayEvents.find((e) => {
-        const existingTokens = tokenize(e.title);
-        return (
-          existingTokens.size >= MIN_TOKENS &&
-          isFuzzyMatch(incomingTokens, existingTokens) &&
-          !areLikelyDifferentEvents(incomingTokens, existingTokens)
-        );
-      });
+      // Fuzzy title match
+      if (incomingTokens.size >= MIN_TOKENS) {
+        const fuzzyMatch = dayEvents.find((e) => {
+          const existingTokens = tokenize(e.title);
+          return (
+            existingTokens.size >= MIN_TOKENS &&
+            isFuzzyMatch(incomingTokens, existingTokens) &&
+            !areLikelyDifferentEvents(incomingTokens, existingTokens)
+          );
+        });
 
-      if (fuzzyMatch) {
-        console.log(`[${slug}] Fuzzy duplicate: "${event.title}" ≈ "${fuzzyMatch.title}"`);
-        await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl);
-        continue;
+        if (fuzzyMatch) {
+          console.log(`[${slug}] Fuzzy duplicate: "${event.title}" ≈ "${fuzzyMatch.title}"`);
+          await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl);
+          continue;
+        }
+      }
+
+      // Venue-as-title dedup: catches cases where a scraper uses the venue name as
+      // the event title (e.g. Bandsintown listing "Phonobar" at Phonobar venue).
+      if (event.venueName) {
+        const normalizeStr = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const incomingTitleNorm = normalizeStr(event.title);
+        const incomingVenueNorm = normalizeStr(event.venueName);
+
+        if (incomingTitleNorm === incomingVenueNorm) {
+          // Case 1: incoming is a venue-as-title placeholder — find the real event at the same venue
+          const venueMatch = dayEvents.find(
+            (e) => e.venueName && normalizeStr(e.venueName) === incomingVenueNorm
+          );
+          if (venueMatch) {
+            console.log(`[${slug}] Venue-as-title duplicate: "${event.title}" skipped, existing: "${venueMatch.title}"`);
+            await enrichExisting(venueMatch.id, venueMatch.sourceUrl, venueMatch.imageUrl);
+            continue;
+          }
+        } else {
+          // Case 2: incoming has a real title — check if a venue-as-title placeholder already exists at the same venue
+          const placeholderMatch = dayEvents.find((e) => {
+            if (!e.venueName) return false;
+            const existingTitleNorm = normalizeStr(e.title);
+            const existingVenueNorm = normalizeStr(e.venueName);
+            return existingTitleNorm === existingVenueNorm && existingVenueNorm === incomingVenueNorm;
+          });
+          if (placeholderMatch) {
+            console.log(`[${slug}] Replacing venue-as-title placeholder "${placeholderMatch.title}" → "${event.title}"`);
+            await prisma.event.update({
+              where: { id: placeholderMatch.id },
+              data: {
+                title: event.title,
+                dedupeHash: scraper.computeDedupeHash(event),
+                sourceUrl: event.sourceUrl,
+                sourceId: sourceId,
+                ...(event.imageUrl && !placeholderMatch.imageUrl ? { imageUrl: event.imageUrl } : {}),
+              },
+            });
+            continue;
+          }
+        }
       }
     }
 

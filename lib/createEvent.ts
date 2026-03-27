@@ -3,6 +3,7 @@ import { parse, isValid } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
+import { sfDayStart } from "@/lib/sfDate";
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -32,8 +33,12 @@ function startTimeOnly(timeRaw: string): string {
 function tryParse(str: string, fmt: string, refYear: number): Date | null {
   const parsed = parse(str.trim(), fmt, new Date(refYear, 0, 1));
   if (!isValid(parsed)) return null;
-  const diffDays = (parsed.getTime() - Date.now()) / 86400000;
-  if (diffDays < -60) parsed.setFullYear(refYear + 1);
+  // Only bump the year for year-less formats (e.g. "March 27").
+  // If the format includes an explicit year (y), trust what was parsed.
+  if (!fmt.includes("y")) {
+    const diffDays = (parsed.getTime() - Date.now()) / 86400000;
+    if (diffDays < -60) parsed.setFullYear(refYear + 1);
+  }
   return parsed;
 }
 
@@ -115,6 +120,16 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
       parseError: true,
       message: `Could not parse date: "${dateRaw}". Please use a format like "April 5, 2026" or "4/5/2026".`,
     };
+  }
+
+  // If no time was provided, store at noon SF time to avoid UTC midnight landing
+  // on the previous SF calendar day (e.g. 00:00 UTC = 5 PM PDT the day before).
+  if (!timeRaw?.trim()) {
+    const y = startDate.getFullYear();
+    const m = String(startDate.getMonth() + 1).padStart(2, "0");
+    const d = String(startDate.getDate()).padStart(2, "0");
+    const sfMidnight = sfDayStart(`${y}-${m}-${d}`);
+    startDate.setTime(sfMidnight.getTime() + 12 * 60 * 60 * 1000);
   }
 
   const dedupeHash = computeDedupeHash(startDate, title);

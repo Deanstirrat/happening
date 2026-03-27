@@ -295,7 +295,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
       {/* Actions */}
       <div className="mt-3 flex flex-col gap-2">
         <button
-          onClick={applyFilters}
+          onClick={() => { applyFilters(); setMobileOpen(false); }}
           className="btn-primary w-full text-xs py-2.5 font-semibold"
         >
           Apply Filters

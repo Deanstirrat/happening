@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, Bell } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState } from "react";
 
 export default function NavBar() {
@@ -10,6 +10,7 @@ export default function NavBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchVal, setSearchVal] = useState(searchParams.get("search") ?? "");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const isActive = (href: string) => pathname.startsWith(href);
 
@@ -26,7 +27,7 @@ export default function NavBar() {
 
   return (
     <header className="sticky top-0 z-50 glass">
-      <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-6">
+      <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-6">
         {/* Logo */}
         <Link
           href="/events"
@@ -35,8 +36,8 @@ export default function NavBar() {
           happening
         </Link>
 
-        {/* Nav links */}
-        <div className="flex items-center gap-1">
+        {/* Nav links — hidden on mobile when search is focused */}
+        <div className={`flex items-center shrink-0 transition-all duration-200 ${searchFocused ? "hidden sm:flex" : "flex"}`}>
           <NavLink href="/events" active={isActive("/events") && !isActive("/map") && !isActive("/submit")}>
             explore
           </NavLink>
@@ -48,8 +49,11 @@ export default function NavBar() {
           </NavLink>
         </div>
 
-        {/* Search */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-sm">
+        {/* Search — takes remaining space, expands on focus */}
+        <form
+          onSubmit={handleSearch}
+          className="flex-1 min-w-0 sm:max-w-sm transition-all duration-200"
+        >
           <div className="relative">
             <Search
               size={14}
@@ -60,16 +64,12 @@ export default function NavBar() {
               placeholder="Search events..."
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               className="w-full bg-surface-container-low text-on-surface text-sm pl-9 pr-4 py-2 rounded-full outline-none focus:bg-surface-container placeholder:text-on-surface-variant font-body transition-colors"
             />
           </div>
         </form>
-
-        <div className="flex items-center gap-3 ml-auto">
-          <button className="text-on-surface-variant hover:text-on-surface transition-colors p-1">
-            <Bell size={18} />
-          </button>
-        </div>
       </nav>
     </header>
   );
@@ -87,7 +87,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`font-body text-xs font-semibold uppercase tracking-widest px-3 py-1.5 rounded-full transition-colors ${
+      className={`font-body text-xs font-semibold uppercase tracking-widest px-2 sm:px-3 py-1.5 rounded-full transition-colors ${
         active
           ? "text-on-surface bg-surface-container"
           : "text-on-surface-variant hover:text-on-surface"

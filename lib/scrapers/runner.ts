@@ -3,6 +3,7 @@ import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
 import type { ScrapedEvent } from "@/lib/types";
 import { BaseScraper } from "./base";
+import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, MIN_TOKENS } from "@/lib/fuzzy";
 
 // Import all scrapers
 import { FoopeeScraper } from "./foopee";
@@ -52,29 +53,56 @@ export async function runScraper(
 
     // Skip if already exists, but enrich with better data if available
     const LOW_QUALITY_DOMAINS = ["foopee.com", "19hz.info"];
-    const exists = await prisma.event.findUnique({ where: { dedupeHash } });
-    if (exists) {
-      const enrichments: Record<string, unknown> = {};
 
-      if (!exists.imageUrl && event.imageUrl) {
+    async function enrichExisting(existingId: string, existingSourceUrl: string, existingImageUrl: string | null) {
+      const enrichments: Record<string, unknown> = {};
+      if (!existingImageUrl && event.imageUrl) {
         enrichments.imageUrl = event.imageUrl;
       }
-
-      const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) =>
-        exists.sourceUrl.includes(d)
-      );
-      const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) =>
-        event.sourceUrl.includes(d)
-      );
+      const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) => existingSourceUrl.includes(d));
+      const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) => event.sourceUrl.includes(d));
       if (existingIsLowQuality && incomingIsHighQuality) {
         enrichments.sourceUrl = event.sourceUrl;
         enrichments.sourceId = source.id;
       }
-
       if (Object.keys(enrichments).length > 0) {
-        await prisma.event.update({ where: { dedupeHash }, data: enrichments });
+        await prisma.event.update({ where: { id: existingId }, data: enrichments });
       }
+    }
+
+    const exactMatch = await prisma.event.findUnique({ where: { dedupeHash } });
+    if (exactMatch) {
+      await enrichExisting(exactMatch.id, exactMatch.sourceUrl, exactMatch.imageUrl);
       continue;
+    }
+
+    // Fuzzy match: check events on the same calendar day
+    const incomingTokens = tokenize(event.title);
+    if (incomingTokens.size >= MIN_TOKENS) {
+      const dayStart = new Date(event.startDate);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+      const dayEvents = await prisma.event.findMany({
+        where: { startDate: { gte: dayStart, lt: dayEnd } },
+        select: { id: true, title: true, sourceUrl: true, imageUrl: true },
+      });
+
+      const fuzzyMatch = dayEvents.find((e) => {
+        const existingTokens = tokenize(e.title);
+        return (
+          existingTokens.size >= MIN_TOKENS &&
+          isFuzzyMatch(incomingTokens, existingTokens) &&
+          !areLikelyDifferentEvents(incomingTokens, existingTokens)
+        );
+      });
+
+      if (fuzzyMatch) {
+        console.log(`[${slug}] Fuzzy duplicate: "${event.title}" ≈ "${fuzzyMatch.title}"`);
+        await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl);
+        continue;
+      }
     }
 
     // Geocode

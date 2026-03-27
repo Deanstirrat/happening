@@ -77,9 +77,19 @@ export class LumaScraper extends BaseScraper {
           ? `https://lu.ma/${ev.url}`
           : `https://lu.ma/${eventId}`;
 
+        const rawDesc: string | undefined = ev.description ?? ev.description_short ?? undefined;
+        const description = rawDesc
+          ? rawDesc
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 1000) || undefined
+          : undefined;
+
         events.push({
           externalId: ev.api_id ?? eventId,
           title: ev.name,
+          description,
           startDate,
           endDate,
           venueName: geo.short_address ?? geo.city ?? undefined,

@@ -134,8 +134,18 @@ export class PoshScraper extends BaseScraper {
     const imageUrl: string | undefined = item.flyer || undefined;
     const sourceUrl = `${this.BASE}/e/${slug}`;
 
+    const rawDesc: string | undefined = item.description || undefined;
+    const description = rawDesc
+      ? rawDesc
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 1000) || undefined
+      : undefined;
+
     return {
       title,
+      description,
       startDate,
       endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
       venueName,

@@ -100,6 +100,13 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "kqed",
+    name: "KQED Live Events",
+    url: "https://www.kqed.org/events",
+    scrapeType: ScrapeType.CHEERIO,
+    enabled: true,
+  },
+  {
     slug: "community",
     name: "Community Submissions",
     url: "https://happening.app",

@@ -28,6 +28,7 @@ const EVENT_LISTINGS_QUERY = `
           endTime
           contentUrl
           cost
+          content
           images { filename }
           venue {
             name
@@ -115,9 +116,19 @@ export class ResidentAdvisorScraper extends BaseScraper {
 
         const costStr: string | undefined = ev.cost || undefined;
 
+        const rawContent: string | undefined = ev.content || undefined;
+        const description = rawContent
+          ? rawContent
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 1000) || undefined
+          : undefined;
+
         events.push({
           externalId: String(ev.id),
           title: ev.title,
+          description,
           startDate,
           endDate,
           venueName: ev.venue?.name,

@@ -16,6 +16,7 @@ import { SfliveScraper } from "./sflive";
 import { PoshScraper } from "./posh";
 import { EventbriteScraper } from "./eventbrite";
 import { BandsintownScraper } from "./bandsintown";
+import { KqedScraper } from "./kqed";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -27,12 +28,35 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   posh: new PoshScraper(),
   eventbrite: new EventbriteScraper(),
   bandsintown: new BandsintownScraper(),
+  kqed: new KqedScraper(),
   // meetup: paid API only — skipped for now
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;
+const DESCRIPTION_MAX_LENGTH = 500;
 
-async function fetchImageFromSourceUrl(url: string): Promise<string | undefined> {
+function extractOgDescription(html: string): string | undefined {
+  const match =
+    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i) ??
+    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+  if (!match?.[1]) return undefined;
+  let desc = match[1]
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+  if (!desc) return undefined;
+  if (desc.length > DESCRIPTION_MAX_LENGTH) {
+    desc = desc.slice(0, DESCRIPTION_MAX_LENGTH).replace(/\s+\S*$/, "") + "…";
+  }
+  return desc;
+}
+
+async function fetchMetaFromSourceUrl(url: string): Promise<{ imageUrl?: string; description?: string }> {
   try {
     const res = await fetch(url, {
       headers: {
@@ -44,12 +68,34 @@ async function fetchImageFromSourceUrl(url: string): Promise<string | undefined>
     });
     const html = await res.text();
 
+    const description = extractOgDescription(html);
+
     // OG image meta tag (try both attribute orderings)
     const match =
       html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
     let ogImage = match?.[1];
-    if (!ogImage) return undefined;
+
+    if (!ogImage) {
+      // Funcheap detail pages often lack og:image; the featured image is in a
+      // <noscript> tag (SPAI pattern). Strip the SPAI proxy and WordPress resize
+      // suffix to get the full-res original.
+      if (url.includes("funcheap.com")) {
+        const noscriptMatches = [...html.matchAll(/<noscript[^>]*>([\s\S]*?)<\/noscript>/gi)];
+        for (const m of noscriptMatches) {
+          const imgMatch = m[1].match(/src=["']([^"']+)["']/i);
+          if (!imgMatch?.[1]) continue;
+          const src = imgMatch[1];
+          if (!src.includes("wp-content/uploads")) continue;
+          let imgUrl = src;
+          const spaiMatch = imgUrl.match(/cdn\.shortpixel\.ai\/spai\/[^/]+\/(.+)/);
+          if (spaiMatch) imgUrl = `https://${spaiMatch[1]}`;
+          imgUrl = imgUrl.replace(/-\d+x\d+(\.[a-z]+)$/i, "$1");
+          return { imageUrl: imgUrl, description };
+        }
+      }
+      return { description };
+    }
 
     // Unescape HTML entities
     ogImage = ogImage.replace(/&amp;/g, "&");
@@ -61,32 +107,14 @@ async function fetchImageFromSourceUrl(url: string): Promise<string | undefined>
       // img.evbuc.com uses path-based proxying: https://img.evbuc.com/<encoded-cdn-url>
       if (inner.includes("img.evbuc.com/")) {
         const pathPart = inner.replace(/^https?:\/\/img\.evbuc\.com\//, "");
-        return decodeURIComponent(pathPart).split("?")[0];
+        return { imageUrl: decodeURIComponent(pathPart).split("?")[0], description };
       }
-      return inner.split("?")[0];
+      return { imageUrl: inner.split("?")[0], description };
     }
 
-    // Funcheap detail pages often lack og:image; the featured image is in a
-    // <noscript> tag (SPAI pattern). Strip the SPAI proxy and WordPress resize
-    // suffix to get the full-res original.
-    if (url.includes("funcheap.com")) {
-      const noscriptMatches = [...html.matchAll(/<noscript[^>]*>([\s\S]*?)<\/noscript>/gi)];
-      for (const m of noscriptMatches) {
-        const imgMatch = m[1].match(/src=["']([^"']+)["']/i);
-        if (!imgMatch?.[1]) continue;
-        const src = imgMatch[1];
-        if (!src.includes("wp-content/uploads")) continue;
-        let imgUrl = src;
-        const spaiMatch = imgUrl.match(/cdn\.shortpixel\.ai\/spai\/[^/]+\/(.+)/);
-        if (spaiMatch) imgUrl = `https://${spaiMatch[1]}`;
-        imgUrl = imgUrl.replace(/-\d+x\d+(\.[a-z]+)$/i, "$1");
-        return imgUrl;
-      }
-    }
-
-    return ogImage;
+    return { imageUrl: ogImage, description };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -109,16 +137,17 @@ export async function runScraper(
   const events = await scraper.scrape();
   console.log(`[${slug}] Got ${events.length} events`);
 
-  // Backfill images for events the scraper didn't provide one for
-  const missingImage = events.filter((e) => !e.imageUrl);
-  if (missingImage.length > 0) {
-    console.log(`[${slug}] Backfilling images for ${missingImage.length} events...`);
-    for (let i = 0; i < missingImage.length; i += IMAGE_BACKFILL_CONCURRENCY) {
-      const batch = missingImage.slice(i, i + IMAGE_BACKFILL_CONCURRENCY);
+  // Backfill images and descriptions for events the scraper didn't provide them for
+  const needsMeta = events.filter((e) => !e.imageUrl || !e.description);
+  if (needsMeta.length > 0) {
+    console.log(`[${slug}] Backfilling meta for ${needsMeta.length} events...`);
+    for (let i = 0; i < needsMeta.length; i += IMAGE_BACKFILL_CONCURRENCY) {
+      const batch = needsMeta.slice(i, i + IMAGE_BACKFILL_CONCURRENCY);
       await Promise.all(
         batch.map(async (event) => {
-          const imageUrl = await fetchImageFromSourceUrl(event.sourceUrl);
-          if (imageUrl) event.imageUrl = imageUrl;
+          const { imageUrl, description } = await fetchMetaFromSourceUrl(event.sourceUrl);
+          if (imageUrl && !event.imageUrl) event.imageUrl = imageUrl;
+          if (description && !event.description) event.description = description;
         })
       );
     }
@@ -132,10 +161,18 @@ export async function runScraper(
     // Skip if already exists, but enrich with better data if available
     const LOW_QUALITY_DOMAINS = ["foopee.com", "19hz.info"];
 
-    async function enrichExisting(existingId: string, existingSourceUrl: string, existingImageUrl: string | null) {
+    async function enrichExisting(
+      existingId: string,
+      existingSourceUrl: string,
+      existingImageUrl: string | null,
+      existingDescription: string | null = null,
+    ) {
       const enrichments: Record<string, unknown> = {};
       if (!existingImageUrl && event.imageUrl) {
         enrichments.imageUrl = event.imageUrl;
+      }
+      if (!existingDescription && event.description) {
+        enrichments.description = event.description;
       }
       const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) => existingSourceUrl.includes(d));
       const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) => event.sourceUrl.includes(d));
@@ -150,7 +187,7 @@ export async function runScraper(
 
     const exactMatch = await prisma.event.findUnique({ where: { dedupeHash } });
     if (exactMatch) {
-      await enrichExisting(exactMatch.id, exactMatch.sourceUrl, exactMatch.imageUrl);
+      await enrichExisting(exactMatch.id, exactMatch.sourceUrl, exactMatch.imageUrl, exactMatch.description);
       continue;
     }
 
@@ -167,7 +204,7 @@ export async function runScraper(
 
       const dayEvents = await prisma.event.findMany({
         where: { startDate: { gte: dayStart, lt: dayEnd } },
-        select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true },
+        select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true },
       });
 
       // Fuzzy title match
@@ -183,7 +220,7 @@ export async function runScraper(
 
         if (fuzzyMatch) {
           console.log(`[${slug}] Fuzzy duplicate: "${event.title}" ≈ "${fuzzyMatch.title}"`);
-          await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl);
+          await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl, fuzzyMatch.description);
           continue;
         }
       }
@@ -202,7 +239,7 @@ export async function runScraper(
           );
           if (venueMatch) {
             console.log(`[${slug}] Venue-as-title duplicate: "${event.title}" skipped, existing: "${venueMatch.title}"`);
-            await enrichExisting(venueMatch.id, venueMatch.sourceUrl, venueMatch.imageUrl);
+            await enrichExisting(venueMatch.id, venueMatch.sourceUrl, venueMatch.imageUrl, venueMatch.description);
             continue;
           }
         } else {

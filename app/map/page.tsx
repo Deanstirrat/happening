@@ -27,12 +27,12 @@ async function getSources() {
 }
 
 async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
-  const startDate = params.startDate
-    ? sfDayStart(params.startDate)
-    : sfDayStart(sfDayKey(new Date()));
-  const endDate = params.endDate
+  const now = new Date();
+  const todayStart = sfDayStart(sfDayKey(now));
+  const windowStart = params.startDate ? sfDayStart(params.startDate) : null;
+  const windowEnd = params.endDate
     ? sfDayEnd(params.endDate)
-    : sfDayEnd(sfDayKey(addDays(new Date(), 30)));
+    : sfDayEnd(sfDayKey(addDays(now, 30)));
 
   const categories = params.category
     ? Array.isArray(params.category) ? params.category : [params.category]
@@ -48,7 +48,15 @@ async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
     status: "PUBLISHED",
     latitude: { not: null },
     longitude: { not: null },
-    startDate: { gte: startDate, lte: endDate },
+    // Hide events that have already ended
+    OR: [
+      { endDate: { gte: now } },
+      { endDate: null, startDate: { gte: todayStart } },
+    ],
+    startDate: {
+      ...(windowStart ? { gte: windowStart } : {}),
+      lte: windowEnd,
+    },
     ...(categories.length > 0 && { category: { in: categories as any } }),
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),
     ...(sources.length > 0 && { source: { slug: { in: sources } } }),

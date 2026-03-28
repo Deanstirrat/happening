@@ -7,12 +7,13 @@ import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
 
-  const startDate = p.get("startDate")
+  const now = new Date();
+  const windowStart = p.get("startDate")
     ? new Date(p.get("startDate")! + "T00:00:00.000Z")
-    : startOfDay(new Date());
-  const endDate = p.get("endDate")
+    : null;
+  const windowEnd = p.get("endDate")
     ? new Date(p.get("endDate")! + "T23:59:59.999Z")
-    : endOfDay(addDays(new Date(), 30));
+    : endOfDay(addDays(now, 30));
 
   const categories = p.getAll("category");
   const neighborhoods = p.getAll("neighborhood");
@@ -31,20 +32,35 @@ export async function GET(req: NextRequest) {
       ? categories.filter((c) => !c.startsWith("MUSIC_"))
       : categories;
 
+  const notEndedCondition: Prisma.EventWhereInput = {
+    OR: [
+      { endDate: { gte: now } },
+      { endDate: null, startDate: { gte: startOfDay(now) } },
+    ],
+  };
+
+  const searchCondition: Prisma.EventWhereInput | null = search
+    ? {
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+          { venueName: { contains: search, mode: "insensitive" } },
+        ],
+      }
+    : null;
+
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
-    startDate: { gte: startDate, lte: endDate },
+    // Hide events that have already ended
+    AND: [notEndedCondition, ...(searchCondition ? [searchCondition] : [])],
+    startDate: {
+      ...(windowStart ? { gte: windowStart } : {}),
+      lte: windowEnd,
+    },
     ...(effectiveCategories.length > 0 && { category: { in: effectiveCategories as any } }),
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),
     ...(sources.length > 0 && { source: { slug: { in: sources } } }),
     ...(isFree && { isFree: true }),
-    ...(search && {
-      OR: [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { venueName: { contains: search, mode: "insensitive" } },
-      ],
-    }),
     // map view only returns events with coordinates
     ...(view === "map" && {
       latitude: { not: null },

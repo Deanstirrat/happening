@@ -25,14 +25,19 @@ interface SearchParams {
 }
 
 async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
-  const todayKey = sfDayKey(new Date());
+  const now = new Date();
+  const todayKey = sfDayKey(now);
   const todayStart = sfDayStart(todayKey);
   const weekEnd = addDays(sfDayEnd(todayKey), 6);
   const events = await prisma.event.findMany({
     where: {
       status: "PUBLISHED",
       featured: true,
-      startDate: { gte: todayStart, lte: weekEnd },
+      OR: [
+        { endDate: { gte: now } },
+        { endDate: null, startDate: { gte: todayStart } },
+      ],
+      startDate: { lte: weekEnd },
     },
     orderBy: [{ startDate: "asc" }],
     take: 10,
@@ -82,12 +87,12 @@ async function getEvents(params: SearchParams): Promise<{
   const skip = (page - 1) * limit;
 
   const hasSearch = !!params.search;
-  const startDate = params.startDate
-    ? sfDayStart(params.startDate)
-    : hasSearch ? undefined : sfDayStart(sfDayKey(new Date()));
-  const endDate = params.endDate
+  const now = new Date();
+  const todayStart = sfDayStart(sfDayKey(now));
+  const windowStart = params.startDate ? sfDayStart(params.startDate) : null;
+  const windowEnd = params.endDate
     ? sfDayEnd(params.endDate)
-    : hasSearch ? undefined : sfDayEnd(sfDayKey(addDays(new Date(), 30)));
+    : hasSearch ? null : sfDayEnd(sfDayKey(addDays(now, 30)));
 
   const categories = params.category
     ? Array.isArray(params.category)
@@ -113,10 +118,34 @@ async function getEvents(params: SearchParams): Promise<{
       ? categories.filter((c) => !c.startsWith("MUSIC_"))
       : categories;
 
+  const notEndedCondition: Prisma.EventWhereInput = {
+    OR: [
+      { endDate: { gte: now } },
+      { endDate: null, startDate: { gte: todayStart } },
+    ],
+  };
+
+  const searchCondition: Prisma.EventWhereInput | null = params.search
+    ? {
+        OR: [
+          { title: { contains: params.search, mode: "insensitive" } },
+          { description: { contains: params.search, mode: "insensitive" } },
+          { venueName: { contains: params.search, mode: "insensitive" } },
+        ],
+      }
+    : null;
+
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
-    ...(startDate !== undefined || endDate !== undefined
-      ? { startDate: { gte: startDate, lte: endDate } }
+    // Hide events that have already ended
+    AND: [notEndedCondition, ...(searchCondition ? [searchCondition] : [])],
+    ...(windowStart || windowEnd
+      ? {
+          startDate: {
+            ...(windowStart ? { gte: windowStart } : {}),
+            ...(windowEnd ? { lte: windowEnd } : {}),
+          },
+        }
       : {}),
     ...(effectiveCategories.length > 0 && {
       category: { in: effectiveCategories as any },
@@ -128,13 +157,6 @@ async function getEvents(params: SearchParams): Promise<{
       source: { slug: { in: sources } },
     }),
     ...(params.isFree === "true" && { isFree: true }),
-    ...(params.search && {
-      OR: [
-        { title: { contains: params.search, mode: "insensitive" } },
-        { description: { contains: params.search, mode: "insensitive" } },
-        { venueName: { contains: params.search, mode: "insensitive" } },
-      ],
-    }),
   };
 
   const [events, total] = await Promise.all([

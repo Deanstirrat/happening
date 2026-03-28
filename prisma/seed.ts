@@ -107,6 +107,20 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "dothebay",
+    name: "DoTheBay",
+    url: "https://dothebay.com/events",
+    scrapeType: ScrapeType.CHEERIO,
+    enabled: true,
+  },
+  {
+    slug: "reddit-sfevents",
+    name: "Reddit r/SFEvents",
+    url: "https://www.reddit.com/r/SFEvents/",
+    scrapeType: ScrapeType.API,
+    enabled: true,
+  },
+  {
     slug: "community",
     name: "Community Submissions",
     url: "https://happening.app",

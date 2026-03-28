@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import DeleteButton from "./DeleteButton";
 import EventSearch from "./EventSearch";
 import { EventStatus } from "@prisma/client";
+import AdminNav from "../_components/AdminNav";
 
 interface Props {
   searchParams: Promise<{ secret?: string; status?: string; q?: string }>;
@@ -72,12 +73,11 @@ export default async function AdminEventsPage({ searchParams }: Props) {
   ];
 
   return (
-    <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="font-headline font-black text-3xl text-on-surface lowercase">
-          events
-        </h1>
-        <p className="font-body text-on-surface-variant text-sm mt-1">
+    <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <h1 className="font-headline font-black text-3xl text-on-surface lowercase">events</h1>
+        <AdminNav secret={secret} current="events" />
+        <p className="font-body text-on-surface-variant text-sm">
           {events.length} event{events.length !== 1 ? "s" : ""}
           {statusFilter ? ` · ${STATUS_LABELS[statusFilter].toLowerCase()}` : ""}
           {search ? ` · "${search}"` : ""}
@@ -85,7 +85,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2">
         {tabs.map((tab) => {
           const isActive = (tab.value === "" && !statusFilter) || tab.value === statusFilter;
           const params = new URLSearchParams({ secret });
@@ -108,7 +108,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       </div>
 
       {/* Search */}
-      <div className="mb-6">
+      <div>
         <Suspense>
           <EventSearch secret={secret} status={statusFilter} />
         </Suspense>

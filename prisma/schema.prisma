@@ -112,6 +112,17 @@ model FeaturedRequest {
   @@map("featured_requests")
 }
 
+model PageVisit {
+  id        String   @id @default(cuid())
+  sessionId String
+  path      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("page_visits")
+}
+
 enum ScrapeType {
   CHEERIO
   PLAYWRIGHT

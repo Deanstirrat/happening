@@ -5,6 +5,7 @@ import { CATEGORY_LABELS } from "@/lib/types";
 import { format } from "date-fns";
 import AdminActions from "./AdminActions";
 import FeaturedToggle from "./FeaturedToggle";
+import AdminNav from "../_components/AdminNav";
 
 interface Props {
   searchParams: Promise<{ secret?: string }>;
@@ -58,13 +59,18 @@ export default async function SubmissionsPage({ searchParams }: Props) {
   ]);
 
   return (
-    <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-12">
+    <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
+      <div className="flex flex-col gap-4">
+        <h1 className="font-headline font-black text-3xl text-on-surface lowercase">submissions</h1>
+        <AdminNav secret={secret} current="submissions" />
+      </div>
+
       {/* Pending submissions */}
       <section>
         <div className="mb-8">
-          <h1 className="font-headline font-black text-3xl text-on-surface lowercase">
+          <h2 className="font-headline font-bold text-xl text-on-surface lowercase">
             pending submissions
-          </h1>
+          </h2>
           <p className="font-body text-on-surface-variant text-sm mt-1">
             {events.length} event{events.length !== 1 ? "s" : ""} awaiting review
           </p>

@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
-import { format } from "date-fns";
+import { format, subDays, startOfDay } from "date-fns";
 import Link from "next/link";
+import AdminNav from "../_components/AdminNav";
 
 interface Props {
   searchParams: Promise<{ secret?: string; window?: string }>;
@@ -28,25 +29,37 @@ export default async function MetricsPage({ searchParams }: Props) {
   const windowDays = win === "all" ? null : win === "30" ? 30 : 7;
   const since = windowDays ? new Date(Date.now() - windowDays * 86400_000) : null;
 
-  // Fetch all currently featured events with their interaction counts
-  const featuredEvents = await prisma.event.findMany({
-    where: { status: "PUBLISHED", featured: true },
-    orderBy: { featuredAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      startDate: true,
-      venueName: true,
-      neighborhood: true,
-      featuredAt: true,
-      interactions: {
-        ...(since && { where: { createdAt: { gte: since } } }),
-        select: { type: true, sessionId: true },
-      },
-    },
-  });
+  // Fetch page visits (windowed) + last 14 days raw for chart
+  const chart14Start = subDays(startOfDay(new Date()), 13);
 
-  // Compute per-event stats
+  const [featuredEvents, windowVisits, chartVisits] = await Promise.all([
+    prisma.event.findMany({
+      where: { status: "PUBLISHED", featured: true },
+      orderBy: { featuredAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        venueName: true,
+        neighborhood: true,
+        featuredAt: true,
+        interactions: {
+          ...(since && { where: { createdAt: { gte: since } } }),
+          select: { type: true, sessionId: true },
+        },
+      },
+    }),
+    prisma.pageVisit.findMany({
+      where: since ? { createdAt: { gte: since } } : {},
+      select: { sessionId: true, createdAt: true },
+    }),
+    prisma.pageVisit.findMany({
+      where: { createdAt: { gte: chart14Start } },
+      select: { sessionId: true, createdAt: true },
+    }),
+  ]);
+
+  // Featured event stats
   const rows = featuredEvents.map((ev) => {
     const views = ev.interactions.filter((i) => i.type === "VIEW").length;
     const clicks = ev.interactions.filter((i) => i.type === "CLICK").length;
@@ -55,10 +68,36 @@ export default async function MetricsPage({ searchParams }: Props) {
     return { ...ev, views, clicks, uniqueSessions, ctr };
   });
 
-  // Overall totals
   const totalViews = rows.reduce((s, r) => s + r.views, 0);
   const totalClicks = rows.reduce((s, r) => s + r.clicks, 0);
   const overallCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : "—";
+
+  // Site traffic stats (windowed)
+  const totalVisits = windowVisits.length;
+  const uniqueVisitors = new Set(windowVisits.map((v) => v.sessionId)).size;
+  const daysInWindow = windowDays ?? Math.max(1, Math.ceil((Date.now() - (windowVisits[windowVisits.length - 1]?.createdAt.getTime() ?? Date.now())) / 86400_000));
+  const avgDaily = windowDays ? (totalVisits / windowDays).toFixed(1) : (totalVisits / Math.max(1, daysInWindow)).toFixed(1);
+
+  // 14-day daily chart data
+  const dailyMap = new Map<string, { visits: number; uniqueSessions: Set<string> }>();
+  for (let i = 0; i < 14; i++) {
+    const d = subDays(new Date(), 13 - i);
+    dailyMap.set(format(d, "yyyy-MM-dd"), { visits: 0, uniqueSessions: new Set() });
+  }
+  for (const v of chartVisits) {
+    const key = format(v.createdAt, "yyyy-MM-dd");
+    const entry = dailyMap.get(key);
+    if (entry) {
+      entry.visits++;
+      entry.uniqueSessions.add(v.sessionId);
+    }
+  }
+  const chartDays = Array.from(dailyMap.entries()).map(([date, data]) => ({
+    date,
+    visits: data.visits,
+    unique: data.uniqueSessions.size,
+  }));
+  const maxVisits = Math.max(...chartDays.map((d) => d.visits), 1);
 
   const base = `/admin/metrics?secret=${secret}`;
   const tabs: { label: string; value: string }[] = [
@@ -70,62 +109,91 @@ export default async function MetricsPage({ searchParams }: Props) {
   return (
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
       {/* Header + nav */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <h1 className="font-headline font-black text-3xl text-on-surface lowercase">metrics</h1>
-          <div className="flex gap-4 mt-2 font-body text-xs text-on-surface-variant">
-            <Link href={`/admin/submissions?secret=${secret}`} className="hover:text-on-surface">
-              submissions
-            </Link>
-            <Link href={`/admin/feature-requests?secret=${secret}`} className="hover:text-on-surface">
-              feature requests
-            </Link>
-            <Link href={`/admin/bug-reports?secret=${secret}`} className="hover:text-on-surface">
-              bug reports
-            </Link>
-            <Link href={`/admin/events?secret=${secret}`} className="hover:text-on-surface">
-              events
-            </Link>
+          {/* Window tabs */}
+          <div className="flex gap-1 bg-surface-container rounded-xl p-1">
+            {tabs.map((t) => (
+              <Link
+                key={t.value}
+                href={`${base}&window=${t.value}`}
+                className={`px-3 py-1.5 rounded-lg font-body text-xs transition-colors ${
+                  windowLabel(win) === t.label
+                    ? "bg-primary text-on-primary font-semibold"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                {t.label}
+              </Link>
+            ))}
           </div>
         </div>
+        <AdminNav secret={secret} current="metrics" />
+      </div>
 
-        {/* Window tabs */}
-        <div className="flex gap-1 bg-surface-container rounded-xl p-1">
-          {tabs.map((t) => (
-            <Link
-              key={t.value}
-              href={`${base}&window=${t.value}`}
-              className={`px-3 py-1.5 rounded-lg font-body text-xs transition-colors ${
-                windowLabel(win) === t.label
-                  ? "bg-primary text-on-primary font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-              }`}
-            >
-              {t.label}
-            </Link>
+      {/* Site traffic */}
+      <section className="flex flex-col gap-5">
+        <h2 className="font-headline font-bold text-xl text-on-surface lowercase">site traffic</h2>
+
+        {/* Traffic stat cards */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "page visits", value: totalVisits.toLocaleString() },
+            { label: "unique visitors", value: uniqueVisitors.toLocaleString() },
+            { label: "avg / day", value: avgDaily },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-surface-container rounded-2xl p-5">
+              <p className="font-headline font-black text-3xl text-on-surface">{value}</p>
+              <p className="font-body text-xs text-on-surface-variant mt-1">{label}</p>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Summary stat cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "impressions", value: totalViews.toLocaleString() },
-          { label: "link clicks", value: totalClicks.toLocaleString() },
-          { label: "click-through rate", value: overallCtr === "—" ? "—" : `${overallCtr}%` },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-surface-container rounded-2xl p-5">
-            <p className="font-headline font-black text-3xl text-on-surface">{value}</p>
-            <p className="font-body text-xs text-on-surface-variant mt-1">{label}</p>
+        {/* 14-day bar chart */}
+        <div className="bg-surface-container rounded-2xl p-5">
+          <p className="font-body text-xs text-on-surface-variant mb-4">daily visits — last 14 days</p>
+          <div className="flex items-end gap-1 h-24">
+            {chartDays.map((day) => (
+              <div
+                key={day.date}
+                className="flex-1 flex flex-col items-center gap-1 group"
+                title={`${format(new Date(day.date + "T12:00:00"), "MMM d")}: ${day.visits} visit${day.visits !== 1 ? "s" : ""}, ${day.unique} unique`}
+              >
+                <div className="w-full relative flex items-end" style={{ height: "80px" }}>
+                  <div
+                    className="w-full bg-primary rounded-sm opacity-80 group-hover:opacity-100 transition-opacity"
+                    style={{ height: `${(day.visits / maxVisits) * 80}px`, minHeight: day.visits > 0 ? "3px" : "0" }}
+                  />
+                </div>
+                <span className="font-body text-[9px] text-on-surface-variant">
+                  {format(new Date(day.date + "T12:00:00"), "d")}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      </section>
 
-      {/* Per-event table */}
+      {/* Featured event performance */}
       <section>
         <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-4">
           featured event performance
         </h2>
+
+        {/* Summary stat cards */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "impressions", value: totalViews.toLocaleString() },
+            { label: "link clicks", value: totalClicks.toLocaleString() },
+            { label: "click-through rate", value: overallCtr === "—" ? "—" : `${overallCtr}%` },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-surface-container rounded-2xl p-5">
+              <p className="font-headline font-black text-3xl text-on-surface">{value}</p>
+              <p className="font-body text-xs text-on-surface-variant mt-1">{label}</p>
+            </div>
+          ))}
+        </div>
 
         {rows.length === 0 ? (
           <p className="font-body text-on-surface-variant text-sm">No featured events.</p>

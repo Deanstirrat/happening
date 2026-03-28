@@ -45,7 +45,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             <div className="absolute inset-0 bg-gradient-to-br from-surface-container-high to-surface-container-lowest" />
           )}
           {/* Bottom gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
           {/* Chips: top-left on mobile only */}
           <div className="absolute top-2 left-2 flex gap-2 sm:hidden">

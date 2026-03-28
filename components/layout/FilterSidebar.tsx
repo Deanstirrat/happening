@@ -13,9 +13,11 @@ import {
   Filter,
   Music,
 } from "lucide-react";
-import { CATEGORY_LABELS, SF_NEIGHBORHOODS } from "@/lib/types";
+import { CATEGORY_LABELS, MUSIC_CATEGORIES, SF_NEIGHBORHOODS } from "@/lib/types";
 
-const ALL_CATEGORIES = Object.entries(CATEGORY_LABELS);
+const MUSIC_CATEGORY_SET = new Set(MUSIC_CATEGORIES as readonly string[]);
+const MUSIC_GENRE_ENTRIES = Object.entries(CATEGORY_LABELS).filter(([k]) => MUSIC_CATEGORY_SET.has(k));
+const OTHER_CATEGORY_ENTRIES = Object.entries(CATEGORY_LABELS).filter(([k]) => !MUSIC_CATEGORY_SET.has(k));
 
 interface Source {
   slug: string;
@@ -38,7 +40,6 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const currentNeighborhoods = searchParams.getAll("neighborhood");
   const currentSources = searchParams.getAll("source");
   const currentFreeOnly = searchParams.get("isFree") === "true";
-  const currentHideMusic = searchParams.get("hideMusic") === "true";
 
   // Local state (apply on button click)
   const [startDate, setStartDate] = useState(currentStartDate);
@@ -51,6 +52,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const [openSections, setOpenSections] = useState({
     date: true,
     category: true,
+    musicGenre: false,
     neighborhood: false,
     source: false,
     price: false,
@@ -77,9 +79,11 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     neighborhoods.forEach((n) => params.append("neighborhood", n));
     selectedSources.forEach((s) => params.append("source", s));
     if (freeOnly) params.set("isFree", "true");
-    // preserve search
+    // preserve search and hideMusic (managed outside the filter tray)
     const search = searchParams.get("search");
     if (search) params.set("search", search);
+    const hideMusic = searchParams.get("hideMusic");
+    if (hideMusic) params.set("hideMusic", hideMusic);
     router.push(`${pathname}?${params.toString()}`);
   }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, searchParams, router, pathname]);
 
@@ -105,21 +109,11 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     router.push(pathname);
   };
 
-  const toggleHideMusic = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (currentHideMusic) {
-      params.delete("hideMusic");
-    } else {
-      params.set("hideMusic", "true");
-    }
-    router.push(`${pathname}?${params.toString()}`);
-  }, [currentHideMusic, searchParams, router, pathname]);
-
   const hasFilters =
-    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly || currentHideMusic;
+    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly;
 
   const activeFilterCount =
-    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0) + (currentHideMusic ? 1 : 0);
+    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0);
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -150,19 +144,6 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
       <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
         Filters
       </p>
-
-      {/* Hide Music quick toggle */}
-      <button
-        onClick={toggleHideMusic}
-        className={`w-full flex items-center gap-2 px-3 py-2 rounded-DEFAULT font-body text-xs font-medium transition-colors mb-1 ${
-          currentHideMusic
-            ? "bg-secondary-container text-on-secondary-container"
-            : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-        }`}
-      >
-        <Music size={13} />
-        {currentHideMusic ? "Music hidden" : "Hide music"}
-      </button>
 
       {/* Date */}
       <Section
@@ -203,10 +184,35 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         label="Category"
         open={openSections.category}
         onToggle={() => toggleSection("category")}
-        activeCount={categories.length}
+        activeCount={categories.filter((c) => !MUSIC_CATEGORY_SET.has(c)).length}
       >
         <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto no-scrollbar">
-          {ALL_CATEGORIES.map(([value, label]) => (
+          {OTHER_CATEGORY_ENTRIES.map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => toggleMulti(value, categories, setCategories)}
+              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                categories.includes(value)
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* Music Genres */}
+      <Section
+        icon={<Music size={13} />}
+        label="Music Genres"
+        open={openSections.musicGenre}
+        onToggle={() => toggleSection("musicGenre")}
+        activeCount={categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
+      >
+        <div className="flex flex-col gap-0.5">
+          {MUSIC_GENRE_ENTRIES.map(([value, label]) => (
             <button
               key={value}
               onClick={() => toggleMulti(value, categories, setCategories)}

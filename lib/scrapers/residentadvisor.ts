@@ -1,5 +1,6 @@
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 /**
  * Resident Advisor SF — ra.co/events/us/sanfrancisco
@@ -155,6 +156,13 @@ export class ResidentAdvisorScraper extends BaseScraper {
 
 function parseRaDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? null : d;
+  // If the string includes a timezone indicator, parse it as-is (UTC-anchored)
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(dateStr)) {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // No timezone info — assume SF local time
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!m) return null;
+  return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]);
 }

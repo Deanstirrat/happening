@@ -1,5 +1,6 @@
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 /**
  * Songkick — api.songkick.com
@@ -88,15 +89,17 @@ export class SongkickScraper extends BaseScraper {
 
 function parseSongkickDate(start: any): Date | null {
   if (!start) return null;
-  // start.datetime is ISO if available; fallback to start.date + start.time
-  if (start.datetime) {
-    const d = new Date(start.datetime);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  if (start.date) {
-    const str = start.time ? `${start.date}T${start.time}` : start.date;
-    const d = new Date(str);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  return null;
+  // Songkick's datetime is in venue local time but incorrectly labeled +0000.
+  // Strip the offset and treat as SF local time.
+  const rawStr: string | undefined = start.datetime
+    ? (start.datetime as string).replace(/[+-]\d{4}$/, "").replace(/Z$/, "")
+    : start.date
+    ? start.time
+      ? `${start.date}T${start.time}`
+      : `${start.date}T20:00:00`
+    : undefined;
+  if (!rawStr) return null;
+  const m = rawStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]);
 }

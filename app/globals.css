@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
 @import "tailwindcss";
@@ -53,9 +53,9 @@
   --color-on-primary-fixed-variant: #89192a;
   --color-error-container: #93000a;
 
-  --font-family-headline: "Epilogue", sans-serif;
-  --font-family-body: "Plus Jakarta Sans", sans-serif;
-  --font-family-label: "Plus Jakarta Sans", sans-serif;
+  --font-family-headline: "Prompt", sans-serif;
+  --font-family-body: "Inter", sans-serif;
+  --font-family-label: "Inter", sans-serif;
 
   --radius-DEFAULT: 1rem;
   --radius-lg: 2rem;
@@ -75,7 +75,7 @@ html {
 body {
   background: #131313;
   color: #e5e2e1;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   min-height: 100vh;
 }
 
@@ -102,7 +102,7 @@ body {
 .btn-primary {
   background: linear-gradient(135deg, #ffb3b5, #ff727c);
   color: #680017;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 600;
   border-radius: 9999px;
   transition: transform 0.15s ease, opacity 0.15s ease;
@@ -116,7 +116,7 @@ body {
 .btn-secondary {
   background: #353534;
   color: #e5e2e1;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 500;
   border-radius: 9999px;
   transition: transform 0.15s ease, background 0.15s ease;
@@ -131,7 +131,7 @@ body {
   background: #2a2a2a;
   color: #e5e2e1;
   border-radius: 9999px;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.6875rem;
   font-weight: 500;
   padding: 0.25rem 0.75rem;

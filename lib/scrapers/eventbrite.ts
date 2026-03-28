@@ -2,6 +2,7 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 /**
  * Eventbrite SF — eventbrite.com/d/ca--san-francisco/events/
@@ -106,13 +107,19 @@ export class EventbriteScraper extends BaseScraper {
     const title: string = item?.name ?? item?.title;
     if (!title) return null;
 
-    const startRaw = item?.start_date ?? item?.start?.local ?? item?.start?.utc;
-    if (!startRaw) return null;
-    const startDate = new Date(startRaw);
-    if (isNaN(startDate.getTime())) return null;
+    // Prefer UTC fields; .local is venue-local with no TZ offset — treat as SF local
+    const startUtc = item?.start?.utc;
+    const startLocal = item?.start_date ?? item?.start?.local;
+    const startDate = startUtc
+      ? new Date(startUtc)
+      : startLocal ? parseEbLocal(startLocal) : null;
+    if (!startDate || isNaN(startDate.getTime())) return null;
 
-    const endRaw = item?.end_date ?? item?.end?.local ?? item?.end?.utc;
-    const endDate = endRaw ? new Date(endRaw) : undefined;
+    const endUtc = item?.end?.utc;
+    const endLocal = item?.end_date ?? item?.end?.local;
+    const endDate = endUtc
+      ? new Date(endUtc)
+      : endLocal ? parseEbLocal(endLocal) ?? undefined : undefined;
 
     const venue = item?.primary_venue ?? item?.venue;
     const venueName: string | undefined = venue?.name ?? undefined;
@@ -241,4 +248,11 @@ export class EventbriteScraper extends BaseScraper {
 
     return events;
   }
+}
+
+// Eventbrite's .local field is venue-local time with no TZ offset — treat as SF local
+function parseEbLocal(raw: string): Date | null {
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!m) return null;
+  return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]);
 }

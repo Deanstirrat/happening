@@ -1,6 +1,7 @@
 import axios from "axios";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 /**
  * Posh — posh.vip
@@ -102,7 +103,7 @@ export class PoshScraper extends BaseScraper {
     const slug: string = item.url;
     if (!slug) return null;
 
-    const startDate = item.startUtc ? new Date(item.startUtc) : null;
+    const startDate = item.startUtc ? parsePoshDate(item.startUtc) : null;
     if (!startDate || isNaN(startDate.getTime())) return null;
 
     // Discard events outside California (marketplace API is geofenced but occasionally
@@ -110,7 +111,7 @@ export class PoshScraper extends BaseScraper {
     if (!this.isBayArea(item.venue?.address)) return null;
 
     const endDate =
-      item.endUtc ? new Date(item.endUtc) : undefined;
+      item.endUtc ? parsePoshDate(item.endUtc) ?? undefined : undefined;
 
     const venueName: string | undefined = item.venue?.name || undefined;
     const venueAddress: string | undefined = item.venue?.address || undefined;
@@ -157,4 +158,16 @@ export class PoshScraper extends BaseScraper {
       tags: ["posh", "nightlife", "sf"],
     };
   }
+}
+
+// Posh's startUtc/endUtc can be timezone-naive (no Z/offset) — treat those as SF local.
+// When a proper offset is present, parse as-is.
+function parsePoshDate(raw: string): Date | null {
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(raw)) {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!m) return null;
+  return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]);
 }

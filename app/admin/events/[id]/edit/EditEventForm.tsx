@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SF_NEIGHBORHOODS, CATEGORY_LABELS } from "@/lib/types";
 import { EventCategory, EventStatus } from "@prisma/client";
-import { format } from "date-fns";
+import { formatDatetimeLocalSF, sfDateFromLocal } from "@/lib/sfDate";
 
 interface EventData {
   id: string;
@@ -26,7 +26,14 @@ interface EventData {
 
 function toDatetimeLocal(date: Date | null): string {
   if (!date) return "";
-  return format(date, "yyyy-MM-dd'T'HH:mm");
+  return formatDatetimeLocalSF(date);
+}
+
+function sfIsoFromDatetimeLocal(localStr: string): string {
+  // Interpret a datetime-local value ("2026-03-27T20:00") as SF local time
+  const m = localStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) return new Date(localStr).toISOString();
+  return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]).toISOString();
 }
 
 export default function EditEventForm({ event, secret }: { event: EventData; secret: string }) {
@@ -63,8 +70,8 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
       body: JSON.stringify({
         title,
         description: description || null,
-        startDate: new Date(startDate).toISOString(),
-        endDate: endDate ? new Date(endDate).toISOString() : null,
+        startDate: sfIsoFromDatetimeLocal(startDate),
+        endDate: endDate ? sfIsoFromDatetimeLocal(endDate) : null,
         venueName: venueName || null,
         venueAddress: venueAddress || null,
         neighborhood: neighborhood || null,

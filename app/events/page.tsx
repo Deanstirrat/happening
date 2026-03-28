@@ -195,6 +195,12 @@ export default async function EventsPage({
   const days = Object.keys(grouped).sort();
   const hasEvents = days.length > 0;
 
+  const hasActiveFilters = !!(
+    params.startDate || params.endDate || params.category ||
+    params.neighborhood || params.source || params.isFree ||
+    params.search || params.hideMusic
+  );
+
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-6 lg:gap-8">
       {/* Filter sidebar */}
@@ -218,17 +224,19 @@ export default async function EventsPage({
           </p>
         </div>
 
-        {weeklyFeatured.length > 0 && (
-          <div className="mb-12">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-headline font-bold text-xl text-on-surface lowercase">featured events</h2>
-              <Suspense>
-                <TimeFilterTabs />
-              </Suspense>
-            </div>
+        {!hasActiveFilters && weeklyFeatured.length > 0 && (
+          <div className="mb-6">
+            <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-3">featured events</h2>
             <FeaturedCarousel events={weeklyFeatured} />
           </div>
         )}
+
+        {/* Quick filters — always visible */}
+        <div className="mb-8">
+          <Suspense>
+            <TimeFilterTabs />
+          </Suspense>
+        </div>
 
         {hasEvents ? (
           days.map((dayKey) => (

@@ -2,6 +2,7 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 /**
  * 19hz Bay Area Electronic Music — 19hz.info/eventlisting_BayArea.php
@@ -111,14 +112,14 @@ function parseDateTimeCell(
   const startTime = timeMatch ? parse12h(timeMatch[1]) : { hours: 21, minutes: 0 };
   const endTime = timeMatch ? parse12h(timeMatch[3]) : null;
 
-  const start = new Date(year, month - 1, day, startTime.hours, startTime.minutes);
+  const start = sfDateFromLocal(year, month, day, startTime.hours, startTime.minutes);
 
   // End time: if AM and start is PM, it's next day
   let end: Date | null = null;
   if (endTime) {
     const endDay =
       endTime.hours < startTime.hours && startTime.hours >= 20 ? day + 1 : day;
-    end = new Date(year, month - 1, endDay, endTime.hours, endTime.minutes);
+    end = sfDateFromLocal(year, month, endDay, endTime.hours, endTime.minutes);
   }
 
   return { start, end };

@@ -1,5 +1,6 @@
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 const BASE_URL = "https://www.bandsintown.com";
 const CITY_URL = `${BASE_URL}/c/san-francisco-ca`;
@@ -169,6 +170,6 @@ export class BandsintownScraper extends BaseScraper {
     const period = match[3].toLowerCase();
     if (period === "pm" && hours !== 12) hours += 12;
     if (period === "am" && hours === 12) hours = 0;
-    return new Date(year, month - 1, day, hours, minutes);
+    return sfDateFromLocal(year, month, day, hours, minutes);
   }
 }

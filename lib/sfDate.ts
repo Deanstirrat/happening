@@ -2,6 +2,49 @@
 
 const TZ = "America/Los_Angeles";
 
+/**
+ * Create a Date from SF local time components (handles DST automatically).
+ * Use this instead of `new Date(year, month-1, day, hours, minutes)` which
+ * creates a date in server local time (UTC on production) rather than SF time.
+ *
+ * @param month 1-based (January = 1)
+ */
+export function sfDateFromLocal(
+  year: number,
+  month: number,
+  day: number,
+  hours: number,
+  minutes: number
+): Date {
+  // Use noon UTC as a DST-safe reference to compute the SF offset for this date
+  const ref = new Date(Date.UTC(year, month - 1, day, 12));
+  const sfHourAtNoonUTC = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false }).format(ref)
+  );
+  const offsetHours = sfHourAtNoonUTC - 12; // e.g. -7 for PDT, -8 for PST
+  // Convert SF local → UTC: subtract the (negative) offset
+  return new Date(Date.UTC(year, month - 1, day, hours - offsetHours, minutes));
+}
+
+/**
+ * Format a Date as "yyyy-MM-dd'T'HH:mm" in SF timezone.
+ * Use for populating <input type="datetime-local"> fields so admins see SF time.
+ */
+export function formatDatetimeLocalSF(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
+}
+
 /** Returns the UTC timestamp for midnight (start of day) in SF timezone for a YYYY-MM-DD string */
 export function sfDayStart(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);

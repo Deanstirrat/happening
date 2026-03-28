@@ -2,6 +2,14 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
+
+function parseSfliveDate(raw: string): Date | null {
+  // raw: "2026-03-27 20:00:00" (no timezone — treat as SF local time)
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!m) return null;
+  return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]);
+}
 
 /**
  * SF Live — sflive.art
@@ -105,15 +113,14 @@ export class SfliveScraper extends BaseScraper {
 
     const startRaw: string = m.vibemap_event_start_date ?? "";
     if (!startRaw) return null;
-    const startDate = new Date(startRaw.replace(" ", "T"));
-    if (isNaN(startDate.getTime())) return null;
+    const startDate = parseSfliveDate(startRaw);
+    if (!startDate || isNaN(startDate.getTime())) return null;
 
     // Only include events within the upcoming window
     if (startDate < now || startDate > windowEnd) return null;
 
     const endRaw: string = m.vibemap_event_end_date ?? "";
-    const endDate =
-      endRaw ? new Date(endRaw.replace(" ", "T")) : undefined;
+    const endDate = endRaw ? parseSfliveDate(endRaw) ?? undefined : undefined;
 
     const venueName: string | undefined =
       m.vibemap_event_venue_name || undefined;

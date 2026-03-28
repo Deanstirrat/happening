@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Music } from "lucide-react";
 
 const WEEKDAY_SHORT: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
@@ -41,6 +42,7 @@ export default function TimeFilterTabs() {
 
   const currentStart = searchParams.get("startDate");
   const currentEnd = searchParams.get("endDate");
+  const hideMusic = searchParams.get("hideMusic") === "true";
 
   const isTonightActive = currentStart === todayKey && currentEnd === todayKey;
   const isWeekendActive = currentStart === satKey && currentEnd === sunKey;
@@ -52,8 +54,18 @@ export default function TimeFilterTabs() {
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  function toggleHideMusic() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (hideMusic) {
+      params.delete("hideMusic");
+    } else {
+      params.set("hideMusic", "true");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 flex-wrap">
       <button
         onClick={() => navigate(todayKey, todayKey)}
         className={`chip text-[0.7rem] uppercase tracking-wider font-semibold${isTonightActive ? " active" : ""}`}
@@ -65,6 +77,13 @@ export default function TimeFilterTabs() {
         className={`chip text-[0.7rem] uppercase tracking-wider font-semibold${isWeekendActive ? " active" : ""}`}
       >
         This Weekend
+      </button>
+      <button
+        onClick={toggleHideMusic}
+        className={`chip text-[0.7rem] uppercase tracking-wider font-semibold flex items-center gap-1${hideMusic ? " active" : ""}`}
+      >
+        <Music size={11} />
+        Hide Music
       </button>
     </div>
   );

@@ -2,6 +2,31 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
+
+const MONTH_FULL: Record<string, number> = {
+  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+  July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+};
+
+function parseFuncheapDateTime(datePart: string, year: number, timeStr: string): Date | null {
+  // datePart: "March 25" (card) or "March 27, 2026" (table, already has year)
+  const withYear = /\d{4}/.test(datePart) ? datePart : `${datePart} ${year}`;
+  const dm = withYear.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})$/);
+  if (!dm) return null;
+  const month = MONTH_FULL[dm[1]];
+  if (!month) return null;
+  const day = parseInt(dm[2]);
+  const yr = parseInt(dm[3]);
+  const tm = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i);
+  if (!tm) return null;
+  let hours = parseInt(tm[1]);
+  const minutes = parseInt(tm[2]);
+  const period = tm[3].toLowerCase();
+  if (period === "pm" && hours !== 12) hours += 12;
+  if (period === "am" && hours === 12) hours = 0;
+  return sfDateFromLocal(yr, month, day, hours, minutes);
+}
 
 /**
  * Funcheap SF — sf.funcheap.com
@@ -77,16 +102,16 @@ export class FuncheapScraper extends BaseScraper {
         const datePart = dashMatch[1].replace(/^[A-Za-z]+,\s*/, "").trim();
 
         const year = new Date().getFullYear();
-        const startDate = new Date(`${datePart} ${year} ${startTimeStr}`);
-        if (isNaN(startDate.getTime())) return;
+        const startDate = parseFuncheapDateTime(datePart, year, startTimeStr);
+        if (!startDate) return;
 
         let endDate: Date | undefined;
         const endTimeEl = dateTimeEl.find(".fc-event-end-time").first();
         if (endTimeEl.length) {
           const endTimeRaw = endTimeEl.clone().find("span").remove().end().text().trim();
           if (endTimeRaw) {
-            const d = new Date(`${datePart} ${year} ${endTimeRaw}`);
-            if (!isNaN(d.getTime())) endDate = d;
+            const d = parseFuncheapDateTime(datePart, year, endTimeRaw);
+            if (d) endDate = d;
           }
         }
 
@@ -136,8 +161,9 @@ export class FuncheapScraper extends BaseScraper {
 
         // Strip leading day-of-week ("Friday, ") → "March 27, 2026"
         const datePart = dateHeaderText.replace(/^[A-Za-z]+,\s*/, "").trim();
-        const startDate = new Date(`${datePart} ${timeStr}`);
-        if (isNaN(startDate.getTime())) return;
+        const year = new Date().getFullYear();
+        const startDate = parseFuncheapDateTime(datePart, year, timeStr);
+        if (!startDate) return;
 
         const ttEl = $el.find("a.tt").first();
         const priceText = ttEl.clone().find(".tooltip").remove().end().text().trim().split("\n")[0].trim();

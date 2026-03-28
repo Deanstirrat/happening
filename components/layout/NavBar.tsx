@@ -61,7 +61,7 @@ export default function NavBar() {
             />
             <input
               type="text"
-              placeholder="Search events..."
+              placeholder="events..."
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
               onFocus={() => setSearchFocused(true)}

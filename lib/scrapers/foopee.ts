@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
+import { sfDateFromLocal } from "@/lib/sfDate";
 
 const BASE = "http://www.foopee.com/punk/the-list/";
 
@@ -66,8 +67,6 @@ export class FoopeeScraper extends BaseScraper {
       const month = monthMap[dateMatch[2]];
       const day = parseInt(dateMatch[3]);
       const year = this.resolveYear(month, day);
-      const currentDate = new Date(year, month - 1, day, 19, 0, 0);
-
       // Event items are in the directly nested <ul>
       $(dateGroup).find("> ul > li").each((_j, eventLi) => {
         const venueName = $(eventLi).find("b > a").first().text().trim();
@@ -99,7 +98,7 @@ export class FoopeeScraper extends BaseScraper {
 
         events.push({
           title,
-          startDate: new Date(currentDate),
+          startDate: sfDateFromLocal(year, month, day, 19, 0),
           venueName: venueName || undefined,
           price,
           isFree,

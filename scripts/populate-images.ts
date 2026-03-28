@@ -201,13 +201,21 @@ async function backfillBandsintown() {
     for (const event of events) {
       try {
         await page.goto(event.sourceUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-        const ogImage = await page.evaluate(() => {
+        const candidate = await page.evaluate(() => {
+          // Prefer og:image meta tag
           const meta = document.querySelector('meta[property="og:image"]');
-          return meta?.getAttribute("content") ?? null;
+          const og = meta?.getAttribute("content") ?? null;
+          if (og && !og.includes("assets.prod.bandsintown.com") && !og.includes("/null.")) return og;
+          // Fall back to any photos.bandsintown.com img on the page
+          const img = document.querySelector('img[src*="photos.bandsintown.com"]') as HTMLImageElement | null;
+          return img?.src ?? null;
         });
-        if (ogImage && !ogImage.includes("assets.prod.bandsintown.com") && !ogImage.includes("/null.")) {
+        if (candidate && !candidate.includes("assets.prod.bandsintown.com") && !candidate.includes("/null.")) {
+          // Decode Next.js image proxy URLs: /_next/image?url=<encoded-url>
+          const nextImgParam = candidate.match(/[?&]url=([^&]+)/);
+          const resolved = nextImgParam ? decodeURIComponent(nextImgParam[1]) : candidate;
           // Upgrade thumbnail to large image (same as scraper does)
-          const imageUrl = ogImage.replace("/thumb/", "/large/");
+          const imageUrl = resolved.replace("/thumb/", "/large/");
           await prisma.event.update({ where: { id: event.id }, data: { imageUrl } });
           console.log(`  ✓ ${event.title} → ${imageUrl}`);
           updated++;

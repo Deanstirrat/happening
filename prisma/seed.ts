@@ -121,6 +121,13 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "badslava",
+    name: "Badslava SF Trivia Nights",
+    url: "https://badslava.com/san-francisco-trivia-nights.php",
+    scrapeType: ScrapeType.CHEERIO,
+    enabled: true,
+  },
+  {
     slug: "community",
     name: "Community Submissions",
     url: "https://happening.app",

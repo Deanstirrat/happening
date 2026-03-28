@@ -34,10 +34,10 @@ async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
       status: "PUBLISHED",
       featured: true,
       OR: [
-        { endDate: { gte: now } },
+        { endDate: { gte: todayStart } },
         { endDate: null, startDate: { gte: todayStart } },
       ],
-      startDate: { lte: weekEnd },
+      startDate: { gte: todayStart, lte: weekEnd },
     },
     orderBy: [{ startDate: "asc" }],
     take: 10,
@@ -89,7 +89,11 @@ async function getEvents(params: SearchParams): Promise<{
   const hasSearch = !!params.search;
   const now = new Date();
   const todayStart = sfDayStart(sfDayKey(now));
-  const windowStart = params.startDate ? sfDayStart(params.startDate) : null;
+  // Default lower bound: SF midnight today. Drop it only when searching so
+  // search results aren't limited to upcoming events.
+  const windowStart = params.startDate
+    ? sfDayStart(params.startDate)
+    : hasSearch ? null : todayStart;
   const windowEnd = params.endDate
     ? sfDayEnd(params.endDate)
     : hasSearch ? null : sfDayEnd(sfDayKey(addDays(now, 30)));
@@ -118,12 +122,16 @@ async function getEvents(params: SearchParams): Promise<{
       ? categories.filter((c) => !c.startsWith("MUSIC_"))
       : categories;
 
-  const notEndedCondition: Prisma.EventWhereInput = {
-    OR: [
-      { endDate: { gte: now } },
-      { endDate: null, startDate: { gte: todayStart } },
-    ],
-  };
+  // Exclude events that are completely in the past (SF timezone).
+  // Only applied when a date window is active (not a search-all query).
+  const notEndedCondition: Prisma.EventWhereInput | null = windowStart
+    ? {
+        OR: [
+          { endDate: { gte: todayStart } },
+          { endDate: null, startDate: { gte: todayStart } },
+        ],
+      }
+    : null;
 
   const searchCondition: Prisma.EventWhereInput | null = params.search
     ? {
@@ -138,7 +146,10 @@ async function getEvents(params: SearchParams): Promise<{
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
     // Hide events that have already ended
-    AND: [notEndedCondition, ...(searchCondition ? [searchCondition] : [])],
+    AND: [
+      ...(notEndedCondition ? [notEndedCondition] : []),
+      ...(searchCondition ? [searchCondition] : []),
+    ],
     ...(windowStart || windowEnd
       ? {
           startDate: {

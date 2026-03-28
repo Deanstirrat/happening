@@ -19,6 +19,7 @@ import { BandsintownScraper } from "./bandsintown";
 import { KqedScraper } from "./kqed";
 import { DothebayScraper } from "./dothebay";
 import { RedditSFEventsScraper } from "./reddit";
+import { BadslavaTriviaScraper } from "./badslava";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -33,6 +34,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   kqed: new KqedScraper(),
   dothebay: new DothebayScraper(),
   "reddit-sfevents": new RedditSFEventsScraper(),
+  badslava: new BadslavaTriviaScraper(),
   // meetup: paid API only — skipped for now
 };
 

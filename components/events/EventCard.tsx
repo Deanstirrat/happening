@@ -4,6 +4,7 @@ import { formatCarouselDateSF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
+import { CategoryImage } from "@/components/events/CategoryImage";
 
 const NEIGHBORHOOD_DISPLAY: Record<string, string> = {
   "South of Market": "SoMa",
@@ -44,12 +45,12 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               sizes="(max-width: 768px) 100vw, 60vw"
             />
           ) : categoryImage ? (
-            <Image
+            <CategoryImage
               src={categoryImage}
               alt={categoryLabel ?? event.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 60vw"
+              gradient={`linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`}
+              imageClassName="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-surface-container-high to-surface-container-lowest" />
@@ -125,12 +126,11 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               sizes="64px"
             />
           ) : categoryImage ? (
-            <Image
+            <CategoryImage
               src={categoryImage}
               alt={categoryLabel ?? event.title}
-              fill
-              className="object-cover"
               sizes="64px"
+              gradient={`linear-gradient(135deg, ${categoryColor}33, ${categoryColor}11)`}
             />
           ) : (
             <div
@@ -201,12 +201,12 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
               sizes="(max-width: 768px) 50vw, 25vw"
             />
           ) : categoryImage ? (
-            <Image
+            <CategoryImage
               src={categoryImage}
               alt={categoryLabel ?? event.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, 25vw"
+              gradient={`linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`}
+              imageClassName="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div

@@ -16,6 +16,16 @@ import { sfDateFromLocal } from "@/lib/sfDate";
  * Posts where no date can be extracted are skipped.
  */
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
 const MONTH_NAMES: Record<string, number> = {
   jan: 1, january: 1,
   feb: 2, february: 2,
@@ -186,7 +196,8 @@ export class RedditSFEventsScraper extends BaseScraper {
   }
 
   private parsePost(post: RedditPost): ScrapedEvent | null {
-    const { id, title, selftext, permalink, created_utc, preview } = post.data;
+    const { id, selftext, permalink, created_utc, preview } = post.data;
+    const title = decodeHtmlEntities(post.data.title);
 
     const startDate = parseDateFromTitle(title, created_utc);
     if (!startDate) return null;

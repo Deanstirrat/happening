@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { addDays, endOfDay, startOfDay } from "date-fns";
+import { addDays, endOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
+import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
 
   const now = new Date();
+  const sfMidnightToday = sfDayStart(sfDayKey(now));
+
+  // Extract search early so it can influence the date window
+  const search = p.get("search") ?? "";
+
+  // Default lower bound: today in SF timezone. When searching, drop the lower
+  // bound so results aren't limited to upcoming events.
   const windowStart = p.get("startDate")
-    ? new Date(p.get("startDate")! + "T00:00:00.000Z")
-    : null;
+    ? sfDayStart(p.get("startDate")!)
+    : search ? null : sfMidnightToday;
   const windowEnd = p.get("endDate")
-    ? new Date(p.get("endDate")! + "T23:59:59.999Z")
+    ? sfDayEnd(p.get("endDate")!)
     : endOfDay(addDays(now, 30));
 
   const categories = p.getAll("category");
@@ -20,7 +28,6 @@ export async function GET(req: NextRequest) {
   const sources = p.getAll("source");
   const isFree = p.get("isFree") === "true";
   const hideMusic = p.get("hideMusic") === "true";
-  const search = p.get("search") ?? "";
   const view = p.get("view") ?? "list";
   const page = Math.max(1, parseInt(p.get("page") ?? "1"));
   const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
@@ -32,12 +39,18 @@ export async function GET(req: NextRequest) {
       ? categories.filter((c) => !c.startsWith("MUSIC_"))
       : categories;
 
-  const notEndedCondition: Prisma.EventWhereInput = {
-    OR: [
-      { endDate: { gte: now } },
-      { endDate: null, startDate: { gte: startOfDay(now) } },
-    ],
-  };
+  // Exclude events that are completely in the past (SF timezone).
+  // - Multi-day events: include if endDate >= today (SF)
+  // - Single-day events: include if startDate >= today (SF)
+  // Only applied when a date window is active (i.e. not a search-all query).
+  const notEndedCondition: Prisma.EventWhereInput | null = windowStart
+    ? {
+        OR: [
+          { endDate: { gte: sfMidnightToday } },
+          { endDate: null, startDate: { gte: sfMidnightToday } },
+        ],
+      }
+    : null;
 
   const searchCondition: Prisma.EventWhereInput | null = search
     ? {
@@ -52,7 +65,10 @@ export async function GET(req: NextRequest) {
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
     // Hide events that have already ended
-    AND: [notEndedCondition, ...(searchCondition ? [searchCondition] : [])],
+    AND: [
+      ...(notEndedCondition ? [notEndedCondition] : []),
+      ...(searchCondition ? [searchCondition] : []),
+    ],
     startDate: {
       ...(windowStart ? { gte: windowStart } : {}),
       lte: windowEnd,

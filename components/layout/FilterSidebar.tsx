@@ -145,9 +145,9 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         )}
       </button>
 
-    <aside className={`flex flex-col ${mobileOpen ? "max-h-[70vh]" : "hidden"} lg:flex lg:max-h-none overflow-hidden`}>
-      {/* Scrollable filter sections */}
-      <div className="flex-1 overflow-y-auto lg:overflow-visible flex flex-col gap-1">
+    <aside className={`flex flex-col gap-1 ${mobileOpen ? "" : "hidden"} lg:flex`}>
+      {/* Scrollable filter sections — bounded height on mobile so button stays visible */}
+      <div className="max-h-[55vh] overflow-y-auto lg:max-h-none lg:overflow-visible flex flex-col gap-1">
         <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
           Filters
         </p>
@@ -176,12 +176,14 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body mb-1"
+            style={{ colorScheme: "dark" }}
           />
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body"
+            style={{ colorScheme: "dark" }}
           />
         </Section>
 
@@ -322,8 +324,8 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         </Section>
       </div>
 
-      {/* Actions — pinned to bottom on mobile, normal flow on desktop */}
-      <div className="mt-3 flex flex-col gap-2 bg-surface pb-1 shrink-0">
+      {/* Actions — sticky to bottom of whichever scrolling container wraps this */}
+      <div className="sticky bottom-0 mt-3 flex flex-col gap-2 bg-surface-container-low pb-1 shrink-0">
         <button
           onClick={() => { applyFilters(); setMobileOpen(false); }}
           className="btn-primary w-full text-xs py-2.5 font-semibold"

@@ -44,7 +44,9 @@
       "WebFetch(domain:www.bandsintown.com)",
       "Bash(node -e \"console.log\\(Intl.DateTimeFormat\\(\\).resolvedOptions\\(\\).timeZone, new Date\\(\\).toString\\(\\)\\)\")",
       "Bash(md5 /Users/meganrileyg/happening/components/layout/NavBar.tsx)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(grep -r \"NEXT_PUBLIC_BASE_URL\\\\|BASE_URL\\\\|happening\\\\.fm\\\\|site_url\\\\|SITE_URL\" /Users/meganrileyg/happening/.env* /Users/meganrileyg/happening/next.config*)",
+      "Bash(ls /Users/meganrileyg/happening/app/api/events/[id]/)"
     ]
   }
 }

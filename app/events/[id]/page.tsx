@@ -6,9 +6,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
-import { formatDateLongSF, formatTimeSF, formatDateShortSF, formatGCalSF } from "@/lib/sfDate";
-import { ArrowLeft, Share2, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
+import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate";
+import { ArrowLeft, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
+import ShareButton from "./ShareButton";
 
 async function getEvent(id: string) {
   return prisma.event.findUnique({
@@ -80,9 +81,7 @@ export default async function EventDetailPage({
           <ArrowLeft size={13} />
           Back to explore
         </Link>
-        <button className="text-on-surface-variant hover:text-on-surface transition-colors">
-          <Share2 size={16} />
-        </button>
+        <ShareButton title={event.title} />
       </div>
 
       {/* Main grid: flyer left, details right */}
@@ -180,14 +179,7 @@ export default async function EventDetailPage({
               get your tickets
               <ExternalLink size={13} />
             </a>
-            <a
-              href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatGCalSF(event.startDate)}/${formatGCalSF(event.endDate ?? event.startDate)}&details=${encodeURIComponent(event.sourceUrl)}&location=${encodeURIComponent(event.venueAddress ?? event.venueName ?? "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary text-center py-3 text-sm"
-            >
-              add to calendar
-            </a>
+            <ShareButton title={event.title} large />
           </div>
 
           {/* Vibe / description */}

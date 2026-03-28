@@ -10,6 +10,7 @@ const navItems = [
   { key: "metrics", label: "metrics", href: "/admin/metrics" },
   { key: "submissions", label: "submissions", href: "/admin/submissions" },
   { key: "events", label: "events", href: "/admin/events" },
+  { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "feature-requests", label: "feature requests", href: "/admin/feature-requests" },
   { key: "bug-reports", label: "bug reports", href: "/admin/bug-reports" },
 ];

@@ -63,8 +63,8 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
       body: JSON.stringify({
         title,
         description: description || null,
-        startDate,
-        endDate: endDate || null,
+        startDate: new Date(startDate).toISOString(),
+        endDate: endDate ? new Date(endDate).toISOString() : null,
         venueName: venueName || null,
         venueAddress: venueAddress || null,
         neighborhood: neighborhood || null,

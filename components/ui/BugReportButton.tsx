@@ -43,7 +43,7 @@ export default function BugReportButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 font-body text-xs text-on-surface-variant hover:text-on-surface px-3 py-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors"
+        className="fixed bottom-16 sm:bottom-4 right-4 z-40 font-body text-xs text-on-surface-variant hover:text-on-surface px-3 py-2 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors"
       >
         report a bug
       </button>

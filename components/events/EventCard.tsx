@@ -6,6 +6,7 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 
 const NEIGHBORHOOD_DISPLAY: Record<string, string> = {
   "South of Market": "SoMa",
+  "Downtown/Civic Center": "Downtown",
 };
 
 function formatPrice(price: string): string {
@@ -46,10 +47,27 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
           {/* Bottom gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
+          {/* Chips: top-left on mobile only */}
+          <div className="absolute top-2 left-2 flex gap-2 sm:hidden">
+            {neighborhood && (
+              <span className="chip text-[0.6rem] uppercase tracking-wider truncate max-w-[9rem]">
+                {neighborhood}
+              </span>
+            )}
+            {categoryLabel && (
+              <span
+                className="chip text-[0.6rem] uppercase tracking-wider"
+                style={{ background: categoryColor, color: "#0e0e0e" }}
+              >
+                {categoryLabel}
+              </span>
+            )}
+          </div>
+
           {/* Bottom content */}
           <div className="absolute bottom-0 left-0 right-0 p-5">
-            {/* Chips row */}
-            <div className="flex gap-2 mb-2">
+            {/* Chips row: bottom on sm+ only */}
+            <div className="hidden sm:flex gap-2 mb-2">
               {neighborhood && (
                 <span className="chip text-[0.6rem] uppercase tracking-wider truncate max-w-[9rem]">
                   {neighborhood}

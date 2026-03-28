@@ -208,14 +208,9 @@ export default async function EventsPage({
       <div className="flex-1 min-w-0">
         {/* Hero headline */}
         <div className="mb-8">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
-              san francisco
-            </h1>
-            <Suspense>
-              <TimeFilterTabs />
-            </Suspense>
-          </div>
+          <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
+            san francisco
+          </h1>
           <p className="font-body text-on-surface-variant text-sm mt-2">
             {total > 0
               ? `${total} event${total !== 1 ? "s" : ""} found`
@@ -224,7 +219,15 @@ export default async function EventsPage({
         </div>
 
         {weeklyFeatured.length > 0 && (
-          <FeaturedCarousel events={weeklyFeatured} />
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-headline font-bold text-xl text-on-surface lowercase">featured events</h2>
+              <Suspense>
+                <TimeFilterTabs />
+              </Suspense>
+            </div>
+            <FeaturedCarousel events={weeklyFeatured} />
+          </div>
         )}
 
         {hasEvents ? (

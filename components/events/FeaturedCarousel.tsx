@@ -34,7 +34,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
   const multi = events.length > 1;
 
   return (
-    <section className="mb-12">
+    <section>
       <div
         className="relative"
         onMouseEnter={() => setPaused(true)}
@@ -49,7 +49,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
 
         {/* Dot indicators */}
         {multi && (
-          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 items-center">
+          <div className="absolute bottom-2 sm:bottom-14 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 items-center">
             {events.map((_, i) => (
               <button
                 key={i}

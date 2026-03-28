@@ -81,12 +81,13 @@ async function getEvents(params: SearchParams): Promise<{
   const limit = 150;
   const skip = (page - 1) * limit;
 
+  const hasSearch = !!params.search;
   const startDate = params.startDate
     ? sfDayStart(params.startDate)
-    : params.search ? undefined : sfDayStart(sfDayKey(new Date()));
+    : hasSearch ? undefined : sfDayStart(sfDayKey(new Date()));
   const endDate = params.endDate
     ? sfDayEnd(params.endDate)
-    : params.search ? undefined : sfDayEnd(sfDayKey(addDays(new Date(), 30)));
+    : hasSearch ? undefined : sfDayEnd(sfDayKey(addDays(new Date(), 30)));
 
   const categories = params.category
     ? Array.isArray(params.category)
@@ -114,7 +115,9 @@ async function getEvents(params: SearchParams): Promise<{
 
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
-    ...(startDate || endDate ? { startDate: { gte: startDate, lte: endDate } } : {}),
+    ...(startDate !== undefined || endDate !== undefined
+      ? { startDate: { gte: startDate, lte: endDate } }
+      : {}),
     ...(effectiveCategories.length > 0 && {
       category: { in: effectiveCategories as any },
     }),

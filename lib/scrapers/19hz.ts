@@ -58,11 +58,29 @@ export class NineteenHzScraper extends BaseScraper {
       const priceText = $(tds[3])?.text().trim();
       const price = priceText && priceText !== "-" ? priceText : undefined;
 
-      // Source URL: first link in the row
-      const href = $(row).find("a").first().attr("href");
-      const sourceUrl = href?.startsWith("http")
-        ? href
-        : "https://19hz.info/eventlisting_BayArea.php";
+      // Source URL: prefer external links from the Links column (col 5),
+      // then fall back to any external link in the row.
+      // The first link in col 1 is often a relative 19hz URL like "event.php?id=..."
+      // which has no useful image; the Links column has Eventbrite/RA/venue URLs.
+      let sourceUrl = "https://19hz.info/eventlisting_BayArea.php";
+      if (tds[5]) {
+        $(tds[5]).find("a").each((_j, a) => {
+          const h = $(a).attr("href");
+          if (h?.startsWith("http") && !h.includes("19hz.info")) {
+            sourceUrl = h;
+            return false; // break
+          }
+        });
+      }
+      if (sourceUrl.includes("19hz.info")) {
+        $(row).find("a").each((_j, a) => {
+          const h = $(a).attr("href");
+          if (h?.startsWith("http") && !h.includes("19hz.info")) {
+            sourceUrl = h;
+            return false; // break
+          }
+        });
+      }
 
       events.push({
         title,

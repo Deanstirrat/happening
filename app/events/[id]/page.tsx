@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
+import { CATEGORY_IMAGES } from "@/lib/categoryImages";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF, formatGCalSF } from "@/lib/sfDate";
 import { ArrowLeft, Share2, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
@@ -55,6 +56,7 @@ export default async function EventDetailPage({
 
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
   const dateLabel = formatDateLongSF(event.startDate);
   const timeLabel = formatTimeSF(event.startDate);
   const endTimeLabel = event.endDate ? formatTimeSF(event.endDate) : null;
@@ -91,6 +93,15 @@ export default async function EventDetailPage({
             <Image
               src={event.imageUrl}
               alt={event.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              priority
+            />
+          ) : categoryImage ? (
+            <Image
+              src={categoryImage}
+              alt={categoryLabel ?? event.title}
               fill
               className="object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"

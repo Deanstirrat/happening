@@ -35,8 +35,13 @@ export class BandsintownScraper extends BaseScraper {
     page.on("request", (request) => {
       const url = request.url();
       if (!url.includes("photos.bandsintown.com")) return;
-      const photoIdMatch = url.match(/\/(?:thumb|large)\/(\d+)\./);
-      if (photoIdMatch) capturedPhotos.set(photoIdMatch[1], url);
+      // Bandsintown uses Next.js image proxy: /_next/image?url=<encoded-url>
+      // The encoded URL still contains "photos.bandsintown.com" as a substring,
+      // but slashes are encoded as %2F so the path regex won't match directly.
+      const nextImgParam = url.match(/[?&]url=([^&]+)/);
+      const effectiveUrl = nextImgParam ? decodeURIComponent(nextImgParam[1]) : url;
+      const photoIdMatch = effectiveUrl.match(/\/(?:thumb|large)\/(\d+)\./);
+      if (photoIdMatch) capturedPhotos.set(photoIdMatch[1], effectiveUrl);
     });
 
     try {
@@ -44,8 +49,9 @@ export class BandsintownScraper extends BaseScraper {
       // Wait for at least one event card to appear (JS-rendered SPA)
       await page.waitForSelector('a[href*="/e/"]', { timeout: 45000 });
 
-      // Wait for photo images to load (large viewport makes them all visible)
-      await page.waitForSelector('img[src*="photos.bandsintown.com"]', { timeout: 15000 }).catch(() => {});
+      // Wait for photo images to load (large viewport makes them all visible).
+      // Bandsintown proxies images via /_next/image, so match on that or the direct CDN URL.
+      await page.waitForSelector('img[src*="photos.bandsintown.com"], img[src*="/_next/image"]', { timeout: 15000 }).catch(() => {});
       await page.waitForTimeout(500);
 
       const rawEvents = await page.evaluate(() => {
@@ -73,7 +79,10 @@ export class BandsintownScraper extends BaseScraper {
           let photoId = "";
           const imgs = (parent as Element).querySelectorAll("img");
           for (const img of Array.from(imgs)) {
-            const src = img.getAttribute("src") ?? img.getAttribute("data-src") ?? "";
+            let src = img.getAttribute("src") ?? img.getAttribute("data-src") ?? "";
+            // Decode Next.js image proxy URLs: /_next/image?url=<encoded-url>
+            const nextImgParam = src.match(/[?&]url=([^&]+)/);
+            if (nextImgParam) src = decodeURIComponent(nextImgParam[1]);
             const match = src.match(/\/(?:thumb|large)\/(\d+)\./);
             if (match) { photoId = match[1]; break; }
           }

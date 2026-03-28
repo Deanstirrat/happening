@@ -47,10 +47,15 @@ export default function TimeFilterTabs() {
   const isTonightActive = currentStart === todayKey && currentEnd === todayKey;
   const isWeekendActive = currentStart === satKey && currentEnd === sunKey;
 
-  function navigate(start: string, end: string) {
+  function navigate(start: string, end: string, isActive: boolean) {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("startDate", start);
-    params.set("endDate", end);
+    if (isActive) {
+      params.delete("startDate");
+      params.delete("endDate");
+    } else {
+      params.set("startDate", start);
+      params.set("endDate", end);
+    }
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -67,13 +72,13 @@ export default function TimeFilterTabs() {
   return (
     <div className="flex gap-2 flex-wrap">
       <button
-        onClick={() => navigate(todayKey, todayKey)}
+        onClick={() => navigate(todayKey, todayKey, isTonightActive)}
         className={`chip text-[0.7rem] uppercase tracking-wider font-semibold${isTonightActive ? " active" : ""}`}
       >
         Tonight
       </button>
       <button
-        onClick={() => navigate(satKey, sunKey)}
+        onClick={() => navigate(satKey, sunKey, isWeekendActive)}
         className={`chip text-[0.7rem] uppercase tracking-wider font-semibold${isWeekendActive ? " active" : ""}`}
       >
         This Weekend

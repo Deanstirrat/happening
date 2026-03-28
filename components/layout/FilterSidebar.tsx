@@ -13,6 +13,7 @@ import {
   Filter,
   Music,
 } from "lucide-react";
+
 import { CATEGORY_LABELS, MUSIC_CATEGORIES, SF_NEIGHBORHOODS } from "@/lib/types";
 
 const MUSIC_CATEGORY_SET = new Set(MUSIC_CATEGORIES as readonly string[]);
@@ -49,10 +50,13 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const [selectedSources, setSelectedSources] = useState<string[]>(currentSources);
   const [freeOnly, setFreeOnly] = useState(currentFreeOnly);
 
+  const [musicOpen, setMusicOpen] = useState(
+    currentCategories.some((c) => MUSIC_CATEGORY_SET.has(c))
+  );
+
   const [openSections, setOpenSections] = useState({
     date: true,
     category: true,
-    musicGenre: false,
     neighborhood: false,
     source: false,
     price: false,
@@ -106,6 +110,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     setNeighborhoods([]);
     setSelectedSources([]);
     setFreeOnly(false);
+    setMusicOpen(false);
     router.push(pathname);
   };
 
@@ -184,7 +189,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         label="Category"
         open={openSections.category}
         onToggle={() => toggleSection("category")}
-        activeCount={categories.filter((c) => !MUSIC_CATEGORY_SET.has(c)).length}
+        activeCount={categories.length}
       >
         <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto no-scrollbar">
           {OTHER_CATEGORY_ENTRIES.map(([value, label]) => (
@@ -200,31 +205,47 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
               {label}
             </button>
           ))}
-        </div>
-      </Section>
-
-      {/* Music Genres */}
-      <Section
-        icon={<Music size={13} />}
-        label="Music Genres"
-        open={openSections.musicGenre}
-        onToggle={() => toggleSection("musicGenre")}
-        activeCount={categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
-      >
-        <div className="flex flex-col gap-0.5">
-          {MUSIC_GENRE_ENTRIES.map(([value, label]) => (
+          {/* Music — expandable sub-category */}
+          <div>
             <button
-              key={value}
-              onClick={() => toggleMulti(value, categories, setCategories)}
-              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                categories.includes(value)
+              onClick={() => setMusicOpen((v) => !v)}
+              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full flex items-center justify-between ${
+                categories.some((c) => MUSIC_CATEGORY_SET.has(c))
                   ? "bg-secondary-container text-on-secondary-container"
                   : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
               }`}
             >
-              {label}
+              <span className="flex items-center gap-1.5">
+                <Music size={10} />
+                Music
+              </span>
+              <span className="flex items-center gap-1">
+                {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length > 0 && (
+                  <span className="text-[0.6rem] font-semibold leading-none px-1 py-0.5 rounded-full bg-secondary text-on-secondary">
+                    {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
+                  </span>
+                )}
+                {musicOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+              </span>
             </button>
-          ))}
+            {musicOpen && (
+              <div className="flex flex-col gap-0.5 pl-3 mt-0.5">
+                {MUSIC_GENRE_ENTRIES.map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => toggleMulti(value, categories, setCategories)}
+                    className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                      categories.includes(value)
+                        ? "bg-secondary-container text-on-secondary-container"
+                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </Section>
 

@@ -50,7 +50,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
   return (
     <section>
       <div
-        className="overflow-hidden"
+        className="overflow-hidden relative"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onTouchStart={handleTouchStart}
@@ -69,26 +69,26 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Dot indicators — outside card, below date */}
-      {multi && (
-        <div className="mt-3 flex gap-1.5 items-center justify-center">
-          {events.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              aria-label={`Go to slide ${i + 1}`}
-              className="rounded-full transition-all duration-300"
-              style={
-                i === index
-                  ? { width: "1rem", height: "0.375rem", background: "linear-gradient(135deg, #ffb3b5, #ff727c)" }
-                  : { width: "0.375rem", height: "0.375rem", background: "rgba(255,255,255,0.3)" }
-              }
-            />
-          ))}
-        </div>
-      )}
+        {/* Dot indicators — inside card at bottom */}
+        {multi && (
+          <div className="absolute bottom-3 left-0 right-0 flex gap-1.5 items-center justify-center pointer-events-none">
+            {events.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                aria-label={`Go to slide ${i + 1}`}
+                className="rounded-full transition-all duration-300 pointer-events-auto"
+                style={
+                  i === index
+                    ? { width: "1rem", height: "0.375rem", background: "linear-gradient(135deg, #ffb3b5, #ff727c)" }
+                    : { width: "0.375rem", height: "0.375rem", background: "rgba(255,255,255,0.3)" }
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

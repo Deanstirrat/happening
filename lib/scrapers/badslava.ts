@@ -88,7 +88,7 @@ export class BadslavaTriviaScraper extends BaseScraper {
         const startDate = sfDateFromLocal(yr, mo, dy, time.hour, time.minute);
 
         events.push({
-          title: "Trivia Night",
+          title: `Trivia at ${venueName}`,
           startDate,
           venueName,
           venueAddress,

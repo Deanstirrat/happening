@@ -13,12 +13,14 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   const goTo = useCallback((i: number) => {
     setIndex(((i % events.length) + events.length) % events.length);
   }, [events.length]);
 
   const next = useCallback(() => goTo(index + 1), [goTo, index]);
+  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
 
   useEffect(() => {
     if (paused || events.length <= 1) return;
@@ -30,21 +32,42 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
 
   if (events.length === 0) return null;
 
-  const event = events[index];
   const multi = events.length > 1;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      diff > 0 ? next() : prev();
+    }
+    touchStartX.current = null;
+  };
 
   return (
     <section>
       <div
-        className="relative"
+        className="relative overflow-hidden"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
-        {/* Slide */}
-        <div key={event.id} className="transition-opacity duration-300">
-          <FeaturedTracker eventId={event.id}>
-            <EventCard event={event} featured />
-          </FeaturedTracker>
+        {/* Sliding strip */}
+        <div
+          className="flex transition-transform duration-500 ease-in-out"
+          style={{ transform: `translateX(-${index * 100}%)` }}
+        >
+          {events.map((event) => (
+            <div key={event.id} className="w-full shrink-0">
+              <FeaturedTracker eventId={event.id}>
+                <EventCard event={event} featured />
+              </FeaturedTracker>
+            </div>
+          ))}
         </div>
 
         {/* Dot indicators */}

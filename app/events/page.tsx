@@ -34,7 +34,7 @@ async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
       featured: true,
       startDate: { gte: todayStart, lte: weekEnd },
     },
-    orderBy: [{ featuredAt: "desc" }, { startDate: "asc" }],
+    orderBy: [{ startDate: "asc" }],
     take: 10,
     select: {
       id: true,

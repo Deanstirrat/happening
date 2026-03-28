@@ -16,40 +16,55 @@ import { sfDateFromLocal } from "@/lib/sfDate";
  */
 export class EventbriteScraper extends BaseScraper {
   readonly sourceSlug = "eventbrite";
-  private readonly MAX_PAGES = 5;
-  private readonly BASE_URL =
-    "https://www.eventbrite.com/d/ca--san-francisco/events/";
+  private readonly MAX_PAGES = 3;
+  private readonly BASE_URLS = [
+    "https://www.eventbrite.com/d/ca--san-francisco/events/",
+    "https://www.eventbrite.com/d/ca--san-francisco/food-and-drink/",
+    "https://www.eventbrite.com/d/ca--san-francisco/outdoors-adventure/",
+    "https://www.eventbrite.com/d/ca--san-francisco/arts/",
+    "https://www.eventbrite.com/d/ca--san-francisco/community--and--culture/",
+    "https://www.eventbrite.com/d/ca--san-francisco/health-and-wellness/",
+  ];
 
   async scrape(): Promise<ScrapedEvent[]> {
+    const seenIds = new Set<string>();
     const events: ScrapedEvent[] = [];
 
-    for (let page = 1; page <= this.MAX_PAGES; page++) {
-      const url = `${this.BASE_URL}?page=${page}`;
-      let html: string;
-      try {
-        const { data } = await axios.get(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml",
-          },
-          timeout: 20000,
-        });
-        html = data;
-      } catch (err: any) {
-        console.error(`[eventbrite] Fetch error on page ${page}:`, err.message);
-        break;
+    for (const baseUrl of this.BASE_URLS) {
+      for (let page = 1; page <= this.MAX_PAGES; page++) {
+        const url = `${baseUrl}?page=${page}`;
+        let html: string;
+        try {
+          const { data } = await axios.get(url, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+              Accept: "text/html,application/xhtml+xml",
+            },
+            timeout: 20000,
+          });
+          html = data;
+        } catch (err: any) {
+          console.error(`[eventbrite] Fetch error on ${url}:`, err.message);
+          break;
+        }
+
+        const $ = cheerio.load(html);
+        const pageEvents = this.extractEvents($, html);
+
+        if (pageEvents.length === 0) {
+          console.log(`[eventbrite] No events on ${baseUrl} page ${page} — stopping`);
+          break;
+        }
+
+        // Deduplicate within this scrape run by externalId/sourceUrl
+        for (const event of pageEvents) {
+          const key = event.externalId || event.sourceUrl;
+          if (key && seenIds.has(key)) continue;
+          if (key) seenIds.add(key);
+          events.push(event);
+        }
       }
-
-      const $ = cheerio.load(html);
-      const pageEvents = this.extractEvents($, html);
-
-      if (pageEvents.length === 0) {
-        console.log(`[eventbrite] No events on page ${page} — stopping`);
-        break;
-      }
-
-      events.push(...pageEvents);
     }
 
     return events;

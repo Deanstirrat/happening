@@ -145,182 +145,185 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         )}
       </button>
 
-    <aside className={`flex flex-col gap-1 ${mobileOpen ? "" : "hidden"} lg:flex`}>
-      <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
-        Filters
-      </p>
+    <aside className={`flex flex-col ${mobileOpen ? "max-h-[70vh]" : "hidden"} lg:flex lg:max-h-none overflow-hidden`}>
+      {/* Scrollable filter sections */}
+      <div className="flex-1 overflow-y-auto lg:overflow-visible flex flex-col gap-1">
+        <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
+          Filters
+        </p>
 
-      {/* Date */}
-      <Section
-        icon={<Calendar size={13} />}
-        label="Date"
-        open={openSections.date}
-        onToggle={() => toggleSection("date")}
-        activeCount={(startDate ? 1 : 0) + (endDate ? 1 : 0)}
-      >
-        <button
-          onClick={applyToday}
-          className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full mb-2 ${
-            currentStartDate === new Date().toISOString().slice(0, 10) &&
-            currentEndDate === new Date().toISOString().slice(0, 10)
-              ? "bg-secondary-container text-on-secondary-container"
-              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-          }`}
+        {/* Date */}
+        <Section
+          icon={<Calendar size={13} />}
+          label="Date"
+          open={openSections.date}
+          onToggle={() => toggleSection("date")}
+          activeCount={(startDate ? 1 : 0) + (endDate ? 1 : 0)}
         >
-          Today
-        </button>
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body mb-1"
-        />
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body"
-        />
-      </Section>
+          <button
+            onClick={applyToday}
+            className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full mb-2 ${
+              currentStartDate === new Date().toISOString().slice(0, 10) &&
+              currentEndDate === new Date().toISOString().slice(0, 10)
+                ? "bg-secondary-container text-on-secondary-container"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+            }`}
+          >
+            Today
+          </button>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body mb-1"
+          />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body"
+          />
+        </Section>
 
-      {/* Category */}
-      <Section
-        icon={<Tag size={13} />}
-        label="Category"
-        open={openSections.category}
-        onToggle={() => toggleSection("category")}
-        activeCount={categories.length}
-      >
-        <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto no-scrollbar">
-          {OTHER_CATEGORY_ENTRIES.map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => toggleMulti(value, categories, setCategories)}
-              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                categories.includes(value)
-                  ? "bg-secondary-container text-on-secondary-container"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          {/* Music — expandable sub-category */}
-          <div>
-            <button
-              onClick={() => setMusicOpen((v) => !v)}
-              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full flex items-center justify-between ${
-                categories.some((c) => MUSIC_CATEGORY_SET.has(c))
-                  ? "bg-secondary-container text-on-secondary-container"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Music size={10} />
-                Music
-              </span>
-              <span className="flex items-center gap-1">
-                {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length > 0 && (
-                  <span className="text-[0.6rem] font-semibold leading-none px-1 py-0.5 rounded-full bg-secondary text-on-secondary">
-                    {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
-                  </span>
-                )}
-                {musicOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-              </span>
-            </button>
-            {musicOpen && (
-              <div className="flex flex-col gap-0.5 pl-3 mt-0.5">
-                {MUSIC_GENRE_ENTRIES.map(([value, label]) => (
-                  <button
-                    key={value}
-                    onClick={() => toggleMulti(value, categories, setCategories)}
-                    className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                      categories.includes(value)
-                        ? "bg-secondary-container text-on-secondary-container"
-                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Category */}
+        <Section
+          icon={<Tag size={13} />}
+          label="Category"
+          open={openSections.category}
+          onToggle={() => toggleSection("category")}
+          activeCount={categories.length}
+        >
+          <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto no-scrollbar">
+            {OTHER_CATEGORY_ENTRIES.map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => toggleMulti(value, categories, setCategories)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                  categories.includes(value)
+                    ? "bg-secondary-container text-on-secondary-container"
+                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            {/* Music — expandable sub-category */}
+            <div>
+              <button
+                onClick={() => setMusicOpen((v) => !v)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full flex items-center justify-between ${
+                  categories.some((c) => MUSIC_CATEGORY_SET.has(c))
+                    ? "bg-secondary-container text-on-secondary-container"
+                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Music size={10} />
+                  Music
+                </span>
+                <span className="flex items-center gap-1">
+                  {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length > 0 && (
+                    <span className="text-[0.6rem] font-semibold leading-none px-1 py-0.5 rounded-full bg-secondary text-on-secondary">
+                      {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
+                    </span>
+                  )}
+                  {musicOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                </span>
+              </button>
+              {musicOpen && (
+                <div className="flex flex-col gap-0.5 pl-3 mt-0.5">
+                  {MUSIC_GENRE_ENTRIES.map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => toggleMulti(value, categories, setCategories)}
+                      className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                        categories.includes(value)
+                          ? "bg-secondary-container text-on-secondary-container"
+                          : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </Section>
+        </Section>
 
-      {/* Neighborhood */}
-      <Section
-        icon={<MapPin size={13} />}
-        label="Neighborhood"
-        open={openSections.neighborhood}
-        onToggle={() => toggleSection("neighborhood")}
-        activeCount={neighborhoods.length}
-      >
-        <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto no-scrollbar">
-          {SF_NEIGHBORHOODS.map((n) => (
-            <button
-              key={n}
-              onClick={() => toggleMulti(n, neighborhoods, setNeighborhoods)}
-              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                neighborhoods.includes(n)
-                  ? "bg-secondary-container text-on-secondary-container"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* Source */}
-      <Section
-        icon={<Rss size={13} />}
-        label="Source"
-        open={openSections.source}
-        onToggle={() => toggleSection("source")}
-        activeCount={selectedSources.length}
-      >
-        <div className="flex flex-col gap-0.5">
-          {sources.map((s) => (
-            <button
-              key={s.slug}
-              onClick={() => toggleMulti(s.slug, selectedSources, setSelectedSources)}
-              className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                selectedSources.includes(s.slug)
-                  ? "bg-secondary-container text-on-secondary-container"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* Free only */}
-      <Section
-        icon={<DollarSign size={13} />}
-        label="Price"
-        open={openSections.price}
-        onToggle={() => toggleSection("price")}
-        activeCount={freeOnly ? 1 : 0}
-      >
-        <button
-          onClick={() => setFreeOnly(!freeOnly)}
-          className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full ${
-            freeOnly
-              ? "bg-secondary-container text-on-secondary-container"
-              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-          }`}
+        {/* Neighborhood */}
+        <Section
+          icon={<MapPin size={13} />}
+          label="Neighborhood"
+          open={openSections.neighborhood}
+          onToggle={() => toggleSection("neighborhood")}
+          activeCount={neighborhoods.length}
         >
-          Free only
-        </button>
-      </Section>
+          <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto no-scrollbar">
+            {SF_NEIGHBORHOODS.map((n) => (
+              <button
+                key={n}
+                onClick={() => toggleMulti(n, neighborhoods, setNeighborhoods)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                  neighborhoods.includes(n)
+                    ? "bg-secondary-container text-on-secondary-container"
+                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </Section>
 
-      {/* Actions */}
-      <div className="mt-3 flex flex-col gap-2">
+        {/* Source */}
+        <Section
+          icon={<Rss size={13} />}
+          label="Source"
+          open={openSections.source}
+          onToggle={() => toggleSection("source")}
+          activeCount={selectedSources.length}
+        >
+          <div className="flex flex-col gap-0.5">
+            {sources.map((s) => (
+              <button
+                key={s.slug}
+                onClick={() => toggleMulti(s.slug, selectedSources, setSelectedSources)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
+                  selectedSources.includes(s.slug)
+                    ? "bg-secondary-container text-on-secondary-container"
+                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        {/* Free only */}
+        <Section
+          icon={<DollarSign size={13} />}
+          label="Price"
+          open={openSections.price}
+          onToggle={() => toggleSection("price")}
+          activeCount={freeOnly ? 1 : 0}
+        >
+          <button
+            onClick={() => setFreeOnly(!freeOnly)}
+            className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full ${
+              freeOnly
+                ? "bg-secondary-container text-on-secondary-container"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+            }`}
+          >
+            Free only
+          </button>
+        </Section>
+      </div>
+
+      {/* Actions — pinned to bottom on mobile, normal flow on desktop */}
+      <div className="mt-3 flex flex-col gap-2 bg-surface pb-1 shrink-0">
         <button
           onClick={() => { applyFilters(); setMobileOpen(false); }}
           className="btn-primary w-full text-xs py-2.5 font-semibold"

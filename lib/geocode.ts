@@ -24,10 +24,12 @@ const throttledFetch = pThrottle({ limit: 1, interval: 1100 })(
 export async function geocodeEvent(event: ScrapedEvent): Promise<GeoResult> {
   // If scraper already provided coordinates (Eventbrite, Meetup, RA), use them
   if (event.latitude != null && event.longitude != null) {
+    const latitude = Number(event.latitude);
+    const longitude = Number(event.longitude);
     return {
-      latitude: event.latitude,
-      longitude: event.longitude,
-      neighborhood: detectNeighborhood(event.latitude, event.longitude),
+      latitude,
+      longitude,
+      neighborhood: detectNeighborhood(latitude, longitude),
     };
   }
 

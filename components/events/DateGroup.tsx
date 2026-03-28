@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { isTodaySF, isTomorrowSF, formatDateMediumSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { EventCardGrid } from "./EventCard";
@@ -21,6 +22,7 @@ export default function DateGroup({ date, dayKey, events }: DateGroupProps) {
   const [extra, setExtra] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   if (events.length === 0) return null;
 
@@ -59,28 +61,40 @@ export default function DateGroup({ date, dayKey, events }: DateGroupProps) {
 
   return (
     <section className="mb-12">
-      {/* Date header */}
-      <h2 className="font-headline font-bold text-2xl text-on-surface mb-4 lowercase">
-        {formatDateLabel(date)}
-        <span className="ml-3 font-body text-sm font-normal text-on-surface-variant">
-          {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
-        </span>
-      </h2>
+      {/* Date header — clickable to collapse */}
+      <button
+        onClick={() => setCollapsed((v) => !v)}
+        className="flex items-center gap-2 mb-4 w-full text-left"
+      >
+        <h2 className="font-headline font-bold text-2xl text-on-surface lowercase">
+          {formatDateLabel(date)}
+          <span className="ml-3 font-body text-sm font-normal text-on-surface-variant">
+            {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
+          </span>
+        </h2>
+        {collapsed
+          ? <ChevronDown size={16} className="text-on-surface-variant shrink-0" />
+          : <ChevronUp size={16} className="text-on-surface-variant shrink-0" />}
+      </button>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {allEvents.map((e) => (
-          <EventCardGrid key={e.id} event={e} />
-        ))}
-      </div>
+      {!collapsed && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {allEvents.map((e) => (
+              <EventCardGrid key={e.id} event={e} />
+            ))}
+          </div>
 
-      {allFeatured && !loaded && (
-        <button
-          onClick={loadMore}
-          disabled={loading}
-          className="mt-4 chip text-xs font-semibold disabled:opacity-50"
-        >
-          {loading ? "loading…" : `more events for ${formatDateLabel(date)}`}
-        </button>
+          {allFeatured && !loaded && (
+            <button
+              onClick={loadMore}
+              disabled={loading}
+              className="mt-4 chip text-xs font-semibold disabled:opacity-50"
+            >
+              {loading ? "loading…" : `more events for ${formatDateLabel(date)}`}
+            </button>
+          )}
+        </>
       )}
     </section>
   );

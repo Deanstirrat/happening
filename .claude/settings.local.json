@@ -46,7 +46,13 @@
       "Bash(md5 /Users/meganrileyg/happening/components/layout/NavBar.tsx)",
       "Bash(node -e \":*)",
       "Bash(grep -r \"NEXT_PUBLIC_BASE_URL\\\\|BASE_URL\\\\|happening\\\\.fm\\\\|site_url\\\\|SITE_URL\" /Users/meganrileyg/happening/.env* /Users/meganrileyg/happening/next.config*)",
-      "Bash(ls /Users/meganrileyg/happening/app/api/events/[id]/)"
+      "Bash(ls /Users/meganrileyg/happening/app/api/events/[id]/)",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" \"https://dothebay.com/events\")",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" \"https://dothebay.com/events/2026/3/28/tycho-tickets\")",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" \"https://dothebay.com/events?page=2\")",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" \"https://dothebay.com/events?date=this-weekend\")",
+      "Bash(/tmp/dothebay_analysis.txt:*)",
+      "Read(//tmp/**)"
     ]
   }
 }

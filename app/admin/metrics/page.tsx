@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, subHours, startOfHour } from "date-fns";
 import Link from "next/link";
 import AdminNav from "../_components/AdminNav";
+import VisitorLineChart from "./VisitorLineChart";
 
 interface Props {
   searchParams: Promise<{ secret?: string; window?: string }>;
@@ -29,8 +30,8 @@ export default async function MetricsPage({ searchParams }: Props) {
   const windowDays = win === "all" ? null : win === "30" ? 30 : 7;
   const since = windowDays ? new Date(Date.now() - windowDays * 86400_000) : null;
 
-  // Fetch page visits (windowed) + last 14 days raw for chart
-  const chart14Start = subDays(startOfDay(new Date()), 13);
+  // Fetch page visits (windowed) + last 48h by hour for chart
+  const chart48Start = subHours(startOfHour(new Date()), 47);
 
   const [featuredEvents, windowVisits, chartVisits] = await Promise.all([
     prisma.event.findMany({
@@ -54,7 +55,7 @@ export default async function MetricsPage({ searchParams }: Props) {
       select: { sessionId: true, createdAt: true },
     }),
     prisma.pageVisit.findMany({
-      where: { createdAt: { gte: chart14Start } },
+      where: { createdAt: { gte: chart48Start } },
       select: { sessionId: true, createdAt: true },
     }),
   ]);
@@ -78,26 +79,25 @@ export default async function MetricsPage({ searchParams }: Props) {
   const daysInWindow = windowDays ?? Math.max(1, Math.ceil((Date.now() - (windowVisits[windowVisits.length - 1]?.createdAt.getTime() ?? Date.now())) / 86400_000));
   const avgDaily = windowDays ? (totalVisits / windowDays).toFixed(1) : (totalVisits / Math.max(1, daysInWindow)).toFixed(1);
 
-  // 14-day daily chart data
-  const dailyMap = new Map<string, { visits: number; uniqueSessions: Set<string> }>();
-  for (let i = 0; i < 14; i++) {
-    const d = subDays(new Date(), 13 - i);
-    dailyMap.set(format(d, "yyyy-MM-dd"), { visits: 0, uniqueSessions: new Set() });
+  // 48-hour hourly chart data
+  const hourlyMap = new Map<string, { visits: number; uniqueSessions: Set<string> }>();
+  for (let i = 0; i < 48; i++) {
+    const h = subHours(startOfHour(new Date()), 47 - i);
+    hourlyMap.set(h.toISOString(), { visits: 0, uniqueSessions: new Set() });
   }
   for (const v of chartVisits) {
-    const key = format(v.createdAt, "yyyy-MM-dd");
-    const entry = dailyMap.get(key);
+    const key = startOfHour(v.createdAt).toISOString();
+    const entry = hourlyMap.get(key);
     if (entry) {
       entry.visits++;
       entry.uniqueSessions.add(v.sessionId);
     }
   }
-  const chartDays = Array.from(dailyMap.entries()).map(([date, data]) => ({
-    date,
+  const chartHours = Array.from(hourlyMap.entries()).map(([hour, data]) => ({
+    hour,
     visits: data.visits,
     unique: data.uniqueSessions.size,
   }));
-  const maxVisits = Math.max(...chartDays.map((d) => d.visits), 1);
 
   const base = `/admin/metrics?secret=${secret}`;
   const tabs: { label: string; value: string }[] = [
@@ -150,28 +150,10 @@ export default async function MetricsPage({ searchParams }: Props) {
           ))}
         </div>
 
-        {/* 14-day bar chart */}
+        {/* 48-hour line chart */}
         <div className="bg-surface-container rounded-2xl p-5">
-          <p className="font-body text-xs text-on-surface-variant mb-4">daily visits — last 14 days</p>
-          <div className="flex items-end gap-1 h-24">
-            {chartDays.map((day) => (
-              <div
-                key={day.date}
-                className="flex-1 flex flex-col items-center gap-1 group"
-                title={`${format(new Date(day.date + "T12:00:00"), "MMM d")}: ${day.visits} visit${day.visits !== 1 ? "s" : ""}, ${day.unique} unique`}
-              >
-                <div className="w-full relative flex items-end" style={{ height: "80px" }}>
-                  <div
-                    className="w-full bg-primary rounded-sm opacity-80 group-hover:opacity-100 transition-opacity"
-                    style={{ height: `${(day.visits / maxVisits) * 80}px`, minHeight: day.visits > 0 ? "3px" : "0" }}
-                  />
-                </div>
-                <span className="font-body text-[9px] text-on-surface-variant">
-                  {format(new Date(day.date + "T12:00:00"), "d")}
-                </span>
-              </div>
-            ))}
-          </div>
+          <p className="font-body text-xs text-on-surface-variant mb-2">visits by hour — last 48 hours</p>
+          <VisitorLineChart data={chartHours} label="" />
         </div>
       </section>
 

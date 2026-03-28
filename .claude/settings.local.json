@@ -52,7 +52,11 @@
       "Bash(curl -s -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" \"https://dothebay.com/events?page=2\")",
       "Bash(curl -s -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" \"https://dothebay.com/events?date=this-weekend\")",
       "Bash(/tmp/dothebay_analysis.txt:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebSearch",
+      "WebFetch(domain:ma.to)",
+      "WebFetch(domain:scrapecreators.com)",
+      "WebFetch(domain:proxyway.com)"
     ]
   }
 }

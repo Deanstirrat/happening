@@ -234,6 +234,7 @@ export default async function EventsPage({
           days.map((dayKey) => (
             <DateGroup
               key={dayKey}
+              dayKey={dayKey}
               date={new Date(dayKey + "T12:00:00Z")}
               events={grouped[dayKey]}
             />

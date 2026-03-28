@@ -255,7 +255,7 @@ export class EventbriteScraper extends BaseScraper {
           price,
           isFree,
           imageUrl: typeof node.image === "string" ? node.image : node.image?.url,
-          sourceUrl: node.url ?? node["@id"] ?? this.BASE_URL,
+          sourceUrl: node.url ?? node["@id"] ?? this.BASE_URLS[0],
           tags: ["eventbrite"],
         });
       }

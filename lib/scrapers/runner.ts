@@ -22,6 +22,8 @@ import { RedditSFEventsScraper } from "./reddit";
 import { BadslavaTriviaScraper } from "./badslava";
 import { SfplScraper } from "./sfpl";
 import { SfrecparkScraper } from "./sfrecpark";
+import { InstagramScraper } from "./instagram";
+import { DecenteredScraper } from "./decentered";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -39,6 +41,8 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   badslava: new BadslavaTriviaScraper(),
   sfpl: new SfplScraper(),
   sfrecpark: new SfrecparkScraper(),
+  instagram: new InstagramScraper(),
+  decentered: new DecenteredScraper(),
   // meetup: paid API only — skipped for now
 };
 

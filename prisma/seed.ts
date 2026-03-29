@@ -134,6 +134,20 @@ const sources = [
     scrapeType: ScrapeType.MANUAL,
     enabled: true,
   },
+  {
+    slug: "instagram",
+    name: "Instagram Venues",
+    url: "https://www.instagram.com",
+    scrapeType: ScrapeType.API,
+    enabled: true,
+  },
+  {
+    slug: "decentered",
+    name: "Decentered",
+    url: "https://events.decentered.org/",
+    scrapeType: ScrapeType.API,
+    enabled: true,
+  },
 ];
 
 async function main() {

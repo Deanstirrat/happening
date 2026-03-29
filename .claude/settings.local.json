@@ -61,7 +61,8 @@
       "WebFetch(domain:www.getphyllo.com)",
       "WebFetch(domain:instagram-notifications-2.onrender.com)",
       "WebFetch(domain:play.google.com)",
-      "WebFetch(domain:securityboulevard.com)"
+      "WebFetch(domain:securityboulevard.com)",
+      "WebFetch(domain:sfpl.org)"
     ]
   }
 }

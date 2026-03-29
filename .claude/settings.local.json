@@ -64,7 +64,19 @@
       "WebFetch(domain:securityboulevard.com)",
       "WebFetch(domain:sfpl.org)",
       "Bash(ls /Users/meganrileyg/happening/app/admin/events/[id]/)",
-      "Bash(grep -r \"repeating\\\\|repeat\\\\|instance\\\\|occurrence\" /Users/meganrileyg/happening --include=*.ts --include=*.tsx --include=*.prisma)"
+      "Bash(grep -r \"repeating\\\\|repeat\\\\|instance\\\\|occurrence\" /Users/meganrileyg/happening --include=*.ts --include=*.tsx --include=*.prisma)",
+      "mcp__Railway__list-projects",
+      "mcp__Railway__list-variables",
+      "Bash(DB=\"postgresql://postgres:jpqrnbUxwbqvmpmWtcBNBjRWXaamTFEd@crossover.proxy.rlwy.net:17451/railway\")",
+      "Bash(__NEW_LINE_470c568d5aa836b2__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_c014a16c4eada139__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_c7395ed58a7b6d04__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_7f5393f0b21c9943__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_adf769d27338eb18__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_df7ae6316fa455c6__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_9aebb10b37bac111__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_62ccc6bbd04d965e__ psql \"$DB\" -c \":*)",
+      "Bash(__NEW_LINE_143c3bda21444c59__ psql \"$DB\" -c \":*)"
     ]
   }
 }

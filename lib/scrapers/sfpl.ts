@@ -97,12 +97,17 @@ export class SfplScraper extends BaseScraper {
         if (startDate.getTime() < now - 86400000) return;
 
         // Image (Drupal managed file path)
+        // Strip Drupal image style prefix to get the full-res original:
+        // /sites/default/files/styles/STYLE/public/path → /sites/default/files/path
         const imgSrc = $el.find("img").attr("src");
+        const resolvedSrc = imgSrc
+          ?.replace(/\/sites\/default\/files\/styles\/[^/]+\/public\//, "/sites/default/files/")
+          ?? imgSrc;
         const imageUrl =
-          imgSrc && imgSrc.startsWith("/sites/default/files/")
-            ? `https://sfpl.org${imgSrc}`
-            : imgSrc?.startsWith("http")
-              ? imgSrc
+          resolvedSrc && resolvedSrc.startsWith("/sites/default/files/")
+            ? `https://sfpl.org${resolvedSrc}`
+            : resolvedSrc?.startsWith("http")
+              ? resolvedSrc
               : undefined;
 
         // Branch location

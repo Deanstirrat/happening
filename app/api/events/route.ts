@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   const sources = p.getAll("source");
   const isFree = p.get("isFree") === "true";
   const hideMusic = p.get("hideMusic") === "true";
+  const hideRecurring = p.get("hideRecurring") === "true";
   const view = p.get("view") ?? "list";
   const page = Math.max(1, parseInt(p.get("page") ?? "1"));
   const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),
     ...(sources.length > 0 && { source: { slug: { in: sources } } }),
     ...(isFree && { isFree: true }),
+    ...(hideRecurring && { NOT: { tags: { has: "recurring" } } }),
     // map view only returns events with coordinates
     ...(view === "map" && {
       latitude: { not: null },

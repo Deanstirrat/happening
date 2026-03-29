@@ -22,6 +22,7 @@ interface SearchParams {
   search?: string;
   page?: string;
   hideMusic?: string;
+  hideRecurring?: string;
 }
 
 async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
@@ -168,6 +169,9 @@ async function getEvents(params: SearchParams): Promise<{
       source: { slug: { in: sources } },
     }),
     ...(params.isFree === "true" && { isFree: true }),
+    ...(params.hideRecurring === "true" && {
+      NOT: { tags: { has: "recurring" } },
+    }),
   };
 
   const [events, total] = await Promise.all([
@@ -234,7 +238,7 @@ export default async function EventsPage({
   const hasActiveFilters = !!(
     params.startDate || params.endDate || params.category ||
     params.neighborhood || params.source || params.isFree ||
-    params.search || params.hideMusic
+    params.search || params.hideMusic || params.hideRecurring
   );
 
   return (

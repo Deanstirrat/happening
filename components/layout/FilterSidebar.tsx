@@ -83,11 +83,13 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     neighborhoods.forEach((n) => params.append("neighborhood", n));
     selectedSources.forEach((s) => params.append("source", s));
     if (freeOnly) params.set("isFree", "true");
-    // preserve search and hideMusic (managed outside the filter tray)
+    // preserve search and quick-toggle params (managed outside the filter tray)
     const search = searchParams.get("search");
     if (search) params.set("search", search);
     const hideMusic = searchParams.get("hideMusic");
     if (hideMusic) params.set("hideMusic", hideMusic);
+    const hideRecurring = searchParams.get("hideRecurring");
+    if (hideRecurring) params.set("hideRecurring", hideRecurring);
     router.push(`${pathname}?${params.toString()}`);
   }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, searchParams, router, pathname]);
 

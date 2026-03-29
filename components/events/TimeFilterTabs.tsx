@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Music } from "lucide-react";
+import { Music, Repeat } from "lucide-react";
 
 const WEEKDAY_SHORT: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
@@ -43,6 +43,7 @@ export default function TimeFilterTabs() {
   const currentStart = searchParams.get("startDate");
   const currentEnd = searchParams.get("endDate");
   const hideMusic = searchParams.get("hideMusic") === "true";
+  const hideRecurring = searchParams.get("hideRecurring") === "true";
 
   const isTonightActive = currentStart === todayKey && currentEnd === todayKey;
   const isWeekendActive = currentStart === satKey && currentEnd === sunKey;
@@ -69,6 +70,16 @@ export default function TimeFilterTabs() {
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  function toggleHideRecurring() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (hideRecurring) {
+      params.delete("hideRecurring");
+    } else {
+      params.set("hideRecurring", "true");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   return (
     <div className="flex gap-2 flex-wrap">
       <button
@@ -89,6 +100,13 @@ export default function TimeFilterTabs() {
       >
         <Music size={11} />
         Hide Music
+      </button>
+      <button
+        onClick={toggleHideRecurring}
+        className={`chip text-[0.7rem] uppercase tracking-wider font-semibold flex items-center gap-1${hideRecurring ? " active" : ""}`}
+      >
+        <Repeat size={11} />
+        Hide Recurring
       </button>
     </div>
   );

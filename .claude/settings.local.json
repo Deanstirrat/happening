@@ -63,7 +63,8 @@
       "WebFetch(domain:play.google.com)",
       "WebFetch(domain:securityboulevard.com)",
       "WebFetch(domain:sfpl.org)",
-      "Bash(ls /Users/meganrileyg/happening/app/admin/events/[id]/)"
+      "Bash(ls /Users/meganrileyg/happening/app/admin/events/[id]/)",
+      "Bash(grep -r \"repeating\\\\|repeat\\\\|instance\\\\|occurrence\" /Users/meganrileyg/happening --include=*.ts --include=*.tsx --include=*.prisma)"
     ]
   }
 }

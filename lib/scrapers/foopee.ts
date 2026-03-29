@@ -80,8 +80,11 @@ export class FoopeeScraper extends BaseScraper {
           .get()
           .filter(Boolean);
 
-        const title = bands.join(", ");
-        if (!title) return;
+        if (!bands.length) return;
+        // Use first band as title; put full lineup in description when there are multiple
+        const title = bands[0];
+        const description =
+          bands.length > 1 ? `Lineup: ${bands.join(", ")}` : undefined;
 
         // Info text (age/price/time): clone and strip all links
         const clone = $(eventLi).clone();
@@ -98,6 +101,7 @@ export class FoopeeScraper extends BaseScraper {
 
         events.push({
           title,
+          description,
           startDate: sfDateFromLocal(year, month, day, 19, 0),
           venueName: venueName || undefined,
           price,

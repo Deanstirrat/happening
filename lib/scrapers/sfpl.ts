@@ -97,12 +97,26 @@ export class SfplScraper extends BaseScraper {
         if (startDate.getTime() < now - 86400000) return;
 
         // Image (Drupal managed file path)
-        // Strip Drupal image style prefix to get the full-res original:
-        // /sites/default/files/styles/STYLE/public/path → /sites/default/files/path
-        const imgSrc = $el.find("img").attr("src");
-        const resolvedSrc = imgSrc
+        // Prefer the largest srcset entry; fall back to src.
+        // Strip Drupal image style + ?itok= token to get the full-res original:
+        // /sites/default/files/styles/STYLE/public/path?itok=X → /sites/default/files/path
+        const imgEl = $el.find("img").first();
+        const srcset = imgEl.attr("srcset");
+        let rawSrc: string | undefined;
+        if (srcset) {
+          // Pick the entry with the largest declared width (e.g. "1440w")
+          const entries = srcset.split(",").map((s) => s.trim()).filter(Boolean);
+          let bestW = 0;
+          for (const entry of entries) {
+            const [url, w] = entry.split(/\s+/);
+            const width = parseInt(w ?? "0");
+            if (width > bestW) { bestW = width; rawSrc = url; }
+          }
+        }
+        rawSrc ??= imgEl.attr("src");
+        const resolvedSrc = rawSrc
           ?.replace(/\/sites\/default\/files\/styles\/[^/]+\/public\//, "/sites/default/files/")
-          ?? imgSrc;
+          ?.replace(/\?itok=[^&]+/, "");
         const imageUrl =
           resolvedSrc && resolvedSrc.startsWith("/sites/default/files/")
             ? `https://sfpl.org${resolvedSrc}`

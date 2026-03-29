@@ -153,6 +153,7 @@ enum EventStatus {
   PENDING
   PUBLISHED
   REJECTED
+  ARCHIVED
 }
 
 enum EventCategory {

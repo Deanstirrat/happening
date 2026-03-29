@@ -120,7 +120,7 @@ export class SfliveScraper extends BaseScraper {
     if (startDate < now || startDate > windowEnd) return null;
 
     const endRaw: string = m.vibemap_event_end_date ?? "";
-    const endDate = endRaw ? parseSfliveDate(endRaw) ?? undefined : undefined;
+    let endDate = endRaw ? parseSfliveDate(endRaw) ?? undefined : undefined;
 
     const venueName: string | undefined =
       m.vibemap_event_venue_name || undefined;
@@ -161,6 +161,11 @@ export class SfliveScraper extends BaseScraper {
 
     const sourceUrl: string = m.vibemap_event_url || item.link || this.BASE_URL;
     const pageLink: string = item.link || this.BASE_URL;
+
+    // If end time crosses midnight, it will be less than start — add one day
+    if (endDate && !isNaN(endDate.getTime()) && endDate < startDate) {
+      endDate = new Date(endDate.getTime() + 86400000);
+    }
 
     return {
       event: {

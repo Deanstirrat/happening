@@ -154,10 +154,12 @@ export class SfrecparkScraper extends BaseScraper {
             : "San Francisco, CA";
 
         // Description — first <p> not inside .hidden
+        // The site double-encodes some content (e.g. &amp;nbsp;), so strip
+        // HTML entities and non-breaking spaces before checking for real text
         let description: string | undefined;
         $el.find("p").each((_j, p) => {
           if ($(p).closest(".hidden").length === 0) {
-            const text = $(p).text().trim();
+            const text = $(p).text().replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ").trim();
             if (text) { description = text; return false; }
           }
         });
@@ -200,8 +202,8 @@ export class SfrecparkScraper extends BaseScraper {
         timeout: 15000,
       });
       const $ = cheerio.load(data);
-      // The event detail page embeds an image in the description body
-      const img = $(".eventBody img, .eventDescription img, #EventDetails img").first();
+      // The event detail page embeds an image via Froala editor — match by URL pattern
+      const img = $('img[src*="ImageRepository"]').first();
       const src = img.attr("src");
       if (!src) return undefined;
       return src.startsWith("http") ? src : `https://sfrecpark.org${src.startsWith("/") ? src : "/" + src}`;

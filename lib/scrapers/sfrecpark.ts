@@ -52,6 +52,7 @@ export class SfrecparkScraper extends BaseScraper {
 
       const $ = cheerio.load(html);
       let pageCount = 0;
+      const pending: ScrapedEvent[] = [];
 
       $("div.calendars li").each((_i, el) => {
         const $el = $(el);
@@ -161,7 +162,7 @@ export class SfrecparkScraper extends BaseScraper {
           }
         });
 
-        events.push({
+        pending.push({
           externalId: `sfrecpark-${eid}`,
           title,
           description,
@@ -176,9 +177,36 @@ export class SfrecparkScraper extends BaseScraper {
         pageCount++;
       });
 
+      // Fetch images for all events on this page
+      for (const event of pending) {
+        event.imageUrl = await this.fetchEventImage(event.sourceUrl!);
+        events.push(event);
+      }
+
       console.log(`[sfrecpark] ${month}/${year}: ${pageCount} events (${events.length} total)`);
     }
 
     return events;
+  }
+
+  private async fetchEventImage(eventUrl: string): Promise<string | undefined> {
+    try {
+      const { data } = await axios.get(eventUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        timeout: 15000,
+      });
+      const $ = cheerio.load(data);
+      // The event detail page embeds an image in the description body
+      const img = $(".eventBody img, .eventDescription img, #EventDetails img").first();
+      const src = img.attr("src");
+      if (!src) return undefined;
+      return src.startsWith("http") ? src : `https://sfrecpark.org${src.startsWith("/") ? src : "/" + src}`;
+    } catch {
+      return undefined;
+    }
   }
 }

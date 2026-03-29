@@ -126,9 +126,9 @@ function parseDateTimeCell(
   const year = diffDays < -60 ? currentYear + 1 : currentYear;
 
   // Parse time range
-  const timeMatch = raw.match(/\((\d{1,2}:\d{2}(am|pm))-(\d{1,2}:\d{2}(am|pm))\)/i);
+  const timeMatch = raw.match(/\((\d{1,2}(?::\d{2})?(?:am|pm))(?:-(?:(\d{1,2}(?::\d{2})?(?:am|pm))|late))?\)/i);
   const startTime = timeMatch ? parse12h(timeMatch[1]) : { hours: 21, minutes: 0 };
-  const endTime = timeMatch ? parse12h(timeMatch[3]) : null;
+  const endTime = timeMatch?.[2] ? parse12h(timeMatch[2]) : null;
 
   const start = sfDateFromLocal(year, month, day, startTime.hours, startTime.minutes);
 
@@ -144,10 +144,10 @@ function parseDateTimeCell(
 }
 
 function parse12h(timeStr: string): { hours: number; minutes: number } {
-  const match = timeStr.match(/(\d{1,2}):(\d{2})(am|pm)/i);
+  const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?(am|pm)/i);
   if (!match) return { hours: 0, minutes: 0 };
   let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
+  const minutes = parseInt(match[2] ?? "0");
   const period = match[3].toLowerCase();
   if (period === "pm" && hours !== 12) hours += 12;
   if (period === "am" && hours === 12) hours = 0;

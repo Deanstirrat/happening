@@ -4,11 +4,12 @@ import { parseDate } from "@/lib/createEvent";
 import { sfDayStart } from "@/lib/sfDate";
 import { extractEventFromImage, extractEventFromCaption } from "@/lib/extract";
 import { INSTAGRAM_ACCOUNTS, type InstagramAccount } from "./instagram-accounts";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Instagram venue scraper for SF events.
  *
- * Uses Apify's Instagram Profile Scraper to fetch recent posts from curated SF
+ * Uses Apify's Instagram Post Scraper to fetch recent posts from curated SF
  * venue and promoter accounts. All accounts are batched into a single Apify
  * request (one for venues, one for promoters) to keep scrape time flat
  * regardless of account count.
@@ -22,12 +23,21 @@ import { INSTAGRAM_ACCOUNTS, type InstagramAccount } from "./instagram-accounts"
  */
 
 const LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
-const EXTRACT_CONCURRENCY = 5; // parallel Claude calls, mirrors IMAGE_BACKFILL_CONCURRENCY in runner.ts
+// Vision calls use ~1,600 input tokens per image. At concurrency 3 with a 15s
+// inter-batch delay we stay well under Claude's 30k input-token/min rate limit.
+const EXTRACT_CONCURRENCY = 3;
+const EXTRACT_DELAY_MS = 15_000;
 
 // Minimum number of heuristic signals a caption must hit to be worth sending to Claude.
 const MIN_EVENT_SIGNALS = 2;
-const DATE_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2})\b/i;
-const DAY_RE = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tonight|tomorrow)\b/i;
+// Full month names AND 3-letter abbreviations (the \b after short abbreviations only works
+// if the abbreviation is a standalone word, e.g. "Mar 29" but NOT "March 29" — so we must
+// list full names explicitly).
+const DATE_RE =
+  /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2})\b/i;
+// Full and abbreviated day names; "tmrw" and "weekend" are common in Instagram captions.
+const DAY_RE =
+  /\b(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tonight|tomorrow|tmrw|weekend)\b/i;
 const TIME_RE = /\b\d{1,2}(:\d{2})?\s*(am|pm|doors?)\b/i;
 const EVENT_RE = /\b(present|presents|featuring|feat\.|live|doors?|show|ticket|tix|rsvp|lineup)\b/i;
 
@@ -70,31 +80,47 @@ export class InstagramScraper extends BaseScraper {
     const allPosts = [...venuePosts, ...promoterPosts];
     const now = Date.now();
 
+    // Pre-fetch shortCodes we've already ingested so we don't re-send them to
+    // Claude on every daily run. Only new posts (not yet in the DB) proceed.
+    const existingRows = await prisma.event.findMany({
+      where: { source: { slug: "instagram" }, externalId: { not: null } },
+      select: { externalId: true },
+    });
+    const seenShortCodes = new Set(existingRows.map((r) => r.externalId as string));
+
     const qualifying = allPosts.filter((post) => {
       if (now - new Date(post.timestamp).getTime() > LOOKBACK_MS) return false;
+      if (seenShortCodes.has(post.shortCode)) return false;
       return this.looksLikeEvent(post.caption ?? "");
     });
 
     console.log(
-      `[instagram] ${allPosts.length} posts fetched, ${qualifying.length} pass heuristic filter`
+      `[instagram] ${allPosts.length} posts fetched, ${seenShortCodes.size} already in DB, ${qualifying.length} new and pass heuristic filter`
     );
 
-    // Process in batches of EXTRACT_CONCURRENCY to respect Claude rate limits.
+    // Process in batches of EXTRACT_CONCURRENCY with a delay between batches
+    // to stay under Claude's 30k input-token/min rate limit for vision calls.
     const events: ScrapedEvent[] = [];
     for (let i = 0; i < qualifying.length; i += EXTRACT_CONCURRENCY) {
       const batch = qualifying.slice(i, i + EXTRACT_CONCURRENCY);
       const results = await Promise.all(
         batch.map((post) => {
-          const account = accountMap.get(post.ownerUsername.toLowerCase());
-          if (!account) {
-            console.warn(`[instagram] Unknown ownerUsername "${post.ownerUsername}" — skipping`);
-            return Promise.resolve(null);
-          }
+          // Co-authored posts may have a different ownerUsername than the account
+          // we queried. Fall back to a venue-tier placeholder so the post still
+          // gets processed — Claude will extract the real venue name from the flyer.
+          const account = accountMap.get(post.ownerUsername?.toLowerCase() ?? "") ?? {
+            handle: post.ownerUsername ?? "unknown",
+            venueName: post.ownerUsername ?? "Unknown Venue",
+            tier: "venue" as const,
+          };
           return this.processPost(post, account);
         })
       );
       for (const r of results) {
         if (r) events.push(r);
+      }
+      if (i + EXTRACT_CONCURRENCY < qualifying.length) {
+        await new Promise((r) => setTimeout(r, EXTRACT_DELAY_MS));
       }
     }
 
@@ -110,14 +136,19 @@ export class InstagramScraper extends BaseScraper {
    */
   private async fetchPosts(handles: string[], resultsLimit: number): Promise<ApifyPost[]> {
     const url =
-      `https://api.apify.com/v2/acts/apify~instagram-profile-scraper` +
+      `https://api.apify.com/v2/acts/apify~instagram-post-scraper` +
       `/run-sync-get-dataset-items?token=${process.env.APIFY_API_KEY}&timeout=300`;
 
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usernames: handles, resultsLimit }),
+        body: JSON.stringify({
+          username: handles,
+          resultsLimit,
+          dataDetailLevel: "basicData",
+          onlyPostsNewerThan: "14 days",
+        }),
         signal: AbortSignal.timeout(330_000), // slightly longer than Apify's own timeout
       });
 

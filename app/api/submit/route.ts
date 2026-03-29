@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createEvent, parseDate } from "@/lib/createEvent";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,12 +56,31 @@ export async function POST(req: NextRequest) {
     }
 
     if ("duplicate" in result) {
+      await prisma.submission.create({
+        data: {
+          title: title.trim(),
+          startDate,
+          outcome: "DUPLICATE",
+          eventId: result.eventId,
+          submitterNote: submitterNote || null,
+        },
+      });
       return NextResponse.json({
         duplicate: true,
         eventId: result.eventId,
         message: "This event is already in the system.",
       });
     }
+
+    await prisma.submission.create({
+      data: {
+        title: title.trim(),
+        startDate,
+        outcome: "CREATED",
+        eventId: result.eventId,
+        submitterNote: submitterNote || null,
+      },
+    });
 
     return NextResponse.json({ success: true, eventId: result.eventId });
   } catch (err: any) {

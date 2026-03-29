@@ -22,7 +22,7 @@ export default async function SubmissionsPage({ searchParams }: Props) {
     );
   }
 
-  const [events, featuredEvents] = await Promise.all([
+  const [events, featuredEvents, submissions] = await Promise.all([
     prisma.event.findMany({
       where: { status: "PENDING" },
       orderBy: { scrapedAt: "desc" },
@@ -56,7 +56,23 @@ export default async function SubmissionsPage({ searchParams }: Props) {
         featuredAt: true,
       },
     }),
+    prisma.submission.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
+
+  // Look up current event statuses for submissions that created an event
+  const createdEventIds = submissions
+    .filter((s) => s.outcome === "CREATED" && s.eventId)
+    .map((s) => s.eventId as string);
+  const createdEvents = createdEventIds.length
+    ? await prisma.event.findMany({
+        where: { id: { in: createdEventIds } },
+        select: { id: true, status: true },
+      })
+    : [];
+  const eventStatusById = Object.fromEntries(createdEvents.map((e) => [e.id, e.status]));
 
   return (
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
@@ -141,6 +157,74 @@ export default async function SubmissionsPage({ searchParams }: Props) {
                 <AdminActions id={event.id} secret={secret} />
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      {/* Submission history */}
+      <section>
+        <div className="mb-6">
+          <h2 className="font-headline font-bold text-xl text-on-surface lowercase">
+            submission history
+          </h2>
+          <p className="font-body text-on-surface-variant text-sm mt-1">
+            last {submissions.length} submission{submissions.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+
+        {submissions.length === 0 ? (
+          <p className="font-body text-on-surface-variant">No submissions yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {submissions.map((sub) => {
+              const eventStatus = sub.eventId ? eventStatusById[sub.eventId] : null;
+              return (
+                <div
+                  key={sub.id}
+                  className="bg-surface-container rounded-2xl px-5 py-4 flex items-start gap-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body font-semibold text-sm text-on-surface truncate">
+                      {sub.title}
+                    </p>
+                    <p className="font-body text-on-surface-variant text-xs mt-0.5">
+                      {sub.startDate ? format(sub.startDate, "EEE, MMM d yyyy") : "unknown date"}
+                      {sub.submitterNote && ` · "${sub.submitterNote}"`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {sub.outcome === "DUPLICATE" && (
+                      <span className="font-body text-xs px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-400">
+                        duplicate
+                      </span>
+                    )}
+                    {sub.outcome === "CREATED" && eventStatus === "PUBLISHED" && (
+                      <span className="font-body text-xs px-2.5 py-1 rounded-full bg-[#4ade80]/15 text-[#4ade80]">
+                        published
+                      </span>
+                    )}
+                    {sub.outcome === "CREATED" && eventStatus === "PENDING" && (
+                      <span className="font-body text-xs px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant">
+                        pending
+                      </span>
+                    )}
+                    {sub.outcome === "CREATED" && eventStatus === "REJECTED" && (
+                      <span className="font-body text-xs px-2.5 py-1 rounded-full bg-[#ef4444]/15 text-[#ef4444]">
+                        rejected
+                      </span>
+                    )}
+                    {sub.outcome === "ERROR" && (
+                      <span className="font-body text-xs px-2.5 py-1 rounded-full bg-[#ef4444]/15 text-[#ef4444]">
+                        error
+                      </span>
+                    )}
+                    <span className="font-body text-xs text-on-surface-variant">
+                      {format(sub.createdAt, "MMM d h:mma")}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

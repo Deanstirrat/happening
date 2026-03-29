@@ -62,7 +62,8 @@
       "WebFetch(domain:instagram-notifications-2.onrender.com)",
       "WebFetch(domain:play.google.com)",
       "WebFetch(domain:securityboulevard.com)",
-      "WebFetch(domain:sfpl.org)"
+      "WebFetch(domain:sfpl.org)",
+      "Bash(ls /Users/meganrileyg/happening/app/admin/events/[id]/)"
     ]
   }
 }

@@ -112,6 +112,25 @@ model FeaturedRequest {
   @@map("featured_requests")
 }
 
+enum SubmissionOutcome {
+  CREATED
+  DUPLICATE
+  ERROR
+}
+
+model Submission {
+  id            String             @id @default(cuid())
+  title         String
+  startDate     DateTime?
+  outcome       SubmissionOutcome
+  eventId       String?
+  submitterNote String?
+  createdAt     DateTime           @default(now())
+
+  @@index([createdAt])
+  @@map("submissions")
+}
+
 model PageVisit {
   id        String   @id @default(cuid())
   sessionId String

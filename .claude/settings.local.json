@@ -56,7 +56,12 @@
       "WebSearch",
       "WebFetch(domain:ma.to)",
       "WebFetch(domain:scrapecreators.com)",
-      "WebFetch(domain:proxyway.com)"
+      "WebFetch(domain:proxyway.com)",
+      "WebFetch(domain:apps.apple.com)",
+      "WebFetch(domain:www.getphyllo.com)",
+      "WebFetch(domain:instagram-notifications-2.onrender.com)",
+      "WebFetch(domain:play.google.com)",
+      "WebFetch(domain:securityboulevard.com)"
     ]
   }
 }

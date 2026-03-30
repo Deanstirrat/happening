@@ -59,8 +59,9 @@ export default function AiSuggestions({ secret }: { secret: string }) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 bg-surface-container rounded-2xl">
         <p className="font-body text-sm text-on-surface-variant text-center max-w-sm">
-          AI scans next week&apos;s non-recurring events and suggests 20–30
-          worth featuring based on uniqueness, vibe, and cultural interest.
+          AI scans next week&apos;s non-recurring events and surfaces the
+          wildest, most distinctly SF ones — weird street happenings,
+          underground scenes, big deals. Skip the tame stuff.
         </p>
         <button
           onClick={generate}

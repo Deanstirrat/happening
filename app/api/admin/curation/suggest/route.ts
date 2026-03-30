@@ -76,17 +76,28 @@ export async function POST(req: NextRequest) {
     messages: [
       {
         role: "user",
-        content: `You are curating a weekly events digest for San Francisco's "happening" platform — a discovery site for locals who want to find events off the beaten path.
+        content: `You are curating a weekly events digest for San Francisco's "happening" platform. Your job is to surface the most interesting, wild, and distinctly San Francisco events of the week — the stuff locals talk about and visitors never find.
 
-Select 20–30 events from the list below worth featuring. Favor events that are:
-- Unique, rare, or one-of-a-kind (not cookie-cutter)
-- Underground, niche, or culturally specific
-- Cerebral or artistic: readings, experimental music, gallery openings, film screenings, talks
-- Nightlife or parties with a distinct identity — not generic club nights
-- A good mix: some cerebral, some social/party-oriented
-- Free or low-cost events often signal community-driven, authentic gatherings
+The gold standard: events like the St. Stupid's Day Parade (irreverent street chaos, pure SF counterculture) or BYOBW (strangers riding Big Wheels down a hill at full speed). Weird, participatory, only-in-SF energy. Prioritize this above everything else.
 
-Avoid: generic fitness classes, corporate networking events, repetitive mainstream concerts, tourist-facing events.
+Select 20–30 events. Use this hierarchy:
+
+STRONGLY FAVOR:
+- Wild, weird, or irreverent events — street happenings, counterculture parades, absurdist gatherings, DIY spectacles
+- Participatory events where you show up and *do* something (not just watch)
+- Underground parties or nights with a very distinct identity, scene, or subculture
+- Anything that could only happen in San Francisco
+
+INCLUDE IF they have edge, weirdness, or are genuinely a big deal:
+- Talks, panels, or readings — only if the subject matter is unusual/provocative OR the speaker is a major name
+- Ticketed shows at established venues — only if the act is rare, touring infrequently, or otherwise special
+- Art or film events — only if experimental, boundary-pushing, or tied to a notable name/moment
+
+SKIP entirely:
+- Standard gallery openings, regular club nights, generic fitness/wellness classes
+- Corporate networking, startup events, tech meetups
+- Book readings from unknown authors, run-of-the-mill live music
+- Anything that could happen in any American city
 
 Return ONLY a valid JSON array — no prose before or after. Each element: { "id": "...", "reason": "one sentence why" }
 

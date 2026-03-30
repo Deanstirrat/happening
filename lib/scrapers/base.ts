@@ -1,5 +1,5 @@
-import { createHash } from "crypto";
 import type { ScrapedEvent } from "@/lib/types";
+import { computeDedupeHash } from "@/lib/dedupeHash";
 
 export type { ScrapedEvent };
 
@@ -7,19 +7,8 @@ export abstract class BaseScraper {
   abstract readonly sourceSlug: string;
   abstract scrape(): Promise<ScrapedEvent[]>;
 
-  /**
-   * Compute a stable deduplication hash for an event.
-   * Based on: source slug + ISO date (YYYY-MM-DD) + normalized title.
-   */
   computeDedupeHash(event: ScrapedEvent): string {
-    const dateStr = event.startDate.toISOString().slice(0, 10);
-    const normalizedTitle = event.title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    const raw = `${dateStr}::${normalizedTitle}`;
-    return createHash("sha256").update(raw).digest("hex");
+    return computeDedupeHash(event.startDate, event.title);
   }
 
   /**

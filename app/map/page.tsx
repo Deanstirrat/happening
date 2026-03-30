@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import MapViewWrapper from "@/components/map/MapViewWrapper";
@@ -100,6 +101,21 @@ export default async function MapPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+
+  // Default to today when no date is specified
+  if (!params.startDate && !params.endDate) {
+    const today = sfDayKey(new Date());
+    const qs = new URLSearchParams({ startDate: today, endDate: today });
+    // Preserve any other filters the user may have set
+    for (const [k, v] of Object.entries(params)) {
+      if (k !== "startDate" && k !== "endDate") {
+        if (Array.isArray(v)) v.forEach((val) => qs.append(k, val));
+        else if (v) qs.set(k, v);
+      }
+    }
+    redirect(`/map?${qs.toString()}`);
+  }
+
   const [sources, events] = await Promise.all([getSources(), getMapEvents(params)]);
 
   return (

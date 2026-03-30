@@ -10,10 +10,13 @@ async function main() {
   // 1. All OTHER events
   // 2. MUSIC_ROCK_PUNK events from foopee — foopee tags every event with "punk, rock, diy"
   //    regardless of genre, causing the AI to over-assign MUSIC_ROCK_PUNK
+  // 3. COMMUNITY and TECH events — may now qualify for TALKS_LECTURES (added 2026-03-30)
   const events = await prisma.event.findMany({
     where: {
       OR: [
         { category: "OTHER" },
+        { category: "COMMUNITY" },
+        { category: "TECH" },
         {
           category: "MUSIC_ROCK_PUNK",
           source: { slug: "foopee" },

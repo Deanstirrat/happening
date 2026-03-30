@@ -70,15 +70,7 @@ export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null
   return null;
 }
 
-export function computeDedupeHash(startDate: Date, title: string): string {
-  const dateStr = startDate.toISOString().slice(0, 10);
-  const normalizedTitle = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return createHash("sha256").update(`${dateStr}::${normalizedTitle}`).digest("hex");
-}
+export { computeDedupeHash } from "@/lib/dedupeHash";
 
 export interface EventFields {
   title: string;

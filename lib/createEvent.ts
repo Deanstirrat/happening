@@ -1,5 +1,5 @@
-import { createHash } from "crypto";
 import { parse, isValid } from "date-fns";
+import { computeDedupeHash } from "@/lib/dedupeHash";
 import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
@@ -70,7 +70,7 @@ export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null
   return null;
 }
 
-export { computeDedupeHash } from "@/lib/dedupeHash";
+export { computeDedupeHash };
 
 export interface EventFields {
   title: string;

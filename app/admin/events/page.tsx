@@ -18,12 +18,14 @@ const STATUS_LABELS: Record<EventStatus, string> = {
   PENDING: "Pending",
   PUBLISHED: "Published",
   REJECTED: "Rejected",
+  ARCHIVED: "Archived",
 };
 
 const STATUS_COLORS: Record<EventStatus, string> = {
   PENDING: "bg-[#f59e0b]/20 text-[#f59e0b]",
   PUBLISHED: "bg-[#4ade80]/20 text-[#4ade80]",
   REJECTED: "bg-[#ef4444]/15 text-[#ef4444]",
+  ARCHIVED: "bg-[#6b7280]/20 text-[#6b7280]",
 };
 
 export default async function AdminEventsPage({ searchParams }: Props) {

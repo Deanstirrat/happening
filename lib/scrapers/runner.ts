@@ -200,6 +200,32 @@ export async function runScraper(
     }
   }
 
+  type DayEvent = {
+    id: string;
+    title: string;
+    sourceUrl: string;
+    imageUrl: string | null;
+    venueName: string | null;
+    description: string | null;
+  };
+
+  // Pre-build per-SF-day cache to avoid O(n²) DB queries in the dedup loop.
+  const dayEventsCache = new Map<string, DayEvent[]>();
+  for (const event of events) {
+    const incomingTokens = tokenize(event.title);
+    const needsDayCheck = incomingTokens.size >= MIN_TOKENS || Boolean(event.venueName);
+    if (!needsDayCheck) continue;
+    const key = sfDayKey(event.startDate);
+    if (dayEventsCache.has(key)) continue;
+    const dayStart = sfDayStart(key);
+    const dayEnd = new Date(dayStart.getTime() + 86400000);
+    const rows = await prisma.event.findMany({
+      where: { startDate: { gte: dayStart, lt: dayEnd } },
+      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true },
+    });
+    dayEventsCache.set(key, rows);
+  }
+
   let inserted = 0;
 
   for (const event of events) {
@@ -270,10 +296,7 @@ export async function runScraper(
       const dayStart = sfDayStart(sfDayKey(event.startDate));
       const dayEnd = new Date(dayStart.getTime() + 86400000);
 
-      const dayEvents = await prisma.event.findMany({
-        where: { startDate: { gte: dayStart, lt: dayEnd } },
-        select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true },
-      });
+      const dayEvents = dayEventsCache.get(sfDayKey(event.startDate)) ?? [];
 
       // Fuzzy title match
       if (incomingTokens.size >= MIN_TOKENS) {
@@ -371,7 +394,7 @@ export async function runScraper(
 
     // Upsert
     try {
-      await prisma.event.create({
+      const created = await prisma.event.create({
         data: {
           dedupeHash,
           externalId: event.externalId,
@@ -396,6 +419,18 @@ export async function runScraper(
         },
       });
       inserted++;
+      const newDayKey = sfDayKey(event.startDate);
+      const cacheEntry = dayEventsCache.get(newDayKey);
+      if (cacheEntry) {
+        cacheEntry.push({
+          id: created.id,
+          title: event.title,
+          sourceUrl: event.sourceUrl,
+          imageUrl: event.imageUrl ?? null,
+          venueName: event.venueName ?? null,
+          description: event.description ?? null,
+        });
+      }
     } catch (err: any) {
       // Unique constraint violation — another process inserted it concurrently
       if (err.code !== "P2002") {

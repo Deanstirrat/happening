@@ -148,6 +148,20 @@ const sources = [
     scrapeType: ScrapeType.API,
     enabled: true,
   },
+  {
+    slug: "medicine-for-nightmares",
+    name: "Medicine for Nightmares",
+    url: "https://medicinefornightmares.com/events",
+    scrapeType: ScrapeType.API,
+    enabled: true,
+  },
+  {
+    slug: "omnivorebooks",
+    name: "Omnivore Books on Food",
+    url: "https://omnivorebooks.myshopify.com/collections/upcoming-events",
+    scrapeType: ScrapeType.CHEERIO,
+    enabled: true,
+  },
 ];
 
 async function main() {

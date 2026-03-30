@@ -106,6 +106,7 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "mrmahjongs",             venueName: "Mr. Mahjong's",           tier: "venue" },
 
   // ── Community / arts promoters ────────────────────────────────────────────
+  { handle: "shapingsf",              venueName: "Shaping San Francisco",   tier: "promoter" },
   { handle: "bird_curious_sf",        venueName: "Bird Curious SF",         tier: "promoter" },
   { handle: "westcoastcraft",         venueName: "West Coast Craft",        tier: "promoter" },
   { handle: "alamedaantiquesfair",    venueName: "Alameda Antiques Fair",   tier: "promoter" },

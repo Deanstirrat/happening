@@ -76,7 +76,9 @@
       "Bash(__NEW_LINE_df7ae6316fa455c6__ psql \"$DB\" -c \":*)",
       "Bash(__NEW_LINE_9aebb10b37bac111__ psql \"$DB\" -c \":*)",
       "Bash(__NEW_LINE_62ccc6bbd04d965e__ psql \"$DB\" -c \":*)",
-      "Bash(__NEW_LINE_143c3bda21444c59__ psql \"$DB\" -c \":*)"
+      "Bash(__NEW_LINE_143c3bda21444c59__ psql \"$DB\" -c \":*)",
+      "WebFetch(domain:omnivorebooks.myshopify.com)",
+      "WebFetch(domain:shapingsf.org)"
     ]
   }
 }

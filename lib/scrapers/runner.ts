@@ -11,9 +11,21 @@ import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 const GENERIC_SOURCE_URL_PATTERNS = [
   "foopee.com/punk/the-list/",
   "19hz.info/eventlisting_BayArea.php",
+  "badslava.com/san-francisco-trivia-nights.php",
 ];
 const isSpecificSourceUrl = (url: string) =>
   !GENERIC_SOURCE_URL_PATTERNS.some((p) => url.includes(p));
+
+const GENERIC_VENUE_NAMES = new Set([
+  "locationprovidedafterbooking",
+  "locationtobeprovided",
+  "onlineevent",
+  "virtualevent",
+  "tba",
+  "tbd",
+]);
+const isGenericVenue = (s: string) =>
+  GENERIC_VENUE_NAMES.has(s.toLowerCase().replace(/[^a-z0-9]/g, ""));
 
 // Import all scrapers
 import { FoopeeScraper } from "./foopee";
@@ -34,6 +46,8 @@ import { SfplScraper } from "./sfpl";
 import { SfrecparkScraper } from "./sfrecpark";
 import { InstagramScraper } from "./instagram";
 import { DecenteredScraper } from "./decentered";
+import { MedicineForNightmaresScraper } from "./medicinefornightmares";
+import { OmnivoreBooksScraper } from "./omnivorebooks";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -53,6 +67,8 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   sfrecpark: new SfrecparkScraper(),
   instagram: new InstagramScraper(),
   decentered: new DecenteredScraper(),
+  "medicine-for-nightmares": new MedicineForNightmaresScraper(),
+  omnivorebooks: new OmnivoreBooksScraper(),
   // meetup: paid API only — skipped for now
 };
 
@@ -215,11 +231,18 @@ export async function runScraper(
       continue;
     }
 
-    // Source URL dedup: two events sharing a specific (non-list-page) URL are the same event,
-    // even if their titles differ (e.g. one source has the wrong year in the title).
+    // Source URL dedup: two events on the same SF day sharing a specific (non-list-page) URL
+    // are the same event, even if their titles differ (e.g. one source has the wrong year).
+    // Same-day constraint prevents merging different occurrences of recurring events.
     if (isSpecificSourceUrl(event.sourceUrl)) {
+      const sfDay = sfDayKey(event.startDate);
+      const sfDayStartDate = sfDayStart(sfDay);
+      const sfDayEndDate = new Date(sfDayStartDate.getTime() + 86400000);
       const urlMatch = await prisma.event.findFirst({
-        where: { sourceUrl: event.sourceUrl },
+        where: {
+          sourceUrl: event.sourceUrl,
+          startDate: { gte: sfDayStartDate, lt: sfDayEndDate },
+        },
         select: { id: true, sourceUrl: true, imageUrl: true, description: true },
       });
       if (urlMatch) {
@@ -266,7 +289,7 @@ export async function runScraper(
       // Venue + partial-title match: same venue on the same SF day with ≥2 shared tokens.
       // Catches cases where titles diverge (e.g. one source adds an opening act) but the
       // event is clearly the same based on venue + key artist/name tokens.
-      if (event.venueName && incomingTokens.size >= 2) {
+      if (event.venueName && !isGenericVenue(event.venueName) && incomingTokens.size >= 2) {
         const normalizeVenue = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
         const incomingVenueNorm = normalizeVenue(event.venueName);
         const incomingTitleNorm = normalizeVenue(event.title);

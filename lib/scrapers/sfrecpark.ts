@@ -136,6 +136,9 @@ export class SfrecparkScraper extends BaseScraper {
         // Skip events more than a day in the past
         if (startDate.getTime() < Date.now() - 86400000) return;
 
+        // Skip cycle track / velodrome events
+        if (/cycle.?track|velodrome/i.test(title)) return;
+
         // Venue name
         const venueName =
           $el.find("div.eventLocation div.name").first().text().trim() ||
@@ -179,9 +182,11 @@ export class SfrecparkScraper extends BaseScraper {
         pageCount++;
       });
 
-      // Fetch images for all events on this page
+      // Use a static default image for all sfrecpark events.
+      // Per-event image scraping rarely finds usable images and falls back to
+      // a low-res site logo, so we use a single branded default instead.
       for (const event of pending) {
-        event.imageUrl = await this.fetchEventImage(event.sourceUrl!);
+        event.imageUrl = "/sfrecpark-default.jpg";
         events.push(event);
       }
 
@@ -189,26 +194,5 @@ export class SfrecparkScraper extends BaseScraper {
     }
 
     return events;
-  }
-
-  private async fetchEventImage(eventUrl: string): Promise<string | undefined> {
-    try {
-      const { data } = await axios.get(eventUrl, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        timeout: 15000,
-      });
-      const $ = cheerio.load(data);
-      // The event detail page embeds an image via Froala editor — match by URL pattern
-      const img = $('img[src*="ImageRepository"]').first();
-      const src = img.attr("src");
-      if (!src) return undefined;
-      return src.startsWith("http") ? src : `https://sfrecpark.org${src.startsWith("/") ? src : "/" + src}`;
-    } catch {
-      return undefined;
-    }
   }
 }

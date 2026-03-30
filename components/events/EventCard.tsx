@@ -1,10 +1,21 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Repeat2 } from "lucide-react";
 import { formatCarouselDateSF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
 import { CategoryImage } from "@/components/events/CategoryImage";
+
+function recurringLabel(event: EventSummary): string | null {
+  if (!event.tags?.includes("recurring")) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "long",
+  }).formatToParts(new Date(event.startDate));
+  const day = parts.find((p) => p.type === "weekday")?.value?.toLowerCase() ?? "";
+  return day ? `every ${day}` : null;
+}
 
 const NEIGHBORHOOD_DISPLAY: Record<string, string> = {
   "South of Market": "SoMa",
@@ -31,6 +42,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   const neighborhood = event.neighborhood
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
+  const recLabel = recurringLabel(event);
 
   if (featured) {
     return (
@@ -57,6 +69,14 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
           )}
           {/* Bottom gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+          {/* Recurring badge */}
+          {recLabel && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 text-white text-[0.6rem] font-body font-semibold uppercase tracking-wider px-2 py-1 rounded-full">
+              <Repeat2 size={10} className="text-primary shrink-0" />
+              {recLabel}
+            </div>
+          )}
 
           {/* Chips: top-left on mobile only */}
           <div className="absolute top-2 left-2 flex gap-2 sm:hidden">
@@ -186,6 +206,7 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
   const neighborhood = event.neighborhood
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
+  const recLabel = recurringLabel(event);
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
@@ -216,11 +237,10 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
               }}
             />
           )}
-          {neighborhood && (
-            <div className="absolute top-2 left-2">
-              <span className="chip text-[0.6rem] uppercase tracking-wider truncate max-w-[9rem]">
-                {neighborhood}
-              </span>
+          {recLabel && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 text-white text-[0.6rem] font-body font-semibold uppercase tracking-wider px-2 py-1 rounded-full">
+              <Repeat2 size={10} className="text-primary shrink-0" />
+              {recLabel}
             </div>
           )}
         </div>

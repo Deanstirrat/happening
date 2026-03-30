@@ -78,7 +78,8 @@
       "Bash(__NEW_LINE_62ccc6bbd04d965e__ psql \"$DB\" -c \":*)",
       "Bash(__NEW_LINE_143c3bda21444c59__ psql \"$DB\" -c \":*)",
       "WebFetch(domain:omnivorebooks.myshopify.com)",
-      "WebFetch(domain:shapingsf.org)"
+      "WebFetch(domain:shapingsf.org)",
+      "mcp__Railway__deploy"
     ]
   }
 }

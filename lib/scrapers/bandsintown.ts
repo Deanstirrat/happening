@@ -25,7 +25,7 @@ export class BandsintownScraper extends BaseScraper {
     const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
     chromium.use(StealthPlugin());
 
-    const browser = await chromium.launch({ headless: true, channel: "chrome" });
+    const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     // Large viewport so all lazy-loaded images enter the visible area at once
     await page.setViewportSize({ width: 1280, height: 20000 });

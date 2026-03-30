@@ -26,7 +26,7 @@ export class CityLightsScraper extends BaseScraper {
     const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
     chromium.use(StealthPlugin());
 
-    const browser = await chromium.launch({ headless: true, channel: "chrome" });
+    const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
     try {

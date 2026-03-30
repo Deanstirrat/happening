@@ -137,4 +137,5 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "thatsouttasight",       venueName: "That's Outta Sight",      tier: "promoter" },
   { handle: "sfbikeandbrew",         venueName: "SF Bike & Brew",          tier: "promoter" },
   { handle: "clubcriticalsf",        venueName: "Club Critical",           tier: "promoter" },
+  { handle: "basement.sf",           venueName: "Club Critical",           tier: "promoter" },
 ];

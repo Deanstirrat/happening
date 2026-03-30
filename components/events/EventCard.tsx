@@ -43,14 +43,15 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
+  const imageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
 
   if (featured) {
     return (
       <Link href={`/events/${event.id}`} className="block group">
         <div className="relative rounded-lg overflow-hidden aspect-[16/9] bg-surface-container">
-          {event.imageUrl ? (
+          {imageUrl ? (
             <Image
-              src={event.imageUrl}
+              src={imageUrl}
               alt={event.title}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -137,9 +138,9 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
       <div className="bg-surface-container rounded-DEFAULT overflow-hidden flex gap-3 p-3 hover:bg-surface-container-high transition-colors">
         {/* Thumbnail */}
         <div className="relative w-16 h-16 shrink-0 rounded-[0.75rem] overflow-hidden bg-surface-container-high">
-          {event.imageUrl ? (
+          {imageUrl ? (
             <Image
-              src={event.imageUrl}
+              src={imageUrl}
               alt={event.title}
               fill
               className="object-cover"
@@ -207,15 +208,16 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
+  const imageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
       <div className="bg-surface-container rounded-DEFAULT overflow-hidden hover:bg-surface-container-high transition-colors">
         {/* Image */}
         <div className="relative aspect-[4/3] bg-surface-container-high">
-          {event.imageUrl ? (
+          {imageUrl ? (
             <Image
-              src={event.imageUrl}
+              src={imageUrl}
               alt={event.title}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"

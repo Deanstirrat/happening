@@ -79,7 +79,8 @@
       "Bash(__NEW_LINE_143c3bda21444c59__ psql \"$DB\" -c \":*)",
       "WebFetch(domain:omnivorebooks.myshopify.com)",
       "WebFetch(domain:shapingsf.org)",
-      "mcp__Railway__deploy"
+      "mcp__Railway__deploy",
+      "mcp__Railway__list-deployments"
     ]
   }
 }

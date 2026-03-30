@@ -11,6 +11,16 @@ import { ArrowLeft, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 
+/** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
+function extractLocationFromTitle(title: string): string | null {
+  const match = title.match(/\b(?:at|in)\s+([a-z][a-z\s']+?)(?:\s+on\b|\s+this\b|\s*$)/i);
+  if (!match) return null;
+  const candidate = match[1].trim();
+  // Skip generic/short phrases
+  if (candidate.split(" ").length < 2 && candidate.length < 6) return null;
+  return candidate.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 async function getEvent(id: string) {
   return prisma.event.findUnique({
     where: { id },
@@ -61,6 +71,8 @@ export default async function EventDetailPage({
   const dateLabel = formatDateLongSF(event.startDate);
   const timeLabel = formatTimeSF(event.startDate);
   const endTimeLabel = event.endDate ? formatTimeSF(event.endDate) : null;
+  const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
+  const mapsQuery = event.venueAddress ?? (venueDisplayName ? `${venueDisplayName}, San Francisco, CA` : null);
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -197,7 +209,7 @@ export default async function EventDetailPage({
       </div>
 
       {/* The Spot (venue) */}
-      {(event.venueName || event.venueAddress) && (
+      {(venueDisplayName || event.venueAddress) && (
         <div className="mb-16">
           <h2 className="font-headline font-bold text-2xl text-on-surface lowercase mb-6">
             the spot
@@ -207,9 +219,9 @@ export default async function EventDetailPage({
               <div className="flex items-start gap-3">
                 <MapPin size={16} className="text-primary mt-0.5 shrink-0" />
                 <div>
-                  {event.venueName && (
+                  {venueDisplayName && (
                     <p className="font-body font-semibold text-on-surface text-sm">
-                      {event.venueName}
+                      {venueDisplayName}
                     </p>
                   )}
                   {event.venueAddress && (
@@ -219,9 +231,9 @@ export default async function EventDetailPage({
                   )}
                 </div>
               </div>
-              {event.venueAddress && (
+              {mapsQuery && (
                 <a
-                  href={`https://maps.google.com/?q=${encodeURIComponent(event.venueAddress)}`}
+                  href={`https://maps.google.com/?q=${encodeURIComponent(mapsQuery)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 flex items-center gap-1.5 text-xs font-body text-primary hover:opacity-80 transition-opacity uppercase tracking-wider"
@@ -233,7 +245,7 @@ export default async function EventDetailPage({
             </div>
 
             {/* Mini map placeholder — if lat/lon exists, shows map pin */}
-            {event.latitude && event.longitude && (
+            {event.venueAddress && event.latitude && event.longitude && (
               <div className="relative rounded-lg overflow-hidden bg-surface-container h-40">
                 <iframe
                   title="venue map"

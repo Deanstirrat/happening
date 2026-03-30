@@ -16,7 +16,7 @@ import { sfDateFromLocal } from "@/lib/sfDate";
  */
 export class EventbriteScraper extends BaseScraper {
   readonly sourceSlug = "eventbrite";
-  private readonly MAX_PAGES = 3;
+  private readonly MAX_PAGES = 5;
   private readonly BASE_URLS = [
     "https://www.eventbrite.com/d/ca--san-francisco/events/",
     "https://www.eventbrite.com/d/ca--san-francisco/food-and-drink/",
@@ -24,6 +24,11 @@ export class EventbriteScraper extends BaseScraper {
     "https://www.eventbrite.com/d/ca--san-francisco/arts/",
     "https://www.eventbrite.com/d/ca--san-francisco/community--and--culture/",
     "https://www.eventbrite.com/d/ca--san-francisco/health-and-wellness/",
+    "https://www.eventbrite.com/d/ca--san-francisco/nightlife/",
+    "https://www.eventbrite.com/d/ca--san-francisco/music/",
+    "https://www.eventbrite.com/d/ca--san-francisco/performing-arts/",
+    "https://www.eventbrite.com/d/ca--san-francisco/film-media-entertainment/",
+    "https://www.eventbrite.com/d/ca--san-francisco/hobbies/",
   ];
 
   async scrape(): Promise<ScrapedEvent[]> {
@@ -112,10 +117,27 @@ export class EventbriteScraper extends BaseScraper {
       data?.components?.search_results?.events ??
       [];
 
-    return results.flatMap((item: any) => {
-      const event = this.parseServerEvent(item);
-      return event ? [event] : [];
-    });
+    if (results.length > 0) {
+      return results.flatMap((item: any) => {
+        const event = this.parseServerEvent(item);
+        return event ? [event] : [];
+      });
+    }
+
+    // Newer /events/ discovery pages use a "buckets" format: themed groups of events
+    const buckets: any[] = data?.buckets ?? [];
+    if (buckets.length > 0) {
+      const bucketEvents: any[] = buckets.flatMap((b: any) => [
+        ...(b?.events ?? []),
+        ...(b?.promoted_events ?? []),
+      ]);
+      return bucketEvents.flatMap((item: any) => {
+        const event = this.parseServerEvent(item);
+        return event ? [event] : [];
+      });
+    }
+
+    return [];
   }
 
   private parseServerEvent(item: any): ScrapedEvent | null {

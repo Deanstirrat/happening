@@ -12,6 +12,7 @@ const GENERIC_SOURCE_URL_PATTERNS = [
   "foopee.com/punk/the-list/",
   "19hz.info/eventlisting_BayArea.php",
   "badslava.com/san-francisco-trivia-nights.php",
+  "noevalleytownsquare.com/events",
 ];
 const isSpecificSourceUrl = (url: string) =>
   !GENERIC_SOURCE_URL_PATTERNS.some((p) => url.includes(p));
@@ -48,6 +49,9 @@ import { InstagramScraper } from "./instagram";
 import { DecenteredScraper } from "./decentered";
 import { MedicineForNightmaresScraper } from "./medicinefornightmares";
 import { OmnivoreBooksScraper } from "./omnivorebooks";
+import { NoeValleyTownSquareScraper } from "./noevalleytownsquare";
+import { CityLightsScraper } from "./citylights";
+import { SFJazzScraper } from "./sfjazz";
 export const SCRAPERS: Record<string, BaseScraper> = {
   foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
@@ -69,6 +73,9 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   decentered: new DecenteredScraper(),
   "medicine-for-nightmares": new MedicineForNightmaresScraper(),
   omnivorebooks: new OmnivoreBooksScraper(),
+  "noe-valley-town-square": new NoeValleyTownSquareScraper(),
+  citylights: new CityLightsScraper(),
+  sfjazz: new SFJazzScraper(),
   // meetup: paid API only — skipped for now
 };
 

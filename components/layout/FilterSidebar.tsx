@@ -155,7 +155,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
 
     <aside className={`flex flex-col gap-1 ${mobileOpen ? "" : "hidden"} lg:flex`}>
       {/* Scrollable filter sections — bounded height on mobile so button stays visible */}
-      <div className="max-h-[55vh] overflow-y-auto lg:max-h-none lg:overflow-visible flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
           Filters
         </p>
@@ -231,7 +231,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
           onToggle={() => toggleSection("category")}
           activeCount={categories.length}
         >
-          <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-0.5">
             {OTHER_CATEGORY_ENTRIES.map(([value, label]) => (
               <button
                 key={value}
@@ -297,7 +297,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
           onToggle={() => toggleSection("neighborhood")}
           activeCount={neighborhoods.length}
         >
-          <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-0.5">
             {SF_NEIGHBORHOODS.map((n) => (
               <button
                 key={n}

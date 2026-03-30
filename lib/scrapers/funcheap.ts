@@ -169,9 +169,14 @@ export class FuncheapScraper extends BaseScraper {
         const priceText = ttEl.clone().find(".tooltip").remove().end().text().trim().split("\n")[0].trim();
         const isFree = this.parseFree(priceText) || priceText.toLowerCase().startsWith("free");
 
+        // Extract venue from title for "... at X" / "... in X" patterns
+        const venueMatch = title.match(/\b(?:at|in)\s+([A-Z][^,!?]+?)(?:\s+on\b|\s*$)/);
+        const venueName = venueMatch ? venueMatch[1].trim() : undefined;
+
         events.push({
           title,
           startDate,
+          venueName,
           price: priceText || undefined,
           isFree,
           sourceUrl,

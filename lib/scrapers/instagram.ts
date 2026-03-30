@@ -91,7 +91,14 @@ export class InstagramScraper extends BaseScraper {
     const qualifying = allPosts.filter((post) => {
       if (now - new Date(post.timestamp).getTime() > LOOKBACK_MS) return false;
       if (seenShortCodes.has(post.shortCode)) return false;
-      return this.looksLikeEvent(post.caption ?? "");
+      // Venue posts with a flyer image: lower the bar to 1 signal.
+      // Event details live in the image, not the caption.
+      // Unknown accounts fall back to venue tier (matches processPost behavior).
+      const account = accountMap.get(post.ownerUsername?.toLowerCase() ?? "");
+      const isVenueWithImage =
+        account?.tier !== "promoter" && !!post.displayUrl;
+      const threshold = isVenueWithImage ? 1 : MIN_EVENT_SIGNALS;
+      return this.looksLikeEvent(post.caption ?? "", threshold);
     });
 
     console.log(
@@ -175,10 +182,10 @@ export class InstagramScraper extends BaseScraper {
    * Returns true if the caption contains at least MIN_EVENT_SIGNALS heuristic
    * signals that it is announcing an event (not a food photo, travel shot, etc.).
    */
-  private looksLikeEvent(caption: string): boolean {
+  private looksLikeEvent(caption: string, minSignals = MIN_EVENT_SIGNALS): boolean {
     const signals = [DATE_RE, DAY_RE, TIME_RE, EVENT_RE];
     const count = signals.filter((re) => re.test(caption)).length;
-    return count >= MIN_EVENT_SIGNALS;
+    return count >= minSignals;
   }
 
   /**

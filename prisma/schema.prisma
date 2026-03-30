@@ -7,15 +7,16 @@ datasource db {
 }
 
 model Source {
-  id            String     @id @default(cuid())
-  slug          String     @unique
+  id            String         @id @default(cuid())
+  slug          String         @unique
   name          String
   url           String
   scrapeType    ScrapeType
+  category      SourceCategory @default(AGGREGATOR)
   lastScrapedAt DateTime?
-  enabled       Boolean    @default(true)
+  enabled       Boolean        @default(true)
   events        Event[]
-  createdAt     DateTime   @default(now())
+  createdAt     DateTime       @default(now())
 
   @@map("sources")
 }
@@ -147,6 +148,13 @@ enum ScrapeType {
   PLAYWRIGHT
   API
   MANUAL
+}
+
+enum SourceCategory {
+  AGGREGATOR    // Multi-venue discovery sites (Eventbrite, Luma, Foopee, etc.)
+  VENUE         // Single venue's own event page
+  INSTITUTIONAL // Government/library/park systems
+  COMMUNITY     // User-generated (Reddit, community submissions)
 }
 
 enum EventStatus {

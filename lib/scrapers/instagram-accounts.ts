@@ -80,6 +80,7 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "popsbar",               venueName: "Pop's Bar",               tier: "venue" },
   { handle: "elixirsf",              venueName: "Elixir",                  tier: "venue" },
   { handle: "ryebarsf",              venueName: "Rye Bar",                 tier: "venue" },
+  { handle: "sfpopupcollective",     venueName: "SF Popup Collective",     tier: "venue" },
   { handle: "lost_resort_sf",        venueName: "The Lost Resort",         tier: "venue" },
   { handle: "holywatersf",           venueName: "Holy Water",              tier: "venue" },
   { handle: "thepawnshopsf",         venueName: "The Pawn Shop",           tier: "venue" },

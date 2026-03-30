@@ -1,18 +1,20 @@
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
-import { PrismaClient, ScrapeType } from "@prisma/client";
+import { PrismaClient, ScrapeType, SourceCategory } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 const sources = [
+  // ── Aggregators ──────────────────────────────────────────────────────────
   {
     slug: "foopee",
     name: "Foopee Punk List",
     url: "https://foopee.com/punk/the-list/",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -20,6 +22,7 @@ const sources = [
     name: "19hz Bay Area",
     url: "https://19hz.info/eventlisting_BayArea.php",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -27,6 +30,7 @@ const sources = [
     name: "Funcheap SF",
     url: "https://sf.funcheap.com/",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -34,6 +38,7 @@ const sources = [
     name: "Timeout San Francisco",
     url: "https://www.timeout.com/san-francisco/things-to-do",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: false,
   },
   {
@@ -41,6 +46,7 @@ const sources = [
     name: "SF Live",
     url: "https://sflive.art",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -48,6 +54,7 @@ const sources = [
     name: "Resident Advisor SF",
     url: "https://ra.co/events/us/sanfrancisco",
     scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -55,6 +62,7 @@ const sources = [
     name: "Partiful",
     url: "https://partiful.com/explore/sf",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -62,6 +70,7 @@ const sources = [
     name: "Luma SF",
     url: "https://lu.ma/sf",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -69,6 +78,7 @@ const sources = [
     name: "Songkick",
     url: "https://www.songkick.com",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
     enabled: false,
   },
   {
@@ -76,6 +86,7 @@ const sources = [
     name: "Eventbrite",
     url: "https://www.eventbrite.com/d/ca--san-francisco/events/",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -83,6 +94,7 @@ const sources = [
     name: "Meetup",
     url: "https://www.meetup.com",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
     enabled: false,
   },
   {
@@ -90,6 +102,7 @@ const sources = [
     name: "Posh",
     url: "https://posh.vip/explore",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -97,6 +110,7 @@ const sources = [
     name: "Bandsintown SF",
     url: "https://www.bandsintown.com/c/san-francisco-ca",
     scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -104,6 +118,7 @@ const sources = [
     name: "KQED Live Events",
     url: "https://www.kqed.org/events",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -111,27 +126,7 @@ const sources = [
     name: "DoTheBay",
     url: "https://dothebay.com/events",
     scrapeType: ScrapeType.CHEERIO,
-    enabled: true,
-  },
-  {
-    slug: "reddit-sfevents",
-    name: "Reddit r/SFEvents",
-    url: "https://www.reddit.com/r/SFEvents/",
-    scrapeType: ScrapeType.API,
-    enabled: true,
-  },
-  {
-    slug: "badslava",
-    name: "Badslava SF Trivia Nights",
-    url: "https://badslava.com/san-francisco-trivia-nights.php",
-    scrapeType: ScrapeType.CHEERIO,
-    enabled: true,
-  },
-  {
-    slug: "community",
-    name: "Community Submissions",
-    url: "https://happening.app",
-    scrapeType: ScrapeType.MANUAL,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -139,6 +134,7 @@ const sources = [
     name: "Instagram Venues",
     url: "https://www.instagram.com",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
   {
@@ -146,13 +142,16 @@ const sources = [
     name: "Decentered",
     url: "https://events.decentered.org/",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
+  // ── Venue sites ──────────────────────────────────────────────────────────
   {
     slug: "medicine-for-nightmares",
     name: "Medicine for Nightmares",
     url: "https://medicinefornightmares.com/events",
     scrapeType: ScrapeType.API,
+    category: SourceCategory.VENUE,
     enabled: true,
   },
   {
@@ -160,6 +159,73 @@ const sources = [
     name: "Omnivore Books on Food",
     url: "https://omnivorebooks.myshopify.com/collections/upcoming-events",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "noe-valley-town-square",
+    name: "Noe Valley Town Square",
+    url: "https://noevalleytownsquare.com/events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "citylights",
+    name: "City Lights Books",
+    url: "https://citylights.com/events/",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "sfjazz",
+    name: "SFJAZZ",
+    url: "https://www.sfjazz.org/calendar/",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  // ── Institutional ────────────────────────────────────────────────────────
+  {
+    slug: "sfpl",
+    name: "SF Public Library",
+    url: "https://sfpl.org/events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.INSTITUTIONAL,
+    enabled: true,
+  },
+  {
+    slug: "sfrecpark",
+    name: "SF Recreation & Parks",
+    url: "https://sfrecpark.org/Calendar.aspx",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.INSTITUTIONAL,
+    enabled: true,
+  },
+  // ── Community ────────────────────────────────────────────────────────────
+  {
+    slug: "reddit-sfevents",
+    name: "Reddit r/SFEvents",
+    url: "https://www.reddit.com/r/SFEvents/",
+    scrapeType: ScrapeType.API,
+    category: SourceCategory.COMMUNITY,
+    enabled: true,
+  },
+  {
+    slug: "badslava",
+    name: "Badslava SF Trivia Nights",
+    url: "https://badslava.com/san-francisco-trivia-nights.php",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.COMMUNITY,
+    enabled: true,
+  },
+  {
+    slug: "community",
+    name: "Community Submissions",
+    url: "https://happening.app",
+    scrapeType: ScrapeType.MANUAL,
+    category: SourceCategory.COMMUNITY,
     enabled: true,
   },
 ];

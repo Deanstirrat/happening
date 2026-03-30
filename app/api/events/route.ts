@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { addDays, endOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
-import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
+import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
   const isFree = p.get("isFree") === "true";
   const hideMusic = p.get("hideMusic") === "true";
   const hideRecurring = p.get("hideRecurring") === "true";
+  const timeOfDay = p.get("timeOfDay") ?? "";
   const view = p.get("view") ?? "list";
   const page = Math.max(1, parseInt(p.get("page") ?? "1"));
   const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
@@ -40,18 +41,15 @@ export async function GET(req: NextRequest) {
       ? categories.filter((c) => !c.startsWith("MUSIC_"))
       : categories;
 
-  // Exclude events that are completely in the past (SF timezone).
+  // Always exclude events that are completely in the past (SF timezone).
   // - Multi-day events: include if endDate >= today (SF)
   // - Single-day events: include if startDate >= today (SF)
-  // Only applied when a date window is active (i.e. not a search-all query).
-  const notEndedCondition: Prisma.EventWhereInput | null = windowStart
-    ? {
-        OR: [
-          { endDate: { gte: sfMidnightToday } },
-          { endDate: null, startDate: { gte: sfMidnightToday } },
-        ],
-      }
-    : null;
+  const notEndedCondition: Prisma.EventWhereInput = {
+    OR: [
+      { endDate: { gte: sfMidnightToday } },
+      { endDate: null, startDate: { gte: sfMidnightToday } },
+    ],
+  };
 
   const searchCondition: Prisma.EventWhereInput | null = search
     ? {
@@ -67,7 +65,7 @@ export async function GET(req: NextRequest) {
     status: "PUBLISHED",
     // Hide events that have already ended
     AND: [
-      ...(notEndedCondition ? [notEndedCondition] : []),
+      notEndedCondition,
       ...(searchCondition ? [searchCondition] : []),
     ],
     startDate: {
@@ -86,7 +84,7 @@ export async function GET(req: NextRequest) {
     }),
   };
 
-  const [events, total] = await Promise.all([
+  const [rawEvents, total] = await Promise.all([
     prisma.event.findMany({
       where,
       skip: (page - 1) * limit,
@@ -116,10 +114,14 @@ export async function GET(req: NextRequest) {
     prisma.event.count({ where }),
   ]);
 
+  const events = timeOfDay
+    ? rawEvents.filter((e) => matchesTimeOfDay(e.startDate, timeOfDay))
+    : rawEvents;
+
   return NextResponse.json({
     events,
-    total,
+    total: timeOfDay ? events.length : total,
     page,
-    totalPages: Math.ceil(total / limit),
+    totalPages: Math.ceil((timeOfDay ? events.length : total) / limit),
   });
 }

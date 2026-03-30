@@ -149,6 +149,26 @@ export function formatCarouselDateSF(date: Date): string {
   return `${datePart} • ${formatTimeSF(date)}`;
 }
 
+/** Returns the SF local hour (0-23) for a given Date */
+export function sfHourOf(date: Date): number {
+  const h = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false }).format(date)
+  );
+  return h === 24 ? 0 : h;
+}
+
+/** Returns true if the SF local hour falls within the named time-of-day bucket */
+export function matchesTimeOfDay(date: Date, bucket: string): boolean {
+  const h = sfHourOf(date);
+  switch (bucket) {
+    case "morning":   return h >= 6 && h < 12;
+    case "afternoon": return h >= 12 && h < 18;
+    case "evening":   return h >= 18 && h < 22;
+    case "night":     return h >= 22 || h < 6;
+    default:          return true;
+  }
+}
+
 /** "20260325T180000" for Google Calendar links */
 export function formatGCalSF(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {

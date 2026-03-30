@@ -95,6 +95,30 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "ravenbarsf",            venueName: "Raven Bar",               tier: "venue" },
   { handle: "horsiesmarketsf",       venueName: "Horsie's Market",         tier: "venue" },
 
+  // ── Community / arts / culture venues ────────────────────────────────────
+  { handle: "sfcraftclub",            venueName: "SF Craft Club",           tier: "venue" },
+  { handle: "friendsandneighborssf",  venueName: "Friends & Neighbors SF",  tier: "venue" },
+  { handle: "drawingroomsf",          venueName: "The Drawing Room SF",     tier: "venue" },
+  { handle: "wavecollectivespace",    venueName: "Wave Collective Space",   tier: "venue" },
+  { handle: "thefaightsf",            venueName: "The Faight SF",           tier: "venue" },
+  { handle: "jfkpianos",              venueName: "JFK Pianos",              tier: "venue" },
+  { handle: "therubysf",              venueName: "The Ruby SF",             tier: "venue" },
+  { handle: "mrmahjongs",             venueName: "Mr. Mahjong's",           tier: "venue" },
+
+  // ── Community / arts promoters ────────────────────────────────────────────
+  { handle: "bird_curious_sf",        venueName: "Bird Curious SF",         tier: "promoter" },
+  { handle: "westcoastcraft",         venueName: "West Coast Craft",        tier: "promoter" },
+  { handle: "alamedaantiquesfair",    venueName: "Alameda Antiques Fair",   tier: "promoter" },
+  { handle: "oaklandvintagemarket",   venueName: "Oakland Vintage Market",  tier: "promoter" },
+  { handle: "lowerhaightlocal",       venueName: "Lower Haight Local",      tier: "promoter" },
+  { handle: "nowplacesf",             venueName: "Now Place SF",            tier: "promoter" },
+  { handle: "moonlitmoves",           venueName: "Moonlit Moves",           tier: "promoter" },
+  { handle: "sfdahliasociety",        venueName: "SF Dahlia Society",       tier: "promoter" },
+  { handle: "bigbrainsf",             venueName: "Big Brain SF",            tier: "promoter" },
+  { handle: "sfbookbesties",          venueName: "SF Book Besties",         tier: "promoter" },
+  { handle: "sf.socialclub",          venueName: "SF Social Club",          tier: "promoter" },
+  { handle: "curious.connie",         venueName: "Curious Connie",          tier: "promoter" },
+
   // ── Promoters / DJs / event series (caption-first — use Claude haiku) ────
   { handle: "rinsed.sf",             venueName: "Rinsed SF",               tier: "promoter" },
   { handle: "program.audio",         venueName: "Program Audio",           tier: "promoter" },

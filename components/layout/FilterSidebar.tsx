@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback, useState } from "react";
 import {
   Calendar,
+  Clock,
   Tag,
   MapPin,
   Rss,
@@ -41,6 +42,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const currentNeighborhoods = searchParams.getAll("neighborhood");
   const currentSources = searchParams.getAll("source");
   const currentFreeOnly = searchParams.get("isFree") === "true";
+  const currentTimeOfDay = searchParams.get("timeOfDay") ?? "";
 
   // Local state (apply on button click)
   const [startDate, setStartDate] = useState(currentStartDate);
@@ -49,6 +51,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
   const [neighborhoods, setNeighborhoods] = useState<string[]>(currentNeighborhoods);
   const [selectedSources, setSelectedSources] = useState<string[]>(currentSources);
   const [freeOnly, setFreeOnly] = useState(currentFreeOnly);
+  const [timeOfDay, setTimeOfDay] = useState(currentTimeOfDay);
 
   const [musicOpen, setMusicOpen] = useState(
     currentCategories.some((c) => MUSIC_CATEGORY_SET.has(c))
@@ -56,6 +59,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
 
   const [openSections, setOpenSections] = useState({
     date: true,
+    timeOfDay: false,
     category: true,
     neighborhood: false,
     source: false,
@@ -83,6 +87,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     neighborhoods.forEach((n) => params.append("neighborhood", n));
     selectedSources.forEach((s) => params.append("source", s));
     if (freeOnly) params.set("isFree", "true");
+    if (timeOfDay) params.set("timeOfDay", timeOfDay);
     // preserve search and quick-toggle params (managed outside the filter tray)
     const search = searchParams.get("search");
     if (search) params.set("search", search);
@@ -91,7 +96,7 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     const hideRecurring = searchParams.get("hideRecurring");
     if (hideRecurring) params.set("hideRecurring", hideRecurring);
     router.push(`${pathname}?${params.toString()}`);
-  }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, searchParams, router, pathname]);
+  }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, timeOfDay, searchParams, router, pathname]);
 
   const applyToday = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -112,15 +117,16 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     setNeighborhoods([]);
     setSelectedSources([]);
     setFreeOnly(false);
+    setTimeOfDay("");
     setMusicOpen(false);
     router.push(pathname);
   };
 
   const hasFilters =
-    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly;
+    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly || timeOfDay;
 
   const activeFilterCount =
-    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0);
+    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0) + (timeOfDay ? 1 : 0);
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -187,6 +193,34 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
             className="w-full bg-surface-container-low text-on-surface text-xs px-3 py-2 rounded-DEFAULT outline-none font-body"
             style={{ colorScheme: "dark" }}
           />
+        </Section>
+
+        {/* Time of Day */}
+        <Section
+          icon={<Clock size={13} />}
+          label="Time of Day"
+          open={openSections.timeOfDay}
+          onToggle={() => toggleSection("timeOfDay")}
+          activeCount={timeOfDay ? 1 : 0}
+        >
+          <div className="flex flex-col gap-0.5">
+            {(["morning", "afternoon", "evening", "night"] as const).map((bucket) => (
+              <button
+                key={bucket}
+                onClick={() => setTimeOfDay(timeOfDay === bucket ? "" : bucket)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors capitalize ${
+                  timeOfDay === bucket
+                    ? "bg-secondary-container text-on-secondary-container"
+                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                {bucket === "morning" && "Morning (6am–noon)"}
+                {bucket === "afternoon" && "Afternoon (noon–6pm)"}
+                {bucket === "evening" && "Evening (6pm–10pm)"}
+                {bucket === "night" && "Night (10pm–6am)"}
+              </button>
+            ))}
+          </div>
         </Section>
 
         {/* Category */}

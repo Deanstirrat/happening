@@ -4,6 +4,16 @@ import { categorizeEvent } from "@/lib/categorize";
 import type { ScrapedEvent } from "@/lib/types";
 import { BaseScraper } from "./base";
 import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, MIN_TOKENS } from "@/lib/fuzzy";
+import { tagRecurringEvents } from "@/lib/recurring";
+import { sfDayKey, sfDayStart } from "@/lib/sfDate";
+
+// Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
+const GENERIC_SOURCE_URL_PATTERNS = [
+  "foopee.com/punk/the-list/",
+  "19hz.info/eventlisting_BayArea.php",
+];
+const isSpecificSourceUrl = (url: string) =>
+  !GENERIC_SOURCE_URL_PATTERNS.some((p) => url.includes(p));
 
 // Import all scrapers
 import { FoopeeScraper } from "./foopee";
@@ -205,16 +215,30 @@ export async function runScraper(
       continue;
     }
 
+    // Source URL dedup: two events sharing a specific (non-list-page) URL are the same event,
+    // even if their titles differ (e.g. one source has the wrong year in the title).
+    if (isSpecificSourceUrl(event.sourceUrl)) {
+      const urlMatch = await prisma.event.findFirst({
+        where: { sourceUrl: event.sourceUrl },
+        select: { id: true, sourceUrl: true, imageUrl: true, description: true },
+      });
+      if (urlMatch) {
+        console.log(`[${slug}] Source URL duplicate: "${event.title}" (${event.sourceUrl})`);
+        await enrichExisting(urlMatch.id, urlMatch.sourceUrl, urlMatch.imageUrl, urlMatch.description);
+        continue;
+      }
+    }
+
     // Day-scoped duplicate checks: fuzzy title match + venue-as-title match.
     // Fetch dayEvents whenever either check might apply.
     const incomingTokens = tokenize(event.title);
     const needsDayCheck = incomingTokens.size >= MIN_TOKENS || Boolean(event.venueName);
 
     if (needsDayCheck) {
-      const dayStart = new Date(event.startDate);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+      // Use SF-local day boundaries so evening events (stored as next UTC day) are
+      // compared against the correct SF calendar day's events.
+      const dayStart = sfDayStart(sfDayKey(event.startDate));
+      const dayEnd = new Date(dayStart.getTime() + 86400000);
 
       const dayEvents = await prisma.event.findMany({
         where: { startDate: { gte: dayStart, lt: dayEnd } },
@@ -236,6 +260,33 @@ export async function runScraper(
           console.log(`[${slug}] Fuzzy duplicate: "${event.title}" ≈ "${fuzzyMatch.title}"`);
           await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl, fuzzyMatch.description);
           continue;
+        }
+      }
+
+      // Venue + partial-title match: same venue on the same SF day with ≥2 shared tokens.
+      // Catches cases where titles diverge (e.g. one source adds an opening act) but the
+      // event is clearly the same based on venue + key artist/name tokens.
+      if (event.venueName && incomingTokens.size >= 2) {
+        const normalizeVenue = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const incomingVenueNorm = normalizeVenue(event.venueName);
+        const incomingTitleNorm = normalizeVenue(event.title);
+        // Only when incoming has a real title (not a venue-as-title placeholder)
+        if (incomingTitleNorm !== incomingVenueNorm) {
+          const venuePartialMatch = dayEvents.find((e) => {
+            if (!e.venueName) return false;
+            if (normalizeVenue(e.venueName) !== incomingVenueNorm) return false;
+            const existingTokens = tokenize(e.title);
+            let shared = 0;
+            for (const t of incomingTokens) {
+              if (existingTokens.has(t)) shared++;
+            }
+            return shared >= 2 && !areLikelyDifferentEvents(incomingTokens, existingTokens);
+          });
+          if (venuePartialMatch) {
+            console.log(`[${slug}] Venue+title duplicate: "${event.title}" ≈ "${venuePartialMatch.title}" at ${event.venueName}`);
+            await enrichExisting(venuePartialMatch.id, venuePartialMatch.sourceUrl, venuePartialMatch.imageUrl, venuePartialMatch.description);
+            continue;
+          }
         }
       }
 
@@ -328,6 +379,12 @@ export async function runScraper(
     where: { slug },
     data: { lastScrapedAt: new Date() },
   });
+
+  // Tag recurring events based on titles seen in this batch
+  const recurringTagged = await tagRecurringEvents(events.map((e) => e.title));
+  if (recurringTagged > 0) {
+    console.log(`[${slug}] Tagged ${recurringTagged} events as recurring`);
+  }
 
   console.log(`[${slug}] Done — ${inserted}/${events.length} new events inserted`);
   return { scraped: events.length, inserted };

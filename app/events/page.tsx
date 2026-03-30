@@ -9,7 +9,7 @@ import TimeFilterTabs from "@/components/events/TimeFilterTabs";
 import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
-import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
+import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
 import { Prisma } from "@prisma/client";
 
 interface SearchParams {
@@ -23,6 +23,7 @@ interface SearchParams {
   page?: string;
   hideMusic?: string;
   hideRecurring?: string;
+  timeOfDay?: string;
 }
 
 async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
@@ -204,9 +205,13 @@ async function getEvents(params: SearchParams): Promise<{
     prisma.event.count({ where }),
   ]);
 
+  const filteredEvents = params.timeOfDay
+    ? events.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
+    : events;
+
   // Group by day
   const grouped: Record<string, EventSummary[]> = {};
-  for (const event of events) {
+  for (const event of filteredEvents) {
     const dayKey = sfDayKey(event.startDate); // YYYY-MM-DD in SF timezone
     if (!grouped[dayKey]) grouped[dayKey] = [];
     grouped[dayKey].push({
@@ -217,7 +222,7 @@ async function getEvents(params: SearchParams): Promise<{
     } as EventSummary);
   }
 
-  return { grouped, total };
+  return { grouped, total: params.timeOfDay ? filteredEvents.length : total };
 }
 
 export default async function EventsPage({
@@ -238,7 +243,8 @@ export default async function EventsPage({
   const hasActiveFilters = !!(
     params.startDate || params.endDate || params.category ||
     params.neighborhood || params.source || params.isFree ||
-    params.search || params.hideMusic || params.hideRecurring
+    params.search || params.hideMusic || params.hideRecurring ||
+    params.timeOfDay
   );
 
   return (

@@ -1,4 +1,4 @@
 [deploy]
-startCommand = "npx prisma migrate deploy && npm start -- -p ${PORT:-3000}"
+startCommand = "npx prisma migrate deploy; echo \"[startup] prisma exit=$? PORT=${PORT:-3000}\"; npm start -- -p ${PORT:-3000}"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 60

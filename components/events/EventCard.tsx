@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Repeat2 } from "lucide-react";
+import { Repeat2, Star } from "lucide-react";
 import { formatCarouselDateSF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
@@ -212,7 +212,7 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
-      <div className="bg-surface-container rounded-DEFAULT overflow-hidden hover:bg-surface-container-high transition-colors">
+      <div className={`bg-surface-container rounded-DEFAULT overflow-hidden hover:bg-surface-container-high transition-colors${event.featured ? " ring-1 ring-primary/40" : ""}`}>
         {/* Image */}
         <div className="relative aspect-[4/3] bg-surface-container-high">
           {imageUrl ? (
@@ -238,6 +238,12 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
                 background: `linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`,
               }}
             />
+          )}
+          {event.featured && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-on-primary text-[0.6rem] font-body font-semibold uppercase tracking-wider px-2 py-1 rounded-full">
+              <Star size={8} className="shrink-0" fill="currentColor" />
+              featured
+            </div>
           )}
           {recLabel && (
             <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 text-white text-[0.6rem] font-body font-semibold uppercase tracking-wider px-2 py-1 rounded-full">

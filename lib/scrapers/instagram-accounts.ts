@@ -134,6 +134,7 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "sfbookbesties",          venueName: "SF Book Besties",         tier: "promoter" },
   { handle: "sf.socialclub",          venueName: "SF Social Club",          tier: "promoter" },
   { handle: "curious.connie",         venueName: "Curious Connie",          tier: "promoter" },
+  { handle: "bigshovelbooking",       venueName: "Big Shovel Booking",      tier: "promoter" },
 
   // ── Promoters / DJs / event series (caption-first — use Claude haiku) ────
   { handle: "rinsed.sf",             venueName: "Rinsed SF",               tier: "promoter" },
@@ -159,4 +160,5 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "room4improvementsf",    venueName: "Room 4 Improvement",      tier: "promoter" },
   { handle: "mono.presents",         venueName: "Mono",                    tier: "promoter" },
   { handle: "goldenvoicebayarea",    venueName: "Goldenvoice Bay Area",    tier: "promoter" },
+  { handle: "basement.sf",           venueName: "Basement SF",           tier: "promoter" },
 ];

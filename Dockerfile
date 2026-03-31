@@ -1,21 +1,31 @@
-FROM node:20-bookworm
+FROM node:20-bookworm AS builder
 
 WORKDIR /app
 
-# Copy package files and prisma schema before npm ci so postinstall
-# (prisma generate + playwright install --with-deps chromium) can run.
-# Running as root in this image lets playwright install system deps via apt-get.
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Skip postinstall (playwright install --with-deps chromium) — not needed for the web app.
-# Playwright is only required by the scrape job; see Dockerfile.scrape.
 RUN npm ci --ignore-scripts && npx prisma generate
 
 COPY . .
 
 RUN npm run build
 
+# Runtime image — only the standalone output, no node_modules
+FROM node:20-bookworm-slim AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start -- -p ${PORT:-3000}"]
+CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && node server.js"]

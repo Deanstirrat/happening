@@ -53,7 +53,6 @@ import { NoeValleyTownSquareScraper } from "./noevalleytownsquare";
 import { CityLightsScraper } from "./citylights";
 import { SFJazzScraper } from "./sfjazz";
 export const SCRAPERS: Record<string, BaseScraper> = {
-  foopee: new FoopeeScraper(),
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
   residentadvisor: new ResidentAdvisorScraper(),
@@ -76,6 +75,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   "noe-valley-town-square": new NoeValleyTownSquareScraper(),
   citylights: new CityLightsScraper(),
   sfjazz: new SFJazzScraper(),
+  foopee: new FoopeeScraper(),
   // meetup: paid API only — skipped for now
 };
 

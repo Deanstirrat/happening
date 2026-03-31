@@ -8,14 +8,10 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Skip postinstall (playwright install --with-deps chromium) — not needed for the web app.
-# Playwright is only required by the scrape job; see Dockerfile.scrape.
-RUN npm ci --ignore-scripts && npx prisma generate
+RUN npm ci
 
 COPY . .
 
-RUN npm run build
-
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start -- -p ${PORT:-3000}"]
+CMD ["npm", "run", "scrape"]

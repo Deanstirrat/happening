@@ -32,7 +32,10 @@ export class DothebayScraper extends BaseScraper {
 
       try {
         const { data: html } = await axios.get(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
           timeout: 15000,
         });
 

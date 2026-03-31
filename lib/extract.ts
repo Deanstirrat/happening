@@ -79,8 +79,11 @@ export async function extractEventFromImage(
   const raw = (msg.content[0] as any).text?.trim() ?? "";
 
   try {
-    // Strip markdown code fences if present
-    const jsonStr = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+    // Strip markdown code fences and trailing commas before closing braces/brackets
+    const jsonStr = raw
+      .replace(/^```(?:json)?\n?/, "")
+      .replace(/\n?```$/, "")
+      .replace(/,(\s*[}\]])/g, "$1");
     const parsed = JSON.parse(jsonStr);
     return {
       title: parsed.title ?? null,
@@ -115,7 +118,10 @@ export async function extractEventFromCaption(caption: string): Promise<Extracte
   const raw = (msg.content[0] as any).text?.trim() ?? "";
 
   try {
-    const jsonStr = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+    const jsonStr = raw
+      .replace(/^```(?:json)?\n?/, "")
+      .replace(/\n?```$/, "")
+      .replace(/,(\s*[}\]])/g, "$1");
     const parsed = JSON.parse(jsonStr);
     return {
       title: parsed.title ?? null,

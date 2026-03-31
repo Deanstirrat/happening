@@ -11,5 +11,6 @@ export const CATEGORY_IMAGES: Partial<Record<EventCategory, string>> = {
   MUSIC_OTHER: "/category-images/music.jpg",
   COMEDY: "/category-images/comedy.jpg",
   NIGHTLIFE: "/category-images/nightlife.jpg",
+  COMMUNITY: "/category-images/community.jpg",
   OTHER: "/category-images/other.jpg",
 };

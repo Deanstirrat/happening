@@ -23,9 +23,7 @@ const NEIGHBORHOOD_DISPLAY: Record<string, string> = {
 };
 
 function formatPrice(price: string): string {
-  const num = parseFloat(price.replace(/[^0-9.]/g, ""));
-  if (isNaN(num)) return price;
-  return `$${Math.round(num)}`;
+  return price;
 }
 
 interface EventCardProps {

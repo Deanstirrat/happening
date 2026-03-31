@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runScraper, SCRAPERS } from "@/lib/scrapers/runner";
 
 export async function POST(req: NextRequest) {
   const secret = req.headers.get("x-scrape-secret");
   if (secret !== process.env.SCRAPE_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { runScraper, SCRAPERS } = await import("@/lib/scrapers/runner");
 
   const body = await req.json().catch(() => ({}));
   const source = body.source ?? "all";

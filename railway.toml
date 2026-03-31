@@ -1,4 +1,4 @@
 [deploy]
-startCommand = "node node_modules/prisma/build/index.js migrate deploy; node server.js"
+startCommand = "npx prisma migrate deploy; node .next/standalone/server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 60

@@ -182,7 +182,7 @@ export class LumaScraper extends BaseScraper {
           typeof ticketPrice === "number"
             ? ticketPrice
             : typeof ticketPrice === "object" && ticketPrice !== null
-            ? (ticketPrice.decimal ?? ticketPrice.usd_cents / 100 ?? null)
+            ? (ticketPrice.decimal ?? (ticketPrice.usd_cents != null ? ticketPrice.usd_cents / 100 : null))
             : null;
         const isFree =
           data.ticket_info?.is_free !== false || priceAmount === null || priceAmount === 0;

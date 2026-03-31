@@ -12,6 +12,30 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { runScraper, SCRAPERS } from "../lib/scrapers/runner";
 
+const SCRAPER_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes per scraper
+
+async function runWithTimeout(
+  slug: string
+): Promise<{ scraped: number; inserted: number } | null> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>(
+    (_, reject) =>
+      (timer = setTimeout(
+        () => reject(new Error(`timed out after ${SCRAPER_TIMEOUT_MS / 1000}s`)),
+        SCRAPER_TIMEOUT_MS
+      ))
+  );
+  try {
+    const result = await Promise.race([runScraper(slug), timeout]);
+    clearTimeout(timer!);
+    return result;
+  } catch (err: any) {
+    clearTimeout(timer!);
+    console.error(`[${slug}] ❌ Failed: ${err.message}`);
+    return null;
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
   const slugs = args.length > 0 ? args : Object.keys(SCRAPERS);
@@ -20,15 +44,40 @@ async function main() {
 
   let totalScraped = 0;
   let totalInserted = 0;
+  const failed: string[] = [];
 
   for (const slug of slugs) {
     if (!SCRAPERS[slug]) {
       console.error(`Unknown scraper: ${slug}. Available: ${Object.keys(SCRAPERS).join(", ")}`);
       continue;
     }
-    const result = await runScraper(slug);
-    totalScraped += result.scraped;
-    totalInserted += result.inserted;
+    const result = await runWithTimeout(slug);
+    if (result === null) {
+      failed.push(slug);
+    } else {
+      totalScraped += result.scraped;
+      totalInserted += result.inserted;
+    }
+  }
+
+  // Retry any scrapers that failed or timed out
+  if (failed.length > 0) {
+    console.log(`\n🔄 Retrying ${failed.length} failed scraper(s): ${failed.join(", ")}\n`);
+    const stillFailed: string[] = [];
+    for (const slug of failed) {
+      const result = await runWithTimeout(slug);
+      if (result === null) {
+        stillFailed.push(slug);
+      } else {
+        totalScraped += result.scraped;
+        totalInserted += result.inserted;
+      }
+    }
+    if (stillFailed.length > 0) {
+      console.error(`\n❌ Scrapers still failing after retry: ${stillFailed.join(", ")}\n`);
+      console.log(`\n✅ Done — ${totalInserted}/${totalScraped} new events inserted\n`);
+      process.exit(1);
+    }
   }
 
   console.log(`\n✅ Done — ${totalInserted}/${totalScraped} new events inserted\n`);

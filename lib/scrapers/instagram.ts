@@ -22,7 +22,7 @@ import { prisma } from "@/lib/prisma";
  * Requires: APIFY_API_KEY environment variable.
  */
 
-const LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000; // 2 days (scraper runs daily)
 // Vision calls use ~1,600 input tokens per image. At concurrency 3 with a 15s
 // inter-batch delay we stay well under Claude's 30k input-token/min rate limit.
 const EXTRACT_CONCURRENCY = 3;
@@ -80,13 +80,20 @@ export class InstagramScraper extends BaseScraper {
     const allPosts = [...venuePosts, ...promoterPosts];
     const now = Date.now();
 
-    // Pre-fetch shortCodes we've already ingested so we don't re-send them to
-    // Claude on every daily run. Only new posts (not yet in the DB) proceed.
-    const existingRows = await prisma.event.findMany({
-      where: { source: { slug: "instagram" }, externalId: { not: null } },
-      select: { externalId: true },
-    });
-    const seenShortCodes = new Set(existingRows.map((r) => r.externalId as string));
+    // Pre-fetch shortCodes we've already processed (either became events or were
+    // tried and rejected). This prevents re-sending the same post to Claude on
+    // every daily run within the lookback window.
+    const [existingRows, seenRows] = await Promise.all([
+      prisma.event.findMany({
+        where: { source: { slug: "instagram" }, externalId: { not: null } },
+        select: { externalId: true },
+      }),
+      prisma.instagramSeenPost.findMany({ select: { shortCode: true } }),
+    ]);
+    const seenShortCodes = new Set([
+      ...existingRows.map((r) => r.externalId as string),
+      ...seenRows.map((r) => r.shortCode),
+    ]);
 
     const qualifying = allPosts.filter((post) => {
       if (now - new Date(post.timestamp).getTime() > LOOKBACK_MS) return false;
@@ -131,6 +138,15 @@ export class InstagramScraper extends BaseScraper {
       }
     }
 
+    // Mark all qualifying posts as seen so they're never re-sent to Claude,
+    // regardless of whether they became events or not.
+    if (qualifying.length > 0) {
+      await prisma.instagramSeenPost.createMany({
+        data: qualifying.map((p) => ({ shortCode: p.shortCode })),
+        skipDuplicates: true,
+      });
+    }
+
     console.log(`[instagram] ${events.length} events extracted`);
     return events;
   }
@@ -144,7 +160,7 @@ export class InstagramScraper extends BaseScraper {
   private async fetchPosts(handles: string[], resultsLimit: number): Promise<ApifyPost[]> {
     const url =
       `https://api.apify.com/v2/acts/apify~instagram-post-scraper` +
-      `/run-sync-get-dataset-items?token=${process.env.APIFY_API_KEY}&timeout=300`;
+      `/run-sync-get-dataset-items?token=${process.env.APIFY_API_KEY}&timeout=1800`;
 
     try {
       const res = await fetch(url, {
@@ -154,9 +170,9 @@ export class InstagramScraper extends BaseScraper {
           username: handles,
           resultsLimit,
           dataDetailLevel: "basicData",
-          onlyPostsNewerThan: "14 days",
+          onlyPostsNewerThan: "2 days",
         }),
-        signal: AbortSignal.timeout(330_000), // slightly longer than Apify's own timeout
+        signal: AbortSignal.timeout(1_830_000), // slightly longer than Apify's own timeout
       });
 
       if (!res.ok) {

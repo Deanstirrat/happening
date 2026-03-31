@@ -12,7 +12,7 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { runScraper, SCRAPERS } from "../lib/scrapers/runner";
 
-const SCRAPER_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes per scraper
+const SCRAPER_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes per scraper
 
 async function runWithTimeout(
   slug: string

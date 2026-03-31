@@ -143,6 +143,13 @@ model PageVisit {
   @@map("page_visits")
 }
 
+model InstagramSeenPost {
+  shortCode String   @id
+  seenAt    DateTime @default(now())
+
+  @@map("instagram_seen_posts")
+}
+
 enum ScrapeType {
   CHEERIO
   PLAYWRIGHT

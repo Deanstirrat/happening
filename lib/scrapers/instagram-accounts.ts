@@ -96,6 +96,20 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "ravenbarsf",            venueName: "Raven Bar",               tier: "venue" },
   { handle: "horsiesmarketsf",       venueName: "Horsie's Market",         tier: "venue" },
 
+  // ── Additional music venues ──────────────────────────────────────────────
+  { handle: "dnalounge",              venueName: "DNA Lounge",               tier: "venue" },
+  { handle: "monarchsf",             venueName: "Monarch SF",               tier: "venue" },
+  { handle: "greatamericanmusichall",venueName: "Great American Music Hall", tier: "venue" },
+  { handle: "theregencyballroom",    venueName: "The Regency Ballroom",     tier: "venue" },
+
+  // ── Clubs (electronic / dance) ───────────────────────────────────────────
+  { handle: "publicworkssf",         venueName: "Public Works SF",          tier: "venue" },
+  { handle: "f8sf",                  venueName: "F8",                       tier: "venue" },
+  { handle: "audiosf",               venueName: "Audio SF",                 tier: "venue" },
+
+  // ── Cultural venues ───────────────────────────────────────────────────────
+  { handle: "sfjazz",                venueName: "SFJAZZ Center",            tier: "venue" },
+
   // ── Community / arts / culture venues ────────────────────────────────────
   { handle: "sfcraftclub",            venueName: "SF Craft Club",           tier: "venue" },
   { handle: "friendsandneighborssf",  venueName: "Friends & Neighbors SF",  tier: "venue" },
@@ -138,4 +152,11 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "sfbikeandbrew",         venueName: "SF Bike & Brew",          tier: "promoter" },
   { handle: "clubcriticalsf",        venueName: "Club Critical",           tier: "promoter" },
   { handle: "basement.sf",           venueName: "Club Critical",           tier: "promoter" },
+
+  // ── Underground electronic / SF nightlife promoters ───────────────────────
+  { handle: "giveuntilgonesf",       venueName: "Give Until Gone",         tier: "promoter" },
+  { handle: "local500sf",            venueName: "Local 500",               tier: "promoter" },
+  { handle: "room4improvementsf",    venueName: "Room 4 Improvement",      tier: "promoter" },
+  { handle: "mono.presents",         venueName: "Mono",                    tier: "promoter" },
+  { handle: "goldenvoicebayarea",    venueName: "Goldenvoice Bay Area",    tier: "promoter" },
 ];

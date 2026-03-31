@@ -80,7 +80,9 @@
       "WebFetch(domain:omnivorebooks.myshopify.com)",
       "WebFetch(domain:shapingsf.org)",
       "mcp__Railway__deploy",
-      "mcp__Railway__list-deployments"
+      "mcp__Railway__list-deployments",
+      "Bash(find /Users/deanstirrat/Desktop/side_projects/happening/lib/scrapers -type f -name *.ts)",
+      "Bash(grep -r NEXT_PUBLIC_MAP /Users/deanstirrat/Desktop/side_projects/happening --include=*.ts --include=*.tsx --include=*.json)"
     ]
   }
 }

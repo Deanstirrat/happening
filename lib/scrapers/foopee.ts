@@ -22,7 +22,7 @@ export class FoopeeScraper extends BaseScraper {
     const { chromium } = await import("playwright-extra");
     const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
     chromium.use(StealthPlugin());
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ headless: true, timeout: 60000 });
     const page = await browser.newPage();
 
     // Collect weekly page URLs from the index

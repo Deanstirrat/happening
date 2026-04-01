@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "postinstall": "prisma generate && playwright install --with-deps chromium",
-    "start": "node .next/standalone/server.js",
+    "start": "next start",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",
     "scrape:one": "tsx scripts/scrape.ts",

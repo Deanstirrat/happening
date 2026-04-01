@@ -1,6 +1,8 @@
 const STOPWORDS = new Set([
   "the", "a", "an", "at", "in", "of", "and", "with", "by", "for", "to", "on",
   "live", "presents", "presenting", "featuring", "feat", "vs", "from",
+  // Geographic noise: almost every SF event has these, they don't distinguish events
+  "san", "francisco",
 ]);
 
 export function tokenize(title: string): Set<string> {
@@ -58,6 +60,9 @@ export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
 // Words that indicate different time-slots of the same recurring event.
 const TIME_SLOT_WORDS = new Set(["early", "late", "morning", "afternoon", "evening", "night"]);
 
+// Generic filler words that one source appends but another omits — not meaningful differentiators.
+const GENERIC_DISAMBIG_WORDS = new Set(["more", "djs"]);
+
 /**
  * Returns true if the differing tokens between two title token sets suggest
  * they are genuinely different events (different time slots or sequence numbers)
@@ -75,6 +80,18 @@ export function areLikelyDifferentEvents(a: Set<string>, b: Set<string>): boolea
   const numericA = onlyInA.some((t) => /^\d+$/.test(t));
   const numericB = onlyInB.some((t) => /^\d+$/.test(t));
   if (numericA && numericB) return true;
+
+  // When both titles are long enough (≥5 meaningful tokens each) and both have
+  // substantive unique tokens, they're likely different events sharing a template
+  // structure (e.g. different fitness class genres, different museum free days,
+  // different city locations for the same event series).
+  // Guard: only apply at min≥5 to preserve short-title dedup where one source
+  // omits a venue suffix or opening act (≤4 tokens — those remain same-event).
+  if (Math.min(a.size, b.size) >= 5) {
+    const meaningful = (tokens: string[]) =>
+      tokens.some((t) => t.length > 2 && !GENERIC_DISAMBIG_WORDS.has(t));
+    if (meaningful(onlyInA) && meaningful(onlyInB)) return true;
+  }
 
   return false;
 }

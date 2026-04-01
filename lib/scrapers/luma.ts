@@ -18,7 +18,6 @@ const CALENDAR_SLUGS = [
   "Big-Brain-SF",
   "sf-crypto",
   "sftech",
-  "sf-climate-week",
   "tiat",
   "sf-builders-collective",
   "frontiertower",

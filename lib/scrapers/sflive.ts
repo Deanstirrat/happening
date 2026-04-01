@@ -2,7 +2,7 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
-import { sfDateFromLocal } from "@/lib/sfDate";
+import { sfDateFromLocal, sfDayKey } from "@/lib/sfDate";
 
 function parseSfliveDate(raw: string): Date | null {
   // raw: "2026-03-27 20:00:00" (no timezone — treat as SF local time)
@@ -95,7 +95,18 @@ export class SfliveScraper extends BaseScraper {
       );
     }
 
-    return collected.map((c) => c.event);
+    // Deduplicate by (sourceUrl, SF-local day) — sflive.art creates multiple WP
+    // posts for the same recurring event occurrence (e.g. 17× "The Soul Sessions"
+    // all pointing to the same ticketing URL on the same day). The runner's source
+    // URL dedup would catch these, but deduping here avoids the redundant DB queries.
+    const seen = new Set<string>();
+    const deduped = collected.filter((c) => {
+      const key = `${c.event.sourceUrl}::${sfDayKey(c.event.startDate)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return deduped.map((c) => c.event);
   }
 
   private parseItem(

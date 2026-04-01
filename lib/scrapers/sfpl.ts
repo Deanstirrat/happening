@@ -24,7 +24,7 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 export class SfplScraper extends BaseScraper {
   readonly sourceSlug = "sfpl";
   private readonly BASE_URL = "https://sfpl.org/events";
-  private readonly MAX_PAGES = parseInt(process.env.MAX_PAGES_SFPL ?? "10");
+  private readonly MAX_PAGES = parseInt(process.env.MAX_PAGES_SFPL ?? "40");
 
   async scrape(): Promise<ScrapedEvent[]> {
     const events: ScrapedEvent[] = [];
@@ -57,7 +57,9 @@ export class SfplScraper extends BaseScraper {
 
         // Title and detail URL
         const titleEl = $el.find("h2.event__title a, h3 a").first();
-        const title = titleEl.find("span").first().text().trim() || titleEl.text().trim();
+        const rawTitle = titleEl.find("span").first().text().trim() || titleEl.text().trim();
+        // Normalize "Storytime: For X" → "Storytime: for X" so variants pool correctly
+        const title = rawTitle.replace(/^(Storytime:\s*)For\b/, "$1for");
         const relPath = titleEl.attr("href");
         if (!title || !relPath) return;
         const sourceUrl = `https://sfpl.org${relPath}`;

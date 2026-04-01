@@ -2,6 +2,10 @@ import { prisma } from "@/lib/prisma";
 
 const MIN_OCCURRENCES = 4;
 const MIN_SPAN_DAYS = 21;
+// Secondary threshold: dense series (≥4 occurrences over ≥3 days) — catches
+// weekly/daily library programs before they've accumulated 21 days of history.
+const MIN_OCCURRENCES_FREQUENT = 4;
+const MIN_SPAN_DAYS_FREQUENT = 2;
 
 /**
  * Tags events as "recurring" based on title frequency and date span.
@@ -24,11 +28,12 @@ export async function tagRecurringEvents(titleFilter?: string[]): Promise<number
 
   const recurringTitles = groups
     .filter((g) => {
-      if (g._count.id < MIN_OCCURRENCES) return false;
       if (!g._min.startDate || !g._max.startDate) return false;
       const spanMs = g._max.startDate.getTime() - g._min.startDate.getTime();
       const spanDays = spanMs / (1000 * 60 * 60 * 24);
-      return spanDays >= MIN_SPAN_DAYS;
+      if (g._count.id >= MIN_OCCURRENCES && spanDays >= MIN_SPAN_DAYS) return true;
+      if (g._count.id >= MIN_OCCURRENCES_FREQUENT && spanDays >= MIN_SPAN_DAYS_FREQUENT) return true;
+      return false;
     })
     .map((g) => g.title);
 

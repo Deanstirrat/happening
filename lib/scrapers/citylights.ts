@@ -10,13 +10,40 @@ import type { ScrapedEvent } from "./base";
  *
  * After the challenge resolves, the events listing renders standard HTML:
  *   .list-item-block          — event card
- *   p.shortcode-date          — has data-test (Unix start timestamp in seconds)
  *   h3.shortcode-title a      — event title + URL
  *   .list-img img             — event thumbnail
  *   .description-text         — event description
+ *
+ * NOTE: The p.shortcode-date[data-test] timestamp on the listing page is
+ * unreliable (returns the current time instead of the event date). We visit
+ * each event's detail page and parse the date from the visible text instead,
+ * e.g. "TUESDAY, APRIL 7, 2026, 6:00 PM PST".
  */
 
 const EVENTS_URL = "https://citylights.com/events/";
+
+const MONTH_MAP: Record<string, number> = {
+  JANUARY: 0, FEBRUARY: 1, MARCH: 2, APRIL: 3, MAY: 4, JUNE: 5,
+  JULY: 6, AUGUST: 7, SEPTEMBER: 8, OCTOBER: 9, NOVEMBER: 10, DECEMBER: 11,
+};
+
+function parseCityLightsDate(dateStr: string): Date | null {
+  // e.g. "TUESDAY, APRIL 7, 2026, 6:00 PM PST"
+  const match = dateStr.match(
+    /(\w+)\s+(\d+),\s+(\d{4}),\s+(\d+):(\d+)\s+(AM|PM)\s+(PST|PDT)/i
+  );
+  if (!match) return null;
+  const [, month, day, year, hour, minute, ampm, tz] = match;
+  const monthIdx = MONTH_MAP[month.toUpperCase()];
+  if (monthIdx === undefined) return null;
+  let h = parseInt(hour, 10);
+  if (ampm.toUpperCase() === "PM" && h !== 12) h += 12;
+  if (ampm.toUpperCase() === "AM" && h === 12) h = 0;
+  const tzOffsetHours = tz.toUpperCase() === "PST" ? 8 : 7; // PST=UTC-8, PDT=UTC-7
+  return new Date(
+    Date.UTC(parseInt(year, 10), monthIdx, parseInt(day, 10), h + tzOffsetHours, parseInt(minute, 10))
+  );
+}
 
 export class CityLightsScraper extends BaseScraper {
   readonly sourceSlug = "citylights";
@@ -39,48 +66,71 @@ export class CityLightsScraper extends BaseScraper {
         return [];
       }
 
-      const nowMs = Date.now();
+      const listingItems = await page.evaluate(() => {
+        const results: Array<{
+          title: string;
+          sourceUrl: string;
+          imageSrc: string;
+          description: string;
+        }> = [];
 
-      const rawEvents = await page.evaluate(() => {
-      const results: Array<{
-        tsSeconds: number;
-        title: string;
-        sourceUrl: string;
-        imageSrc: string;
-        description: string;
-      }> = [];
+        document.querySelectorAll(".list-item-block").forEach((el) => {
+          const $titleLink = el.querySelector("h3.shortcode-title a") as HTMLAnchorElement | null;
+          const title = $titleLink?.textContent?.trim() ?? "";
+          if (!title) return;
+          const sourceUrl = $titleLink?.href ?? "";
+          if (!sourceUrl) return;
 
-      document.querySelectorAll(".list-item-block").forEach((el) => {
-        const tsRaw = el.querySelector("p.shortcode-date")?.getAttribute("data-test");
-        if (!tsRaw) return;
-        const tsSeconds = parseInt(tsRaw, 10);
-        if (isNaN(tsSeconds)) return;
+          const imageSrc =
+            (el.querySelector(".list-img img.calendar-list-thumb") as HTMLImageElement | null)?.src ?? "";
+          const description =
+            (el.querySelector(".description-text") as HTMLElement | null)?.textContent?.trim() ?? "";
 
-        const $titleLink = el.querySelector("h3.shortcode-title a") as HTMLAnchorElement | null;
-        const title = $titleLink?.textContent?.trim() ?? "";
-        if (!title) return;
-        const sourceUrl = $titleLink?.href ?? EVENTS_URL;
+          results.push({ title, sourceUrl, imageSrc, description });
+        });
 
-        const imageSrc =
-          (el.querySelector(".list-img img.calendar-list-thumb") as HTMLImageElement | null)?.src ?? "";
-
-        const description =
-          (el.querySelector(".description-text") as HTMLElement | null)?.textContent?.trim() ?? "";
-
-        results.push({ tsSeconds, title, sourceUrl, imageSrc, description });
+        return results;
       });
 
-      return results;
-    });
-
+      const nowMs = Date.now();
       const events: ScrapedEvent[] = [];
-      for (const { tsSeconds, title, sourceUrl, imageSrc, description } of rawEvents) {
-        const tsMs = tsSeconds * 1000;
-        if (tsMs < nowMs - 86_400_000) continue;
+
+      for (const { title, sourceUrl, imageSrc, description } of listingItems) {
+        let startDate: Date | null = null;
+
+        try {
+          await page.goto(sourceUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+
+          const dateText = await page.evaluate(() => {
+            // Try known selectors for the date element
+            for (const sel of [".tribe-events-schedule", ".shortcode-date", ".event-date", ".tribe-event-date-start"]) {
+              const text = (document.querySelector(sel) as HTMLElement | null)?.textContent?.trim();
+              if (text) return text;
+            }
+            // Fall back: scan full page text for the date pattern
+            const m = document.body.innerText.match(
+              /(?:MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY),\s+[A-Z]+\s+\d+,\s+\d{4},\s+\d+:\d+\s+[AP]M\s+P[SD]T/i
+            );
+            return m ? m[0] : null;
+          });
+
+          if (dateText) {
+            startDate = parseCityLightsDate(dateText);
+          }
+        } catch (err: any) {
+          console.warn(`[citylights] failed to load detail page ${sourceUrl}: ${err.message}`);
+        }
+
+        if (!startDate || isNaN(startDate.getTime())) {
+          console.warn(`[citylights] could not parse date for "${title}" — skipping`);
+          continue;
+        }
+
+        if (startDate.getTime() < nowMs - 86_400_000) continue;
 
         events.push({
           title,
-          startDate: new Date(tsMs),
+          startDate,
           sourceUrl,
           imageUrl: imageSrc || undefined,
           description: description || undefined,

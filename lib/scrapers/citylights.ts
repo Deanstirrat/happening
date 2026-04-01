@@ -30,18 +30,18 @@ export class CityLightsScraper extends BaseScraper {
     const page = await browser.newPage();
 
     try {
-      await page.goto(EVENTS_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
-      // Wait for the Sucuri JS challenge to resolve and the event cards to appear
-      await page.waitForSelector(".list-item-block", { timeout: 30_000 });
-    } catch (err: any) {
-      console.error(`[citylights] failed to load events page:`, err.message);
-      await browser.close();
-      return [];
-    }
+      try {
+        await page.goto(EVENTS_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
+        // Wait for the Sucuri JS challenge to resolve and the event cards to appear
+        await page.waitForSelector(".list-item-block", { timeout: 30_000 });
+      } catch (err: any) {
+        console.error(`[citylights] failed to load events page:`, err.message);
+        return [];
+      }
 
-    const nowMs = Date.now();
+      const nowMs = Date.now();
 
-    const rawEvents = await page.evaluate(() => {
+      const rawEvents = await page.evaluate(() => {
       const results: Array<{
         tsSeconds: number;
         title: string;
@@ -73,26 +73,27 @@ export class CityLightsScraper extends BaseScraper {
       return results;
     });
 
-    await browser.close();
+      const events: ScrapedEvent[] = [];
+      for (const { tsSeconds, title, sourceUrl, imageSrc, description } of rawEvents) {
+        const tsMs = tsSeconds * 1000;
+        if (tsMs < nowMs - 86_400_000) continue;
 
-    const events: ScrapedEvent[] = [];
-    for (const { tsSeconds, title, sourceUrl, imageSrc, description } of rawEvents) {
-      const tsMs = tsSeconds * 1000;
-      if (tsMs < nowMs - 86_400_000) continue;
+        events.push({
+          title,
+          startDate: new Date(tsMs),
+          sourceUrl,
+          imageUrl: imageSrc || undefined,
+          description: description || undefined,
+          venueName: "City Lights Booksellers & Publishers",
+          venueAddress: "261 Columbus Ave, San Francisco, CA 94133",
+          tags: ["bookstore", "literary", "city-lights"],
+        });
+      }
 
-      events.push({
-        title,
-        startDate: new Date(tsMs),
-        sourceUrl,
-        imageUrl: imageSrc || undefined,
-        description: description || undefined,
-        venueName: "City Lights Booksellers & Publishers",
-        venueAddress: "261 Columbus Ave, San Francisco, CA 94133",
-        tags: ["bookstore", "literary", "city-lights"],
-      });
+      console.log(`[citylights] scraped ${events.length} upcoming events`);
+      return events;
+    } finally {
+      await browser.close();
     }
-
-    console.log(`[citylights] scraped ${events.length} upcoming events`);
-    return events;
   }
 }

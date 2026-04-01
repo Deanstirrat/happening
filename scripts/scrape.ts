@@ -13,6 +13,15 @@ dotenv.config({ path: ".env.local", override: true });
 import { runScraper, SCRAPERS } from "../lib/scrapers/runner";
 
 const SCRAPER_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes per scraper
+const PROCESS_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 hour hard limit for the entire run
+
+// Safety net: force-exit if the process is still running after 4 hours.
+// This catches cases where a zombie browser or hung promise bypasses per-scraper timeouts.
+const processTimer = setTimeout(() => {
+  console.error("❌ Process exceeded 4-hour wall-clock limit — force exiting");
+  process.exit(1);
+}, PROCESS_TIMEOUT_MS);
+processTimer.unref(); // Don't keep the event loop alive just for this timer
 
 async function runWithTimeout(
   slug: string

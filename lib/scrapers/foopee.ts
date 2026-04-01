@@ -25,26 +25,29 @@ export class FoopeeScraper extends BaseScraper {
     const browser = await chromium.launch({ headless: true, timeout: 60000 });
     const page = await browser.newPage();
 
-    // Collect weekly page URLs from the index
-    await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 30000 });
-    const indexHtml = await page.content();
-    const $index = cheerio.load(indexHtml);
-    const byDateUrls: string[] = [];
-    $index('a[href^="by-date."]').each((_i, el) => {
-      const href = $index(el).attr("href")!;
-      byDateUrls.push(`${BASE}${href}`);
-    });
+    try {
+      // Collect weekly page URLs from the index
+      await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 30000 });
+      const indexHtml = await page.content();
+      const $index = cheerio.load(indexHtml);
+      const byDateUrls: string[] = [];
+      $index('a[href^="by-date."]').each((_i, el) => {
+        const href = $index(el).attr("href")!;
+        byDateUrls.push(`${BASE}${href}`);
+      });
 
-    const events: ScrapedEvent[] = [];
+      const events: ScrapedEvent[] = [];
 
-    for (const url of byDateUrls) {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-      const html = await page.content();
-      events.push(...this.parsePage(html, url));
+      for (const url of byDateUrls) {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+        const html = await page.content();
+        events.push(...this.parsePage(html, url));
+      }
+
+      return events;
+    } finally {
+      await browser.close();
     }
-
-    await browser.close();
-    return events;
   }
 
   private parsePage(html: string, pageUrl: string): ScrapedEvent[] {

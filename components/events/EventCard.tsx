@@ -41,7 +41,10 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
-  const imageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const imageUrl = rawImageUrl?.startsWith("http")
+    ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
+    : rawImageUrl;
 
   if (featured) {
     return (
@@ -206,7 +209,10 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
-  const imageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const imageUrl = rawImageUrl?.startsWith("http")
+    ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
+    : rawImageUrl;
 
   return (
     <Link href={`/events/${event.id}`} className="block group">

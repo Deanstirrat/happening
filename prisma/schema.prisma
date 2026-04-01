@@ -151,6 +151,17 @@ model InstagramSeenPost {
   @@map("instagram_seen_posts")
 }
 
+model EventBlocklist {
+  id         String   @id @default(cuid())
+  dedupeHash String?  @unique
+  sourceUrl  String?  @unique
+  title      String
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@map("event_blocklist")
+}
+
 enum ScrapeType {
   CHEERIO
   PLAYWRIGHT

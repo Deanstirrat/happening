@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { Suspense } from "react";
 import DeleteButton from "./DeleteButton";
+import BlockButton from "./BlockButton";
 import EventSearch from "./EventSearch";
 import { EventStatus } from "@prisma/client";
 import AdminNav from "../_components/AdminNav";
@@ -152,6 +153,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
                 >
                   Edit
                 </Link>
+                <BlockButton id={event.id} secret={secret} />
                 <DeleteButton id={event.id} secret={secret} />
               </div>
             </div>

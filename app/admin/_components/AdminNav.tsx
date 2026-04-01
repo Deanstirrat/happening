@@ -11,6 +11,7 @@ const navItems = [
   { key: "submissions", label: "submissions", href: "/admin/submissions" },
   { key: "curation", label: "curation", href: "/admin/curation" },
   { key: "events", label: "events", href: "/admin/events" },
+  { key: "blocklist", label: "blocklist", href: "/admin/blocklist" },
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "feature-requests", label: "feature requests", href: "/admin/feature-requests" },
   { key: "bug-reports", label: "bug reports", href: "/admin/bug-reports" },

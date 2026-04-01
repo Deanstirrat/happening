@@ -226,10 +226,23 @@ export async function runScraper(
     dayEventsCache.set(key, rows);
   }
 
+  // Load blocklist once for this run
+  const blocklist = await prisma.eventBlocklist.findMany({
+    select: { dedupeHash: true, sourceUrl: true },
+  });
+  const blockedHashes = new Set(blocklist.map((b) => b.dedupeHash).filter(Boolean) as string[]);
+  const blockedUrls = new Set(blocklist.map((b) => b.sourceUrl).filter(Boolean) as string[]);
+
   let inserted = 0;
 
   for (const event of events) {
     const dedupeHash = scraper.computeDedupeHash(event);
+
+    // Skip blocklisted events
+    if (blockedHashes.has(dedupeHash) || blockedUrls.has(event.sourceUrl)) {
+      console.log(`[${slug}] Blocked: "${event.title}"`);
+      continue;
+    }
 
     // Skip if already exists, but enrich with better data if available
     const LOW_QUALITY_DOMAINS = ["foopee.com", "19hz.info"];

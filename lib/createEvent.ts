@@ -84,6 +84,8 @@ export interface EventFields {
   tags?: string[];
   sourceUrl?: string | null;
   submitterNote?: string | null;
+  imageUrl?: string | null;
+  categoryOverride?: string | null;
 }
 
 export type CreateEventResult =
@@ -104,6 +106,8 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     tags,
     sourceUrl,
     submitterNote,
+    imageUrl,
+    categoryOverride,
   } = fields;
 
   const startDate = parseDate(dateRaw, timeRaw);
@@ -144,14 +148,16 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     startDate,
   });
 
-  const category = await categorizeEvent({
-    title,
-    description: description ?? undefined,
-    venueName: venueName ?? undefined,
-    tags: tags ?? [],
-    sourceUrl: resolvedSourceUrl,
-    startDate,
-  });
+  const category = categoryOverride
+    ? (categoryOverride as import("@prisma/client").EventCategory)
+    : await categorizeEvent({
+        title,
+        description: description ?? undefined,
+        venueName: venueName ?? undefined,
+        tags: tags ?? [],
+        sourceUrl: resolvedSourceUrl,
+        startDate,
+      });
 
   const event = await prisma.event.create({
     data: {
@@ -166,6 +172,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
       longitude: geo.longitude,
       price: price || null,
       isFree: Boolean(isFree),
+      imageUrl: imageUrl || null,
       sourceUrl: resolvedSourceUrl,
       tags: Array.isArray(tags) ? tags : [],
       category,

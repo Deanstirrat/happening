@@ -120,13 +120,14 @@ enum SubmissionOutcome {
 }
 
 model Submission {
-  id            String             @id @default(cuid())
-  title         String
-  startDate     DateTime?
-  outcome       SubmissionOutcome
-  eventId       String?
-  submitterNote String?
-  createdAt     DateTime           @default(now())
+  id                String             @id @default(cuid())
+  title             String
+  startDate         DateTime?
+  outcome           SubmissionOutcome
+  eventId           String?
+  submitterNote     String?
+  unknownSourceUrl  String?
+  createdAt         DateTime           @default(now())
 
   @@index([createdAt])
   @@map("submissions")

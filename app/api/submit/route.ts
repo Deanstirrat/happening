@@ -17,6 +17,9 @@ export async function POST(req: NextRequest) {
       tags,
       sourceUrl,
       submitterNote,
+      imageUrl,
+      category,
+      unknownSourceUrl,
     } = body;
 
     if (!title?.trim()) {
@@ -26,7 +29,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Date is required" }, { status: 400 });
     }
 
-    // Validate date before calling createEvent so we can return a good error message
     const startDate = parseDate(dateRaw, timeRaw);
     if (!startDate) {
       return NextResponse.json(
@@ -49,6 +51,8 @@ export async function POST(req: NextRequest) {
       tags,
       sourceUrl,
       submitterNote,
+      imageUrl: imageUrl || null,
+      categoryOverride: category || null,
     });
 
     if ("parseError" in result) {
@@ -63,6 +67,7 @@ export async function POST(req: NextRequest) {
           outcome: "DUPLICATE",
           eventId: result.eventId,
           submitterNote: submitterNote || null,
+          unknownSourceUrl: unknownSourceUrl || null,
         },
       });
       return NextResponse.json({
@@ -79,6 +84,7 @@ export async function POST(req: NextRequest) {
         outcome: "CREATED",
         eventId: result.eventId,
         submitterNote: submitterNote || null,
+        unknownSourceUrl: unknownSourceUrl || null,
       },
     });
 

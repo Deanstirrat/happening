@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,6 +50,46 @@ async function getSimilarEvents(event: NonNullable<Awaited<ReturnType<typeof get
       venueName: true,
     },
   });
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const event = await getEvent(id);
+  if (!event) return {};
+
+  const dateLabel = formatDateLongSF(event.startDate);
+  const timeLabel = formatTimeSF(event.startDate);
+  const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
+
+  const parts = [`${dateLabel} at ${timeLabel}`];
+  if (venueDisplayName) parts.push(venueDisplayName);
+  if (event.neighborhood) parts.push(event.neighborhood);
+  if (event.description) parts.push(event.description.slice(0, 120).trim());
+  const description = parts.join(" · ");
+
+  const title = `${event.title} — happening`;
+  const image = event.imageUrl ?? null;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      ...(image ? { images: [{ url: image, width: 1200, height: 630, alt: event.title }] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  };
 }
 
 export default async function EventDetailPage({

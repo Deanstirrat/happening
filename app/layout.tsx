@@ -6,6 +6,7 @@ import PageTracker from "@/components/analytics/PageTracker";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "https://happening.so"),
   title: "happening — SF Bay Area Events",
   description: "Discover what's happening around you in San Francisco and the Bay Area.",
 };

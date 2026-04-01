@@ -159,5 +159,10 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "room4improvementsf",    venueName: "Room 4 Improvement",      tier: "promoter" },
   { handle: "mono.presents",         venueName: "Mono",                    tier: "promoter" },
   { handle: "goldenvoicebayarea",    venueName: "Goldenvoice Bay Area",    tier: "promoter" },
-  { handle: "basement.sf",           venueName: "Basement SF",           tier: "promoter" },
+  { handle: "basement.sf",           venueName: "Basement SF",             tier: "promoter" },
+  { handle: "hydefmradio",           venueName: "Hyde FM Radio",           tier: "promoter" },
+  { handle: "npu.live",              venueName: "NPU Live",                tier: "promoter" },
+  { handle: "ravegrave.sf",          venueName: "Rave Grave SF",           tier: "promoter" },
+  { handle: "bump.sf",               venueName: "Bump SF",                 tier: "promoter" },
+  { handle: "throttle_techno",       venueName: "Throttle Techno",         tier: "promoter" },
 ];

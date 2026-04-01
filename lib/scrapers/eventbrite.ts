@@ -75,13 +75,29 @@ export class EventbriteScraper extends BaseScraper {
       }
     }
 
+    // Filter out spam events (corporate training, bookable-experience platforms)
+    // before price enrichment to avoid wasting HTTP requests.
+    const preSpam = events.length;
+    const cleaned = events.filter((e) => {
+      const reason = isEventbriteSpam(e);
+      if (reason) {
+        console.log(`[eventbrite] Spam: "${e.title}" — ${reason}`);
+        return false;
+      }
+      return true;
+    });
+    const spamDropped = preSpam - cleaned.length;
+    if (spamDropped > 0) {
+      console.log(`[eventbrite] Filtered ${spamDropped} spam events`);
+    }
+
     // Enrich events with prices from individual event pages (discovery pages
     // no longer include price data). Fetch in batches to avoid rate-limiting.
-    await this.enrichPrices(events);
+    await this.enrichPrices(cleaned);
 
     // Filter out paid high-frequency series (e.g. daily bookable services).
     // Free recurring events are kept.
-    const filtered = events.filter((e) => {
+    const filtered = cleaned.filter((e) => {
       const meta = this.seriesMeta.get(e.sourceUrl);
       if (!meta || meta.numChildren <= 15) return true;
       if (e.isFree || e.price === "Free") return true;
@@ -130,7 +146,8 @@ export class EventbriteScraper extends BaseScraper {
         if (event.price != null) return; // already found
         try {
           const schema = JSON.parse($(el).html() ?? "");
-          if (schema?.["@type"] !== "Event") return;
+          const schemaType: string = schema?.["@type"] ?? "";
+          if (!schemaType.endsWith("Event")) return;
           const offers = schema.offers;
           const lowPrice =
             (Array.isArray(offers) ? offers[0]?.lowPrice : offers?.lowPrice) ??
@@ -406,6 +423,39 @@ export class EventbriteScraper extends BaseScraper {
   }
 }
 
+// ── Spam filtering ──────────────────────────────────────────────────────────
+// Venue substrings (case-insensitive) that indicate corporate training spam
+const SPAM_VENUE_PATTERNS = [
+  "regus",
+  "for venue details reach us at",
+  "learnerring",
+  "mountskills",
+  "adeptskil",
+];
+
+// Venue names that are exact matches for spam (after lowercasing + stripping non-alphanum)
+const SPAM_VENUE_EXACT = new Set(["mid-market"]);
+
+// Title patterns for bookable-experience platforms cross-posting as events
+const SPAM_TITLE_PATTERNS: RegExp[] = [
+  /classpop/i,
+  /cozymeal/i,
+];
+
+function isEventbriteSpam(event: ScrapedEvent): string | null {
+  const venueLower = (event.venueName ?? "").toLowerCase();
+  for (const p of SPAM_VENUE_PATTERNS) {
+    if (venueLower.includes(p)) return `spam venue: ${p}`;
+  }
+  const venueNorm = venueLower.replace(/[^a-z0-9-]/g, "");
+  if (SPAM_VENUE_EXACT.has(venueNorm)) return `spam venue (exact): ${event.venueName}`;
+  for (const re of SPAM_TITLE_PATTERNS) {
+    if (re.test(event.title)) return `spam title: ${re.source}`;
+  }
+  return null;
+}
+
+// ── Geography ───────────────────────────────────────────────────────────────
 const BAY_AREA_TERMS = [
   "san francisco", " sf,", ",sf,", "sf ", "oakland", "berkeley", "san jose",
   "palo alto", "mountain view", "sunnyvale", "santa clara", "fremont",

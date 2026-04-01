@@ -16,7 +16,7 @@ import { sfDateFromLocal } from "@/lib/sfDate";
  */
 export class EventbriteScraper extends BaseScraper {
   readonly sourceSlug = "eventbrite";
-  private readonly MAX_PAGES = 5;
+  private readonly MAX_PAGES = 10;
   private readonly BASE_URLS = [
     "https://www.eventbrite.com/d/ca--san-francisco/events/",
     "https://www.eventbrite.com/d/ca--san-francisco/food-and-drink/",
@@ -219,6 +219,8 @@ export class EventbriteScraper extends BaseScraper {
   }
 
   private parseServerEvent(item: any): ScrapedEvent | null {
+    // Skip online-only events — not physically in the Bay Area
+    if (item?.is_online_event === true || item?.online_event === true) return null;
 
     const title: string = item?.name ?? item?.title;
     if (!title) return null;
@@ -272,6 +274,9 @@ export class EventbriteScraper extends BaseScraper {
 
     const lat = venue?.latitude ?? venue?.address?.latitude;
     const lng = venue?.longitude ?? venue?.address?.longitude;
+
+    // Skip events with a venue address that's clearly outside the Bay Area
+    if (venueAddress && !isLikelyBayArea(venueAddress)) return null;
 
     const isFree: boolean =
       item?.is_free ?? item?.ticket_availability?.is_free ?? false;
@@ -359,6 +364,8 @@ export class EventbriteScraper extends BaseScraper {
           ? (parseEbLocal(node.endDate) ?? new Date(node.endDate))
           : undefined;
         const loc = node.location;
+        // Skip virtual/online events
+        if (loc?.["@type"] === "VirtualLocation") continue;
         const venueName: string | undefined = loc?.name ?? undefined;
         const venueAddress: string | undefined =
           ([
@@ -397,6 +404,19 @@ export class EventbriteScraper extends BaseScraper {
 
     return events;
   }
+}
+
+const BAY_AREA_TERMS = [
+  "san francisco", " sf,", ",sf,", "sf ", "oakland", "berkeley", "san jose",
+  "palo alto", "mountain view", "sunnyvale", "santa clara", "fremont",
+  "hayward", "daly city", "south san francisco", "marin", "sausalito",
+  "mill valley", "san mateo", "redwood city", "emeryville", "alameda",
+  "san leandro", "richmond", " ca ", ", ca", ", ca,", "94",
+];
+
+function isLikelyBayArea(addr: string): boolean {
+  const lower = addr.toLowerCase();
+  return BAY_AREA_TERMS.some((t) => lower.includes(t));
 }
 
 // Eventbrite's .local field is venue-local time with no TZ offset — treat as SF local.

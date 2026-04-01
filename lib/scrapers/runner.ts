@@ -67,7 +67,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   "reddit-sfevents": new RedditSFEventsScraper(),
   badslava: new BadslavaTriviaScraper(),
   sfpl: new SfplScraper(),
-  sfrecpark: new SfrecparkScraper(),
+  // sfrecpark: disabled — low-quality events
   instagram: new InstagramScraper(),
   decentered: new DecenteredScraper(),
   "medicine-for-nightmares": new MedicineForNightmaresScraper(),

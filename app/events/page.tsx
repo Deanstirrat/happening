@@ -26,11 +26,15 @@ interface SearchParams {
   timeOfDay?: string;
 }
 
-async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
+async function getWeeklyFeaturedEvents(
+  params: Pick<SearchParams, "hideMusic" | "hideRecurring" | "timeOfDay" | "startDate" | "endDate">
+): Promise<EventSummary[]> {
   const now = new Date();
   const todayKey = sfDayKey(now);
   const todayStart = sfDayStart(todayKey);
   const weekEnd = addDays(sfDayEnd(todayKey), 6);
+  const queryStart = params.startDate ? sfDayStart(params.startDate) : todayStart;
+  const queryEnd = params.endDate ? sfDayEnd(params.endDate) : weekEnd;
   const events = await prisma.event.findMany({
     where: {
       status: "PUBLISHED",
@@ -39,10 +43,12 @@ async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
         { endDate: { gte: todayStart } },
         { endDate: null, startDate: { gte: todayStart } },
       ],
-      startDate: { gte: todayStart, lte: weekEnd },
+      startDate: { gte: queryStart, lte: queryEnd },
+      ...(params.hideMusic === "true" && { category: { in: NON_MUSIC_CATEGORIES as any } }),
+      ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
     },
     orderBy: [{ startDate: "asc" }],
-    take: 10,
+    take: 15,
     select: {
       id: true,
       title: true,
@@ -64,7 +70,10 @@ async function getWeeklyFeaturedEvents(): Promise<EventSummary[]> {
       source: { select: { slug: true, name: true } },
     },
   });
-  return events.map((e) => ({
+  const filtered = params.timeOfDay
+    ? events.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
+    : events;
+  return filtered.map((e) => ({
     ...e,
     startDate: e.startDate.toISOString(),
     endDate: e.endDate?.toISOString() ?? null,
@@ -234,11 +243,17 @@ export default async function EventsPage({
   const [sources, { grouped, total }, weeklyFeatured] = await Promise.all([
     getSources(),
     getEvents(params),
-    getWeeklyFeaturedEvents(),
+    getWeeklyFeaturedEvents(params),
   ]);
 
   const days = Object.keys(grouped).sort();
   const hasEvents = days.length > 0;
+
+  // Hide carousel only when "deep" filters are active (category, neighborhood, source, free, search)
+  const hasNonTopFilters = !!(
+    params.category || params.neighborhood || params.source ||
+    params.isFree || params.search
+  );
 
   const hasActiveFilters = !!(
     params.startDate || params.endDate || params.category ||
@@ -270,7 +285,7 @@ export default async function EventsPage({
           </p>
         </div>
 
-        {!hasActiveFilters && weeklyFeatured.length > 0 && (
+        {!hasNonTopFilters && weeklyFeatured.length > 0 && (
           <div className="mb-6">
             <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-3">featured events</h2>
             <FeaturedCarousel events={weeklyFeatured} />

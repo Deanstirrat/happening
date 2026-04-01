@@ -170,7 +170,7 @@ export class RedditSFEventsScraper extends BaseScraper {
       try {
         const response: import("axios").AxiosResponse<RedditListing> = await axios.get<RedditListing>(requestUrl, {
           headers: {
-            "User-Agent": "happening-sf/1.0 (event aggregator for SF; contact: admin@happening.sf)",
+            "User-Agent": "web:happening-sf:1.0 (by /u/happeningsf)",
             Accept: "application/json",
           },
           timeout: 15000,

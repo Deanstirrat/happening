@@ -5,6 +5,7 @@ import { CATEGORY_LABELS } from "@/lib/types";
 import { format } from "date-fns";
 import AdminActions from "./AdminActions";
 import FeaturedToggle from "./FeaturedToggle";
+import SubmissionImageEdit from "./SubmissionImageEdit";
 import AdminNav from "../_components/AdminNav";
 
 interface Props {
@@ -41,6 +42,7 @@ export default async function SubmissionsPage({ searchParams }: Props) {
         tags: true,
         submitterNote: true,
         scrapedAt: true,
+        imageUrl: true,
       },
     }),
     prisma.event.findMany({
@@ -139,6 +141,8 @@ export default async function SubmissionsPage({ searchParams }: Props) {
                     Note: {event.submitterNote}
                   </p>
                 )}
+
+                <SubmissionImageEdit id={event.id} imageUrl={event.imageUrl} secret={secret} />
 
                 <div className="flex items-center gap-3 mt-1">
                   <a

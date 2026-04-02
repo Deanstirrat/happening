@@ -13,29 +13,30 @@ const navItems = [
   { key: "events", label: "events", href: "/admin/events" },
   { key: "blocklist", label: "blocklist", href: "/admin/blocklist" },
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
-  { key: "feature-requests", label: "feature requests", href: "/admin/feature-requests" },
-  { key: "bug-reports", label: "bug reports", href: "/admin/bug-reports" },
-  { key: "event-reports", label: "event reports", href: "/admin/event-reports" },
+  { key: "reports", label: "reports", href: "/admin/reports" },
 ];
 
+// Pages that map to the "reports" nav item
+const reportsKeys = new Set(["reports", "feature-requests", "bug-reports", "event-reports"]);
+
 export default async function AdminNav({ secret, current }: Props) {
-  const [pendingCount, newRequestCount, eventReportCount] = await Promise.all([
+  const [pendingCount, newRequestCount, eventReportCount, bugReportCount] = await Promise.all([
     prisma.event.count({ where: { status: "PENDING" } }),
     prisma.featuredRequest.count({ where: { status: "NEW" } }),
     prisma.eventReport.count(),
+    prisma.bugReport.count(),
   ]);
 
   const badges: Record<string, number> = {
     submissions: pendingCount,
-    "feature-requests": newRequestCount,
-    "event-reports": eventReportCount,
+    reports: newRequestCount + eventReportCount + bugReportCount,
   };
 
   return (
     <div className="flex flex-wrap gap-4 font-body text-xs text-on-surface-variant border-b border-outline-variant pb-4">
       {navItems.map((item) => {
         const badge = badges[item.key] ?? 0;
-        const isActive = item.key === current;
+        const isActive = item.key === current || (item.key === "reports" && reportsKeys.has(current));
         return (
           <Link
             key={item.key}

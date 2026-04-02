@@ -10,9 +10,10 @@ import BlockButton from "./BlockButton";
 import EventSearch from "./EventSearch";
 import { EventStatus } from "@prisma/client";
 import AdminNav from "../_components/AdminNav";
+import FeaturedToggle from "../submissions/FeaturedToggle";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; status?: string; q?: string }>;
+  searchParams: Promise<{ secret?: string; status?: string; q?: string; take?: string }>;
 }
 
 const STATUS_LABELS: Record<EventStatus, string> = {
@@ -30,7 +31,7 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 };
 
 export default async function AdminEventsPage({ searchParams }: Props) {
-  const { secret, status, q } = await searchParams;
+  const { secret, status, q, take: takeParam } = await searchParams;
 
   if (!secret || secret !== process.env.SCRAPE_SECRET) {
     return (
@@ -45,8 +46,9 @@ export default async function AdminEventsPage({ searchParams }: Props) {
     : undefined;
 
   const search = q?.trim();
+  const take = Math.max(parseInt(takeParam ?? "50", 10) || 50, 50);
 
-  const events = await prisma.event.findMany({
+  const rawEvents = await prisma.event.findMany({
     where: {
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(search ? {
@@ -57,6 +59,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       } : {}),
     },
     orderBy: { startDate: "asc" },
+    take: take + 1,
     select: {
       id: true,
       title: true,
@@ -65,8 +68,12 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       neighborhood: true,
       category: true,
       status: true,
+      featured: true,
     },
   });
+
+  const hasMore = rawEvents.length > take;
+  const events = hasMore ? rawEvents.slice(0, take) : rawEvents;
 
   const tabs: Array<{ label: string; value: string }> = [
     { label: "All", value: "" },
@@ -81,7 +88,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">events</h1>
         <AdminNav secret={secret} current="events" />
         <p className="font-body text-on-surface-variant text-sm">
-          {events.length} event{events.length !== 1 ? "s" : ""}
+          showing {events.length}{hasMore ? "+" : ""} event{events.length !== 1 ? "s" : ""}
           {statusFilter ? ` · ${STATUS_LABELS[statusFilter].toLowerCase()}` : ""}
           {search ? ` · "${search}"` : ""}
         </p>
@@ -120,6 +127,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       {events.length === 0 ? (
         <p className="font-body text-on-surface-variant">No events found.</p>
       ) : (
+        <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           {events.map((event) => (
             <div
@@ -147,6 +155,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <FeaturedToggle id={event.id} featured={event.featured} secret={secret} />
                 <Link
                   href={`/admin/events/${event.id}/edit?secret=${secret}`}
                   className="font-body text-sm font-semibold px-4 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors"
@@ -158,6 +167,21 @@ export default async function AdminEventsPage({ searchParams }: Props) {
               </div>
             </div>
           ))}
+        </div>
+        {hasMore && (() => {
+          const moreParams = new URLSearchParams({ secret });
+          if (statusFilter) moreParams.set("status", statusFilter);
+          if (search) moreParams.set("q", search);
+          moreParams.set("take", String(take + 50));
+          return (
+            <Link
+              href={`/admin/events?${moreParams.toString()}`}
+              className="font-body text-sm font-semibold px-6 py-2 rounded-full bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors self-start"
+            >
+              Load more
+            </Link>
+          );
+        })()}
         </div>
       )}
     </div>

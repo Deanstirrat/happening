@@ -53,6 +53,7 @@ model Event {
   scrapedAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   interactions EventInteraction[]
+  reports      EventReport[]
 
   @@index([startDate])
   @@index([neighborhood])
@@ -91,6 +92,18 @@ model BugReport {
   createdAt   DateTime @default(now())
 
   @@map("bug_reports")
+}
+
+model EventReport {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  comment   String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("event_reports")
 }
 
 enum FeaturedRequestStatus {

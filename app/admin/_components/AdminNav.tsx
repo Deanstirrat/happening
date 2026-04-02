@@ -15,17 +15,20 @@ const navItems = [
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "feature-requests", label: "feature requests", href: "/admin/feature-requests" },
   { key: "bug-reports", label: "bug reports", href: "/admin/bug-reports" },
+  { key: "event-reports", label: "event reports", href: "/admin/event-reports" },
 ];
 
 export default async function AdminNav({ secret, current }: Props) {
-  const [pendingCount, newRequestCount] = await Promise.all([
+  const [pendingCount, newRequestCount, eventReportCount] = await Promise.all([
     prisma.event.count({ where: { status: "PENDING" } }),
     prisma.featuredRequest.count({ where: { status: "NEW" } }),
+    prisma.eventReport.count(),
   ]);
 
   const badges: Record<string, number> = {
     submissions: pendingCount,
     "feature-requests": newRequestCount,
+    "event-reports": eventReportCount,
   };
 
   return (

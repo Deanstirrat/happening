@@ -11,6 +11,7 @@ import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate"
 import { ArrowLeft, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
+import ReportButton from "./ReportButton";
 
 /** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
 function extractLocationFromTitle(title: string): string | null {
@@ -359,17 +360,20 @@ export default async function EventDetailPage({
       {/* Footer */}
       <footer className="mt-20 pt-8 flex items-center justify-between text-on-surface-variant text-xs font-body">
         <span className="font-headline font-bold text-sm text-on-surface">happening</span>
-        <span>
-          via{" "}
-          <a
-            href={event.source.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-on-surface transition-colors"
-          >
-            {event.source.name}
-          </a>
-        </span>
+        <div className="flex items-center gap-4">
+          <ReportButton eventId={event.id} />
+          <span>
+            via{" "}
+            <a
+              href={event.source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-on-surface transition-colors"
+            >
+              {event.source.name}
+            </a>
+          </span>
+        </div>
       </footer>
     </div>
   );

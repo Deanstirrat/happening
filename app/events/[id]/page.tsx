@@ -228,15 +228,17 @@ export default async function EventDetailPage({
 
           {/* CTA buttons */}
           <div className="flex flex-col gap-3 mb-8">
-            <a
-              href={event.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary text-center py-3.5 text-sm flex items-center justify-center gap-2"
-            >
-              get your tickets
-              <ExternalLink size={13} />
-            </a>
+            {event.sourceUrl && (
+              <a
+                href={event.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary text-center py-3.5 text-sm flex items-center justify-center gap-2"
+              >
+                learn more
+                <ExternalLink size={13} />
+              </a>
+            )}
             <ShareButton title={event.title} large />
           </div>
 

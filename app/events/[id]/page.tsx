@@ -109,6 +109,10 @@ export default async function EventDetailPage({
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
+  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const proxiedImageUrl = rawImageUrl?.startsWith("http")
+    ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
+    : rawImageUrl;
   const dateLabel = formatDateLongSF(event.startDate);
   const timeLabel = formatTimeSF(event.startDate);
   const endTimeLabel = event.endDate ? formatTimeSF(event.endDate) : null;
@@ -141,9 +145,9 @@ export default async function EventDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12 lg:mb-16">
         {/* Flyer */}
         <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container">
-          {event.imageUrl ? (
+          {proxiedImageUrl ? (
             <Image
-              src={event.imageUrl}
+              src={proxiedImageUrl}
               alt={event.title}
               fill
               className="object-cover"

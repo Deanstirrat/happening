@@ -48,16 +48,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ picks: [], total: 0 });
   }
 
+  // Sanitize strings to remove lone surrogates that break JSON serialization
+  const clean = (s: string) => s.toWellFormed();
+
   // Build compact event list for the prompt
   const eventList = events
     .map((e) => {
       const cat = e.category ? CATEGORY_LABELS[e.category] : null;
-      const venue = e.venueName ?? e.neighborhood ?? "";
-      const price = e.isFree ? "Free" : (e.price ?? "");
-      const desc = e.description ? e.description.slice(0, 200) : "";
+      const venue = clean(e.venueName ?? e.neighborhood ?? "");
+      const price = e.isFree ? "Free" : clean(e.price ?? "");
+      const desc = e.description ? clean(e.description).slice(0, 200) : "";
       return [
         `ID:${e.id}`,
-        `Title: ${e.title}`,
+        `Title: ${clean(e.title)}`,
         `Date: ${e.startDate.toISOString()}`,
         venue ? `Venue: ${venue}` : null,
         cat ? `Category: ${cat}` : null,

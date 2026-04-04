@@ -12,6 +12,7 @@ import { ArrowLeft, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
+import EventFlyer from "./EventFlyer";
 
 /** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
 function extractLocationFromTitle(title: string): string | null {
@@ -146,32 +147,13 @@ export default async function EventDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12 lg:mb-16">
         {/* Flyer */}
         <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container">
-          {proxiedImageUrl ? (
-            <Image
-              src={proxiedImageUrl}
-              alt={event.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
-            />
-          ) : categoryImage ? (
-            <Image
-              src={categoryImage}
-              alt={categoryLabel ?? event.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
-            />
-          ) : (
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`,
-              }}
-            />
-          )}
+          <EventFlyer
+            proxiedImageUrl={proxiedImageUrl}
+            categoryImage={categoryImage}
+            categoryColor={categoryColor}
+            title={event.title}
+            categoryLabel={categoryLabel}
+          />
           {/* Tags overlay */}
           {event.tags.length > 0 && (
             <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">

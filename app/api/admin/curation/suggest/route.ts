@@ -65,13 +65,14 @@ export async function POST(req: NextRequest) {
         venue ? `Venue: ${venue}` : null,
         cat ? `Category: ${cat}` : null,
         price ? `Price: ${price}` : null,
-        e.tags.length ? `Tags: ${e.tags.join(", ")}` : null,
+        e.tags.length ? `Tags: ${e.tags.map(clean).join(", ")}` : null,
         desc ? `Description: ${desc}` : null,
       ]
         .filter(Boolean)
         .join("\n");
     })
-    .join("\n\n");
+    .join("\n\n")
+    .toWellFormed();
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-5",

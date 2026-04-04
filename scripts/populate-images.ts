@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
+import { put } from "@vercel/blob";
 import { prisma } from "../lib/prisma";
 
 const CONCURRENCY = 5;
@@ -233,7 +234,68 @@ async function backfillBandsintown() {
   console.log(`Done — ${updated}/${events.length} updated.`);
 }
 
+async function backfillInstagramImages() {
+  console.log("\n=== Migrating Instagram CDN image URLs to Vercel Blob ===");
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.log("BLOB_READ_WRITE_TOKEN not set — skipping");
+    return;
+  }
+
+  // Find Instagram events whose imageUrl is still an Instagram CDN URL (not already in Blob)
+  const events = await prisma.event.findMany({
+    where: {
+      source: { slug: "instagram" },
+      imageUrl: { contains: "cdninstagram.com" },
+      externalId: { not: null },
+    },
+    select: { id: true, title: true, imageUrl: true, externalId: true },
+  });
+
+  console.log(`Found ${events.length} Instagram events with CDN image URLs`);
+
+  let migrated = 0;
+  let expired = 0;
+
+  for (let i = 0; i < events.length; i += CONCURRENCY) {
+    const batch = events.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (event) => {
+        try {
+          const res = await fetch(event.imageUrl!, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
+            signal: AbortSignal.timeout(15_000),
+          });
+
+          if (!res.ok) {
+            console.log(`  ✗ ${event.title} (expired or unavailable: ${res.status})`);
+            expired++;
+            return;
+          }
+
+          const contentType = res.headers.get("content-type") ?? "image/jpeg";
+          const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
+          const blob = await put(`event-images/instagram-${event.externalId}.${ext}`, res.body!, {
+            access: "public",
+            contentType,
+          });
+
+          await prisma.event.update({ where: { id: event.id }, data: { imageUrl: blob.url } });
+          console.log(`  ✓ ${event.title}`);
+          migrated++;
+        } catch (err) {
+          console.log(`  ✗ ${event.title} (${(err as Error).message})`);
+          expired++;
+        }
+      })
+    );
+  }
+
+  console.log(`Done — ${migrated} migrated, ${expired} already expired/failed.`);
+}
+
 async function main() {
+  await backfillInstagramImages();
   await backfillFuncheap();
   await backfill19hz();
   await backfillBandsintown();

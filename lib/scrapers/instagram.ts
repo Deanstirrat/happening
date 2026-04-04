@@ -1,3 +1,4 @@
+import { put } from "@vercel/blob";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { parseDate } from "@/lib/createEvent";
@@ -246,6 +247,10 @@ export class InstagramScraper extends BaseScraper {
       // Discard events that are already over (>1 day in the past).
       if (startDate.getTime() < Date.now() - 86_400_000) return null;
 
+      const imageUrl = post.displayUrl
+        ? await this.uploadImageToBlob(post.displayUrl, shortCode) ?? post.displayUrl
+        : undefined;
+
       return {
         externalId: shortCode,
         title: extracted.title,
@@ -254,13 +259,38 @@ export class InstagramScraper extends BaseScraper {
         venueName: extracted.venueName ?? account.venueName,
         venueAddress: extracted.venueAddress ?? undefined,
         sourceUrl,
-        imageUrl: post.displayUrl ?? undefined,
+        imageUrl,
         price: extracted.price ?? undefined,
         isFree: extracted.isFree || this.parseFree(extracted.price ?? undefined),
         tags: [...(extracted.tags ?? []), "instagram"],
       };
     } catch (err) {
       console.error(`[instagram] Failed to process post ${shortCode}:`, (err as Error).message);
+      return null;
+    }
+  }
+
+  /**
+   * Download an Instagram CDN image and upload it to Vercel Blob for permanent storage.
+   * Falls back to null if Blob is not configured or the upload fails.
+   */
+  private async uploadImageToBlob(url: string, shortCode: string): Promise<string | null> {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) return null;
+      const contentType = res.headers.get("content-type") ?? "image/jpeg";
+      const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
+      const blob = await put(`event-images/instagram-${shortCode}.${ext}`, res.body!, {
+        access: "public",
+        contentType,
+      });
+      return blob.url;
+    } catch (err) {
+      console.warn(`[instagram] Failed to upload image for ${shortCode} to Blob:`, (err as Error).message);
       return null;
     }
   }

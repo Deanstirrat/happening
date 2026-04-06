@@ -10,6 +10,7 @@ interface DateGroupProps {
   date: Date;
   dayKey: string;
   events: EventSummary[];
+  initialHasMore?: boolean;
 }
 
 function formatDateLabel(date: Date): string {
@@ -18,7 +19,7 @@ function formatDateLabel(date: Date): string {
   return formatDateMediumSF(date);
 }
 
-export default function DateGroup({ date, dayKey, events }: DateGroupProps) {
+export default function DateGroup({ date, dayKey, events, initialHasMore = false }: DateGroupProps) {
   const [extra, setExtra] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -26,7 +27,6 @@ export default function DateGroup({ date, dayKey, events }: DateGroupProps) {
 
   if (events.length === 0) return null;
 
-  const allFeatured = !loaded && events.every((e) => e.featured);
   const allEvents = [...events, ...extra];
 
   async function loadMore() {
@@ -85,7 +85,7 @@ export default function DateGroup({ date, dayKey, events }: DateGroupProps) {
             ))}
           </div>
 
-          {allFeatured && !loaded && (
+          {initialHasMore && !loaded && (
             <button
               onClick={loadMore}
               disabled={loading}

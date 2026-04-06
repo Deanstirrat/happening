@@ -89,17 +89,18 @@ async function getSources() {
   });
 }
 
+const MAX_DAYS = 10;
+const INITIAL_PER_OTHER_DAY = 10;
+
 async function getEvents(params: SearchParams): Promise<{
   grouped: Record<string, EventSummary[]>;
+  hasMorePerDay: Record<string, boolean>;
   total: number;
 }> {
-  const page = parseInt(params.page ?? "1");
-  const limit = 150;
-  const skip = (page - 1) * limit;
-
   const hasSearch = !!params.search;
   const now = new Date();
-  const todayStart = sfDayStart(sfDayKey(now));
+  const todayKey = sfDayKey(now);
+  const todayStart = sfDayStart(todayKey);
   // Default lower bound: SF midnight today. Drop it only when searching so
   // search results aren't limited to upcoming events.
   const windowStart = params.startDate
@@ -184,46 +185,44 @@ async function getEvents(params: SearchParams): Promise<{
     }),
   };
 
-  const [events, total] = await Promise.all([
-    prisma.event.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: [{ featured: "desc" }, { featuredAt: "desc" }, { startDate: "asc" }],
-      select: {
-        id: true,
-        title: true,
-        startDate: true,
-        endDate: true,
-        venueName: true,
-        venueAddress: true,
-        neighborhood: true,
-        category: true,
-        price: true,
-        isFree: true,
-        imageUrl: true,
-        sourceUrl: true,
-        tags: true,
-        latitude: true,
-        longitude: true,
-        featured: true,
-        featuredAt: true,
-        source: { select: { slug: true, name: true } },
-      },
-    }),
-    prisma.event.count({ where }),
-  ]);
+  // Fetch enough events to fill MAX_DAYS days. We over-fetch slightly so we
+  // can detect whether each day has more events beyond INITIAL_PER_OTHER_DAY.
+  const rawEvents = await prisma.event.findMany({
+    where,
+    take: 2000,
+    orderBy: [{ startDate: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      startDate: true,
+      endDate: true,
+      venueName: true,
+      venueAddress: true,
+      neighborhood: true,
+      category: true,
+      price: true,
+      isFree: true,
+      imageUrl: true,
+      sourceUrl: true,
+      tags: true,
+      latitude: true,
+      longitude: true,
+      featured: true,
+      featuredAt: true,
+      source: { select: { slug: true, name: true } },
+    },
+  });
 
   const filteredEvents = params.timeOfDay
-    ? events.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
-    : events;
+    ? rawEvents.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
+    : rawEvents;
 
-  // Group by day
-  const grouped: Record<string, EventSummary[]> = {};
+  // Group all events by day
+  const allGrouped: Record<string, EventSummary[]> = {};
   for (const event of filteredEvents) {
-    const dayKey = sfDayKey(event.startDate); // YYYY-MM-DD in SF timezone
-    if (!grouped[dayKey]) grouped[dayKey] = [];
-    grouped[dayKey].push({
+    const dk = sfDayKey(event.startDate);
+    if (!allGrouped[dk]) allGrouped[dk] = [];
+    allGrouped[dk].push({
       ...event,
       startDate: event.startDate.toISOString(),
       endDate: event.endDate?.toISOString() ?? null,
@@ -231,7 +230,25 @@ async function getEvents(params: SearchParams): Promise<{
     } as EventSummary);
   }
 
-  return { grouped, total: params.timeOfDay ? filteredEvents.length : total };
+  // Keep at most MAX_DAYS days; for non-today days slice to INITIAL_PER_OTHER_DAY
+  const allDays = Object.keys(allGrouped).sort();
+  const visibleDays = allDays.slice(0, MAX_DAYS);
+
+  const grouped: Record<string, EventSummary[]> = {};
+  const hasMorePerDay: Record<string, boolean> = {};
+  for (const dk of visibleDays) {
+    const all = allGrouped[dk];
+    if (dk === todayKey) {
+      grouped[dk] = all;
+      hasMorePerDay[dk] = false;
+    } else {
+      grouped[dk] = all.slice(0, INITIAL_PER_OTHER_DAY);
+      hasMorePerDay[dk] = all.length > INITIAL_PER_OTHER_DAY;
+    }
+  }
+
+  const total = filteredEvents.length;
+  return { grouped, hasMorePerDay, total };
 }
 
 export default async function EventsPage({
@@ -240,7 +257,7 @@ export default async function EventsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const [sources, { grouped, total }, weeklyFeatured] = await Promise.all([
+  const [sources, { grouped, hasMorePerDay, total }, weeklyFeatured] = await Promise.all([
     getSources(),
     getEvents(params),
     getWeeklyFeaturedEvents(params),
@@ -306,6 +323,7 @@ export default async function EventsPage({
               dayKey={dayKey}
               date={new Date(dayKey + "T12:00:00Z")}
               events={grouped[dayKey]}
+              initialHasMore={hasMorePerDay[dayKey] ?? false}
             />
           ))
         ) : (

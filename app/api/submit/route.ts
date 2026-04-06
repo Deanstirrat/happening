@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       imageUrl,
       category,
       unknownSourceUrl,
+      recurringType,
     } = body;
 
     if (!title?.trim()) {
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
       submitterNote,
       imageUrl: imageUrl || null,
       categoryOverride: category || null,
+      recurringType: recurringType || null,
     });
 
     if ("parseError" in result) {

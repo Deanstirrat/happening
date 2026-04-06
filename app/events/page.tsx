@@ -45,7 +45,9 @@ async function getWeeklyFeaturedEvents(
       ],
       startDate: { gte: queryStart, lte: queryEnd },
       ...(params.hideMusic === "true" && { category: { in: NON_MUSIC_CATEGORIES as any } }),
-      ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
+      ...(params.hideRecurring === "true" && {
+        NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
+      }),
     },
     orderBy: [{ startDate: "asc" }],
     take: 15,
@@ -181,7 +183,7 @@ async function getEvents(params: SearchParams): Promise<{
     }),
     ...(params.isFree === "true" && { isFree: true }),
     ...(params.hideRecurring === "true" && {
-      NOT: { tags: { has: "recurring" } },
+      NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
     }),
   };
 

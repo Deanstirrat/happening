@@ -18,6 +18,7 @@ interface FormState {
   tags: string;
   sourceUrl: string;
   submitterNote: string;
+  recurringType: string;
 }
 
 const EMPTY: FormState = {
@@ -32,6 +33,7 @@ const EMPTY: FormState = {
   tags: "",
   sourceUrl: "",
   submitterNote: "",
+  recurringType: "",
 };
 
 export default function SubmitForm() {
@@ -394,6 +396,20 @@ export default function SubmitForm() {
             placeholder="Instagram post, event page, etc."
             className="input-field"
           />
+        </Field>
+
+        <Field label="Does this event repeat?">
+          <select
+            value={form.recurringType}
+            onChange={(e) => setForm((p) => ({ ...p, recurringType: e.target.value }))}
+            className="input-field"
+          >
+            <option value="">No — one time only</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="BIWEEKLY">Bi-weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="ANNUAL">Annual / Yearly</option>
+          </select>
         </Field>
 
         <Field label="Note (optional)">

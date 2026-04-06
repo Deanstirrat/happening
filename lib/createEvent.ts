@@ -86,6 +86,7 @@ export interface EventFields {
   submitterNote?: string | null;
   imageUrl?: string | null;
   categoryOverride?: string | null;
+  recurringType?: string | null;
 }
 
 export type CreateEventResult =
@@ -108,6 +109,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     submitterNote,
     imageUrl,
     categoryOverride,
+    recurringType,
   } = fields;
 
   const startDate = parseDate(dateRaw, timeRaw);
@@ -181,6 +183,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
       status: "PENDING",
       submitterNote: submitterNote || null,
       sourceId: source.id,
+      recurringType: recurringType ? (recurringType as import("@prisma/client").RecurringType) : null,
     },
   });
 

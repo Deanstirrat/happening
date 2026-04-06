@@ -48,9 +48,10 @@ model Event {
   categorized   Boolean        @default(false)
   sourceId      String
   source       Source         @relation(fields: [sourceId], references: [id])
-  featured     Boolean        @default(false)
-  featuredAt   DateTime?
-  scrapedAt    DateTime       @default(now())
+  featured      Boolean        @default(false)
+  featuredAt    DateTime?
+  recurringType RecurringType?
+  scrapedAt     DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   interactions EventInteraction[]
   reports      EventReport[]
@@ -194,6 +195,14 @@ enum EventStatus {
   PUBLISHED
   REJECTED
   ARCHIVED
+}
+
+enum RecurringType {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  ANNUAL
 }
 
 enum EventCategory {

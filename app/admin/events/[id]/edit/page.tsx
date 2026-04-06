@@ -40,6 +40,7 @@ export default async function EditEventPage({ params, searchParams }: Props) {
       imageUrl: true,
       status: true,
       featured: true,
+      recurringType: true,
     },
   });
 

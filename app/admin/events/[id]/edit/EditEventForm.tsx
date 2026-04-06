@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SF_NEIGHBORHOODS, CATEGORY_LABELS } from "@/lib/types";
-import { EventCategory, EventStatus } from "@prisma/client";
+import { EventCategory, EventStatus, RecurringType } from "@prisma/client";
 import { formatDatetimeLocalSF, sfDateFromLocal } from "@/lib/sfDate";
 
 interface EventData {
@@ -22,6 +22,7 @@ interface EventData {
   sourceUrl: string;
   imageUrl: string | null;
   status: EventStatus;
+  recurringType: RecurringType | null;
 }
 
 function toDatetimeLocal(date: Date | null): string {
@@ -55,6 +56,7 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
   const [sourceUrl, setSourceUrl] = useState(event.sourceUrl);
   const [imageUrl, setImageUrl] = useState(event.imageUrl ?? "");
   const [status, setStatus] = useState<EventStatus>(event.status);
+  const [recurringType, setRecurringType] = useState<string>(event.recurringType ?? "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,6 +84,7 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
         sourceUrl,
         imageUrl: imageUrl || null,
         status,
+        recurringType: recurringType || null,
       }),
     });
 
@@ -261,17 +264,34 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
         )}
       </div>
 
-      <div>
-        <label className={labelClass}>Status</label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as EventStatus)}
-          className={inputClass}
-        >
-          <option value="PENDING">Pending</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelClass}>Status</label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as EventStatus)}
+            className={inputClass}
+          >
+            <option value="PENDING">Pending</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Recurring</label>
+          <select
+            value={recurringType}
+            onChange={(e) => setRecurringType(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— none —</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="BIWEEKLY">Bi-weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="ANNUAL">Annual</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

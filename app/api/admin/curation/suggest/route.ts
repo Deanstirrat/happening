@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       status: "PUBLISHED",
       featured: false,
       startDate: { gte: windowStart, lte: windowEnd },
-      NOT: { tags: { has: "recurring" } },
+      NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
     },
     orderBy: { startDate: "asc" },
     select: {

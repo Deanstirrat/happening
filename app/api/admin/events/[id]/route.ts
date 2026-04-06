@@ -28,6 +28,7 @@ export async function PATCH(
     sourceUrl,
     imageUrl,
     status,
+    recurringType,
   } = body;
 
   await prisma.event.update({
@@ -47,6 +48,7 @@ export async function PATCH(
       ...(sourceUrl !== undefined && { sourceUrl }),
       ...(imageUrl !== undefined && { imageUrl }),
       ...(status !== undefined && { status }),
+      ...(recurringType !== undefined && { recurringType: recurringType || null }),
     },
   });
 

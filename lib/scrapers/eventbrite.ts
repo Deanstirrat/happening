@@ -99,7 +99,7 @@ export class EventbriteScraper extends BaseScraper {
     // Free recurring events are kept.
     const filtered = cleaned.filter((e) => {
       const meta = this.seriesMeta.get(e.sourceUrl);
-      if (!meta || meta.numChildren <= 15) return true;
+      if (!meta || meta.numChildren <= 52) return true;
       if (e.isFree || e.price === "Free") return true;
       return false;
     });

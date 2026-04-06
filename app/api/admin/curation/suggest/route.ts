@@ -16,14 +16,18 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const todayKey = sfDayKey(now);
   const windowStart = sfDayStart(todayKey);
-  const windowEnd = sfDayEnd(sfDayKey(addDays(now, 7)));
+  const windowEnd = sfDayEnd(sfDayKey(addDays(now, 14)));
 
   const events = await prisma.event.findMany({
     where: {
       status: "PUBLISHED",
       featured: false,
       startDate: { gte: windowStart, lte: windowEnd },
-      NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
+      NOT: [
+        { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
+        { tags: { has: "sfpl" } },
+        { category: "TECH" },
+      ],
     },
     orderBy: { startDate: "asc" },
     select: {
@@ -80,32 +84,44 @@ export async function POST(req: NextRequest) {
     messages: [
       {
         role: "user",
-        content: `You are curating a weekly events digest for San Francisco's "happening" platform. Your job is to surface the most interesting, wild, and distinctly San Francisco events of the week — the stuff locals talk about and visitors never find.
+        content: `You are curating a 2-week events digest for "happening", a San Francisco events platform. Your job: surface the events locals actually talk about — things worth clearing your schedule for, showing your friends, or showing up to on a whim.
 
-The gold standard: events like the St. Stupid's Day Parade (irreverent street chaos, pure SF counterculture) or BYOBW (strangers riding Big Wheels down a hill at full speed). Weird, participatory, only-in-SF energy. Prioritize this above everything else.
+Calibrate your taste against these real examples of events that belong on the list:
+- Community chaos: BYOBW (Big Wheel race down Potrero Hill), St. Stupid's Day Parade, Hunky Jesus Contest, Hole Party (digging holes together on Ocean Beach)
+- SF underground institutions: EFUNK SF, Boofiversary, Endzeit x Northern Electronics lineups, East Bay Mean Girls anniversary, Honey Soundsystem
+- Hybrid formats: Fight Night (rave + live wrestling), Folk Punk Prom, SF Beer Mile, South Side Beer Ride (free monthly brewery shuttle)
+- Community with personality: FART MARKET, Bay Bingo: Tenderloin Edition, Curiosity Guild: Fool's Errand
+- Civic/cultural moments: neighborhood protests that draw 90+ locations, congressional candidate debates, Carnaval dance competition
+- Big deals: Black Coffee at Treasure Island, free Big Band swing dance in Golden Gate Park, God Awful Movies LIVE, PLOVERFEST at the Sunset Dunes
 
 Select 20–30 events. Use this hierarchy:
 
 STRONGLY FAVOR:
-- Wild, weird, or irreverent events — street happenings, counterculture parades, absurdist gatherings, DIY spectacles
-- Participatory events where you show up and *do* something (not just watch)
-- Underground parties or nights with a very distinct identity, scene, or subculture
-- Anything that could only happen in San Francisco
+- Wild, weird, or irreverent street events — parades, happenings, absurdist community gatherings
+- Participatory events where you show up and DO something (not just watch): races, rides, dances, community builds
+- SF underground institutions and scene nights with a real identity (not just a venue with a DJ)
+- Hybrid or unexpected formats: sport + party, rave + spectacle, game night with a neighborhood twist
+- Civic and cultural moments: protests, debates, competitions that reflect SF's actual community life
+- Anything with a "only in San Francisco" quality
 
-INCLUDE IF they have edge, weirdness, or are genuinely a big deal:
-- Talks, panels, or readings — only if the subject matter is unusual/provocative OR the speaker is a major name
-- Ticketed shows at established venues — only if the act is rare, touring infrequently, or otherwise special
-- Art or film events — only if experimental, boundary-pushing, or tied to a notable name/moment
+INCLUDE IF genuinely notable:
+- Electronic/club nights: only if the headliner is a rare SF appearance or international touring act, OR if it's a proven SF institution (longstanding queer party, specific subculture night, etc.)
+- Talks or panels: only if the subject is unusual/provocative or the speaker is a genuine name
+- Shows at established venues: only if the act is rare, touring infrequently, or otherwise special
+- Art or film: only if experimental, boundary-pushing, or tied to a notable name
 
 SKIP entirely:
-- Standard gallery openings, regular club nights, generic fitness/wellness classes
-- Corporate networking, startup events, tech meetups
-- Book readings from unknown authors, run-of-the-mill live music
+- Generic weekly club nights with no distinct identity or scene
+- Tech meetups, startup networking, corporate events
+- Standard gallery openings, generic fitness/wellness, book readings from unknown authors
+- SFPL library programs and services
 - Anything that could happen in any American city
+
+Note: duplicate listings for the same event may appear — pick the most descriptive one and skip the rest.
 
 Return ONLY a valid JSON array — no prose before or after. Each element: { "id": "...", "reason": "one sentence why" }
 
-Events to consider (${events.length} total, next 7 days, non-recurring):
+Events to consider (${events.length} total, next 14 days, non-recurring):
 
 ${eventList}`,
       },
@@ -133,7 +149,7 @@ ${eventList}`,
     );
   }
 
-  // Hydrate with full event data, preserving AI ordering
+  // Hydrate with full event data, then sort chronologically
   const pickedIds = picks.map((p) => p.id);
   const pickedEvents = await prisma.event.findMany({
     where: { id: { in: pickedIds } },
@@ -169,6 +185,10 @@ ${eventList}`,
         featuredAt: e.featuredAt?.toISOString() ?? null,
       };
     });
+
+  result.sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
 
   return NextResponse.json({ picks: result, total: events.length });
 }

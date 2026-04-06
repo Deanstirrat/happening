@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
       featured: false,
       startDate: { gte: windowStart, lte: windowEnd },
       recurringType: { notIn: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] },
-      NOT: [{ tags: { has: "sfpl" } }, { category: "TECH" }],
+      category: { not: "TECH" },
+      NOT: { tags: { has: "sfpl" } },
     },
     orderBy: { startDate: "asc" },
     select: {

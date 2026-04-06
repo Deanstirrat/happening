@@ -23,9 +23,14 @@ export async function POST(req: NextRequest) {
       status: "PUBLISHED",
       featured: false,
       startDate: { gte: windowStart, lte: windowEnd },
-      NOT: { tags: { has: "recurring" } },
+      NOT: [
+        { tags: { has: "recurring" } },
+        { tags: { has: "sfpl" } },
+        { category: "TECH" },
+      ],
     },
     orderBy: { startDate: "asc" },
+    take: 600,
     select: {
       id: true,
       title: true,

@@ -45,9 +45,7 @@ async function getWeeklyFeaturedEvents(
       ],
       startDate: { gte: queryStart, lte: queryEnd },
       ...(params.hideMusic === "true" && { category: { in: NON_MUSIC_CATEGORIES as any } }),
-      ...(params.hideRecurring === "true" && {
-        NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
-      }),
+      ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
     },
     orderBy: [{ startDate: "asc" }],
     take: 15,
@@ -182,9 +180,7 @@ async function getEvents(params: SearchParams): Promise<{
       source: { slug: { in: sources } },
     }),
     ...(params.isFree === "true" && { isFree: true }),
-    ...(params.hideRecurring === "true" && {
-      NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
-    }),
+    ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
   };
 
   // Fetch enough events to fill MAX_DAYS days. We over-fetch slightly so we

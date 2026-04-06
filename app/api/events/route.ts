@@ -76,9 +76,7 @@ export async function GET(req: NextRequest) {
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),
     ...(sources.length > 0 && { source: { slug: { in: sources } } }),
     ...(isFree && { isFree: true }),
-    ...(hideRecurring && {
-      NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
-    }),
+    ...(hideRecurring && { NOT: { tags: { has: "recurring" } } }),
     // map view only returns events with coordinates
     ...(view === "map" && {
       latitude: { not: null },

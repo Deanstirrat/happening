@@ -35,7 +35,7 @@ export default async function CurationPage({ searchParams }: Props) {
         status: "PUBLISHED",
         featured: false,
         startDate: { gte: windowStart, lte: windowEnd },
-        recurringType: { notIn: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] },
+        NOT: { tags: { has: "recurring" } },
         NOT: { tags: { has: "sfpl" } },
       },
     }),

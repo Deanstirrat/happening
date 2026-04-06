@@ -23,11 +23,8 @@ export async function POST(req: NextRequest) {
       status: "PUBLISHED",
       featured: false,
       startDate: { gte: windowStart, lte: windowEnd },
-      NOT: [
-        { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
-        { tags: { has: "sfpl" } },
-        { category: "TECH" },
-      ],
+      recurringType: { notIn: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] },
+      NOT: [{ tags: { has: "sfpl" } }, { category: "TECH" }],
     },
     orderBy: { startDate: "asc" },
     select: {

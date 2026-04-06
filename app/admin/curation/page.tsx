@@ -24,7 +24,7 @@ export default async function CurationPage({ searchParams }: Props) {
   const now = new Date();
   const todayKey = sfDayKey(now);
   const windowStart = sfDayStart(todayKey);
-  const windowEnd = sfDayEnd(sfDayKey(addDays(now, 7)));
+  const windowEnd = sfDayEnd(sfDayKey(addDays(now, 14)));
 
   const [featuredCount, weeklyCount] = await Promise.all([
     prisma.event.count({
@@ -35,7 +35,8 @@ export default async function CurationPage({ searchParams }: Props) {
         status: "PUBLISHED",
         featured: false,
         startDate: { gte: windowStart, lte: windowEnd },
-        NOT: { recurringType: { in: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] } },
+        recurringType: { notIn: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] },
+        NOT: [{ tags: { has: "sfpl" } }, { category: "TECH" }],
       },
     }),
   ]);
@@ -49,7 +50,7 @@ export default async function CurationPage({ searchParams }: Props) {
         <AdminNav secret={secret} current="curation" />
         <p className="font-body text-on-surface-variant text-sm">
           {weeklyCount} non-recurring unfeatured event
-          {weeklyCount !== 1 ? "s" : ""} this week ·{" "}
+          {weeklyCount !== 1 ? "s" : ""} next 2 weeks ·{" "}
           {featuredCount} currently featured
         </p>
       </div>

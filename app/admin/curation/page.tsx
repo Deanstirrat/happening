@@ -36,7 +36,6 @@ export default async function CurationPage({ searchParams }: Props) {
         featured: false,
         startDate: { gte: windowStart, lte: windowEnd },
         recurringType: { notIn: ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] },
-        category: { not: "TECH" },
         NOT: { tags: { has: "sfpl" } },
       },
     }),

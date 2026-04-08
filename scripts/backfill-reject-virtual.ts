@@ -14,7 +14,7 @@ async function main() {
     select: { id: true, title: true, description: true, venueName: true },
   });
 
-  const virtual = events.filter((e) => isVirtualEvent(e));
+  const virtual = events.filter((e) => isVirtualEvent({ ...e, description: e.description ?? undefined, venueName: e.venueName ?? undefined }));
   console.log(`Found ${virtual.length} virtual events out of ${events.length} published`);
 
   for (const e of virtual) {

@@ -110,14 +110,13 @@ export class UsfcaScraper extends BaseScraper {
         const title = ($link.find("h3").first().text() || $link.text()).trim();
         if (!title) return;
 
-        const dateText = $row.find(".event-date").first().text().trim();
-        const locationText = $row.find(".event-location").first().text().trim();
+        // Search full row text — Drupal varies its date field class names
+        const rowText = $row.text();
+        if (isVirtual(rowText)) return;
 
-        if (locationText && isVirtual(locationText)) return;
-
-        const startDate = parseDateText(dateText, this.resolveYear.bind(this));
+        const startDate = parseDateText(rowText, this.resolveYear.bind(this));
         if (!startDate || isNaN(startDate.getTime())) {
-          console.warn(`[usfca] could not parse date from: "${dateText}" for "${title}"`);
+          console.warn(`[usfca] could not parse date from row for "${title}"`);
           return;
         }
         if (startDate.getTime() < nowMs - 86_400_000) return;
@@ -135,7 +134,7 @@ export class UsfcaScraper extends BaseScraper {
               ? imageUrl
               : `${BASE_URL}${imageUrl}`
             : undefined,
-          venueName: locationText || "University of San Francisco",
+          venueName: "University of San Francisco",
           venueAddress: "2130 Fulton St, San Francisco, CA 94117",
           tags: ["university", "academic", "community", "usf"],
         });
@@ -157,7 +156,7 @@ export class UsfcaScraper extends BaseScraper {
         // Skip virtual events
         if (isVirtual(containerText)) return;
 
-        const startDate = parseDateText(containerText);
+        const startDate = parseDateText(containerText, this.resolveYear.bind(this));
         if (!startDate || isNaN(startDate.getTime())) return;
         if (startDate.getTime() < nowMs - 86_400_000) return;
 

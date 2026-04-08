@@ -24,11 +24,14 @@ const MONTH_ABBR: Record<string, number> = {
   jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
 };
 
-// Handles "Apr09" (no space, no word boundary between day and weekday)
+// Handles both "Apr09Thu" (abbreviated, concatenated) and "April 8" (full name, spaced)
 function parseDateFromText(text: string): { month: number; day: number } | null {
-  const m = text.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\s]*(\d{1,2})(?!\d)/i);
+  const m = text.match(
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\s]*(\d{1,2})(?!\d)/i
+  );
   if (!m) return null;
-  const month = MONTH_ABBR[m[1].toLowerCase()];
+  const monthStr = m[1].toLowerCase().slice(0, 3);
+  const month = MONTH_ABBR[monthStr];
   if (!month) return null;
   return { month, day: parseInt(m[2]) };
 }
@@ -58,8 +61,9 @@ export class UcTheatreScraper extends BaseScraper {
     try {
       try {
         await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
-        // Wait for JS-rendered event cards
+        // Wait for JS-rendered event cards, then extra time for all cards to load
         await page.waitForSelector('a[href^="/shows/"]', { timeout: 20_000 });
+        await page.waitForTimeout(3_000);
       } catch {
         // Continue with whatever loaded
       }

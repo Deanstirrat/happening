@@ -87,12 +87,15 @@ export class AssemblePuzzleryScraper extends BaseScraper {
       // Skip month headings like "April 2026"
       if (/^\w+ \d{4}$/.test(title)) return;
 
-      // Date and time are in div siblings (not p) on this Shopify site
+      // Date and time are in a div sibling. Sometimes they're in separate divs,
+      // sometimes in one div separated by <br>. Split on <br> first.
       const $next1 = $h2.next("div, p");
-      const $next2 = $next1.next("div, p");
-
-      const dateText = $next1.text().trim();
-      const timeText = $next2.text().trim();
+      const rawHtml = ($next1.html() ?? "");
+      const brParts = rawHtml.split(/<br\s*\/?>/i);
+      const dateText = brParts[0].replace(/<[^>]+>/g, "").trim();
+      const timeText = brParts.length > 1
+        ? brParts[1].replace(/<[^>]+>/g, "").trim()
+        : $next1.next("div, p").text().trim();
 
       if (!dateText) return;
 

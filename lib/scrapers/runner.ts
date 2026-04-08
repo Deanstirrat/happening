@@ -13,6 +13,7 @@ const GENERIC_SOURCE_URL_PATTERNS = [
   "19hz.info/eventlisting_BayArea.php",
   "badslava.com/san-francisco-trivia-nights.php",
   "noevalleytownsquare.com/events",
+  "assemblepuzzlery.com/pages/events",
 ];
 const isSpecificSourceUrl = (url: string) =>
   !GENERIC_SOURCE_URL_PATTERNS.some((p) => url.includes(p));
@@ -27,6 +28,48 @@ const GENERIC_VENUE_NAMES = new Set([
 ]);
 const isGenericVenue = (s: string) =>
   GENERIC_VENUE_NAMES.has(s.toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+// Normalized venue names that indicate an online-only event
+const VIRTUAL_VENUE_NORM = new Set([
+  "online",
+  "virtual",
+  "onlineevent",
+  "virtualevent",
+  "zoom",
+  "zoommeeting",
+  "zoomwebinar",
+  "webinar",
+  "webex",
+  "livestream",
+  "googlemeet",
+  "googlemeeting",
+  "microsoftteams",
+  "teleconference",
+  "videoconference",
+  "videocall",
+]);
+
+// Strong virtual keywords in titles (whole-word)
+const VIRTUAL_TITLE_RE = /\b(virtual(?:ly)?|webinar|webcast|livestream|live[\s-]stream)\b/i;
+
+export function isVirtualEvent(event: Pick<ScrapedEvent, "title" | "description" | "venueName">): boolean {
+  if (event.venueName) {
+    const norm = event.venueName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (VIRTUAL_VENUE_NORM.has(norm)) return true;
+    // "Online Event", "Virtual Classroom", etc.
+    if (/^(online|virtual)\b/i.test(event.venueName.trim())) return true;
+  }
+
+  if (VIRTUAL_TITLE_RE.test(event.title)) return true;
+
+  if (event.description) {
+    // Zoom meeting links or clear online-join language
+    if (/zoom\.us\/[jw]\//.test(event.description)) return true;
+    if (/\b(join\s+(?:us\s+)?(?:online|virtually)|attend\s+(?:online|virtually)|watch\s+from\s+home)\b/i.test(event.description)) return true;
+  }
+
+  return false;
+}
 
 // Import all scrapers
 import { FoopeeScraper } from "./foopee";
@@ -52,6 +95,12 @@ import { OmnivoreBooksScraper } from "./omnivorebooks";
 import { NoeValleyTownSquareScraper } from "./noevalleytownsquare";
 import { CityLightsScraper } from "./citylights";
 import { SFJazzScraper } from "./sfjazz";
+import { SfSpcaScraper } from "./sfspca";
+import { FortMasonScraper } from "./fortmason";
+import { AssemblePuzzleryScraper } from "./assemblepuzzlery";
+import { UcTheatreScraper } from "./uctheatre";
+import { GreatStarTheaterScraper } from "./greatstartheater";
+import { UsfcaScraper } from "./usfca";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
@@ -77,6 +126,12 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   sfjazz: new SFJazzScraper(),
   foopee: new FoopeeScraper(),
   // meetup: paid API only — skipped for now
+  sfspca: new SfSpcaScraper(),
+  fortmason: new FortMasonScraper(),
+  assemblepuzzlery: new AssemblePuzzleryScraper(),
+  uctheatre: new UcTheatreScraper(),
+  greatstartheater: new GreatStarTheaterScraper(),
+  usfca: new UsfcaScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;
@@ -243,6 +298,12 @@ export async function runScraper(
     // Skip blocklisted events (by hash, URL, or title)
     if (blockedHashes.has(dedupeHash) || blockedUrls.has(event.sourceUrl) || blockedTitles.has(event.title.toLowerCase().trim())) {
       console.log(`[${slug}] Blocked: "${event.title}"`);
+      continue;
+    }
+
+    // Skip virtual/online-only events
+    if (isVirtualEvent(event)) {
+      console.log(`[${slug}] Virtual (skipped): "${event.title}"`);
       continue;
     }
 

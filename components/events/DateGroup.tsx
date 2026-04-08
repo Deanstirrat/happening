@@ -12,6 +12,7 @@ interface DateGroupProps {
   dayKey: string;
   events: EventSummary[];
   initialHasMore?: boolean;
+  totalCount?: number;
 }
 
 function formatDateLabel(date: Date): string {
@@ -20,16 +21,21 @@ function formatDateLabel(date: Date): string {
   return formatDateMediumSF(date);
 }
 
-export default function DateGroup({ date, dayKey, events, initialHasMore = false }: DateGroupProps) {
+const PAGE_SIZE = 50;
+
+export default function DateGroup({ date, dayKey, events, initialHasMore = false, totalCount }: DateGroupProps) {
   const [extra, setExtra] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [nextPage, setNextPage] = useState(1);
   const [collapsed, setCollapsed] = useState(false);
   const searchParams = useSearchParams();
 
   if (events.length === 0) return null;
 
   const allEvents = [...events, ...extra];
+  const trueTotal = totalCount ?? allEvents.length;
+  const hasMore = initialHasMore && allEvents.length < trueTotal;
+  const remaining = trueTotal - allEvents.length;
 
   async function loadMore() {
     setLoading(true);
@@ -37,8 +43,8 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
       const params = new URLSearchParams();
       params.set("startDate", dayKey);
       params.set("endDate", dayKey);
-      params.set("limit", "50");
-      // Forward active filters so load-more respects them
+      params.set("limit", String(PAGE_SIZE));
+      params.set("page", String(nextPage + 1));
       for (const key of ["hideRecurring", "hideMusic", "category", "neighborhood", "source", "isFree", "timeOfDay"]) {
         for (const val of searchParams.getAll(key)) {
           params.append(key, val);
@@ -47,7 +53,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
       const res = await fetch(`/api/events?${params.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      const shownIds = new Set(events.map((e) => e.id));
+      const shownIds = new Set(allEvents.map((e) => e.id));
       const newEvents = (data.events as EventSummary[])
         .map((e) => ({
           ...e,
@@ -60,8 +66,8 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
             : null,
         }))
         .filter((e) => !shownIds.has(e.id));
-      setExtra(newEvents);
-      setLoaded(true);
+      setExtra((prev) => [...prev, ...newEvents]);
+      setNextPage((p) => p + 1);
     } catch {
       // silently fail
     } finally {
@@ -79,7 +85,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
         <h2 className="font-headline font-bold text-2xl text-on-surface lowercase">
           {formatDateLabel(date)}
           <span className="ml-3 font-body text-sm font-normal text-on-surface-variant">
-            {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
+            {trueTotal} event{trueTotal !== 1 ? "s" : ""}
           </span>
         </h2>
         {collapsed
@@ -95,13 +101,13 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
             ))}
           </div>
 
-          {initialHasMore && !loaded && (
+          {hasMore && (
             <button
               onClick={loadMore}
               disabled={loading}
               className="mt-4 chip text-xs font-semibold disabled:opacity-50"
             >
-              {loading ? "loading…" : `more events for ${formatDateLabel(date)}`}
+              {loading ? "loading…" : `show ${Math.min(PAGE_SIZE, remaining)} more events`}
             </button>
           )}
         </>

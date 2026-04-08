@@ -95,6 +95,7 @@ const INITIAL_PER_OTHER_DAY = 10;
 async function getEvents(params: SearchParams): Promise<{
   grouped: Record<string, EventSummary[]>;
   hasMorePerDay: Record<string, boolean>;
+  totalPerDay: Record<string, number>;
   total: number;
 }> {
   const hasSearch = !!params.search;
@@ -234,8 +235,10 @@ async function getEvents(params: SearchParams): Promise<{
 
   const grouped: Record<string, EventSummary[]> = {};
   const hasMorePerDay: Record<string, boolean> = {};
+  const totalPerDay: Record<string, number> = {};
   for (const dk of visibleDays) {
     const all = allGrouped[dk];
+    totalPerDay[dk] = all.length;
     if (dk === todayKey) {
       grouped[dk] = all;
       hasMorePerDay[dk] = false;
@@ -246,7 +249,7 @@ async function getEvents(params: SearchParams): Promise<{
   }
 
   const total = filteredEvents.length;
-  return { grouped, hasMorePerDay, total };
+  return { grouped, hasMorePerDay, totalPerDay, total };
 }
 
 export default async function EventsPage({
@@ -255,7 +258,7 @@ export default async function EventsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const [sources, { grouped, hasMorePerDay, total }, weeklyFeatured] = await Promise.all([
+  const [sources, { grouped, hasMorePerDay, totalPerDay, total }, weeklyFeatured] = await Promise.all([
     getSources(),
     getEvents(params),
     getWeeklyFeaturedEvents(params),
@@ -322,6 +325,7 @@ export default async function EventsPage({
               date={new Date(dayKey + "T12:00:00Z")}
               events={grouped[dayKey]}
               initialHasMore={hasMorePerDay[dayKey] ?? false}
+              totalCount={totalPerDay[dayKey]}
             />
           ))
         ) : (

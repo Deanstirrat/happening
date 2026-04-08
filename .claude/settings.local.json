@@ -85,7 +85,12 @@
       "Bash(grep -r NEXT_PUBLIC_MAP /Users/deanstirrat/Desktop/side_projects/happening --include=*.ts --include=*.tsx --include=*.json)",
       "mcp__Railway__get-logs",
       "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(p.get\\(''''bin'''',{}\\)\\)\")",
-      "Bash(~/.nvm/versions/node/v25.8.2/bin/node /Users/deanstirrat/Desktop/side_projects/happening/node_modules/prisma/build/index.js migrate dev --name add_instagram_seen_posts)"
+      "Bash(~/.nvm/versions/node/v25.8.2/bin/node /Users/deanstirrat/Desktop/side_projects/happening/node_modules/prisma/build/index.js migrate dev --name add_instagram_seen_posts)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:jpqrnbUxwbqvmpmWtcBNBjRWXaamTFEd@crossover.proxy.rlwy.net:17451/railway\" npx prisma db execute --stdin <<'EOF':*)",
+      "Bash(/opt/homebrew/opt/libpq/bin/psql \"postgresql://postgres:jpqrnbUxwbqvmpmWtcBNBjRWXaamTFEd@crossover.proxy.rlwy.net:17451/railway\" -c \":*)",
+      "Bash(npx vercel:*)",
+      "Bash(ls *.json)",
+      "Bash(ls /Users/deanstirrat/Desktop/side_projects/happening/.env*)"
     ]
   }
 }

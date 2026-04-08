@@ -52,6 +52,7 @@ export interface ScrapedEvent {
   tags?: string[];
   latitude?: number;
   longitude?: number;
+  category?: string;
 }
 
 export const SF_NEIGHBORHOODS = [
@@ -118,6 +119,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   ART_GALLERY: "Art & Gallery",
   ART_PERFORMANCE: "Performance",
   COMEDY: "Comedy",
+  TRIVIA_BINGO: "Trivia & Bingo",
   FOOD_DRINK: "Food & Drink",
   NIGHTLIFE: "Nightlife",
   COMMUNITY: "Community",
@@ -135,6 +137,7 @@ export const NON_MUSIC_CATEGORIES = [
   "ART_GALLERY",
   "ART_PERFORMANCE",
   "COMEDY",
+  "TRIVIA_BINGO",
   "FOOD_DRINK",
   "NIGHTLIFE",
   "COMMUNITY",
@@ -158,6 +161,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   ART_GALLERY: "#f97316",
   ART_PERFORMANCE: "#eab308",
   COMEDY: "#84cc16",
+  TRIVIA_BINGO: "#f59e0b",
   FOOD_DRINK: "#22c55e",
   NIGHTLIFE: "#ef4444",
   COMMUNITY: "#14b8a6",

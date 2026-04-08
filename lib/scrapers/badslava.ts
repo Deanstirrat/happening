@@ -98,6 +98,7 @@ export class BadslavaTriviaScraper extends BaseScraper {
           isFree,
           price,
           tags: ["trivia", "recurring"],
+          category: "TRIVIA_BINGO",
         });
       }
     }

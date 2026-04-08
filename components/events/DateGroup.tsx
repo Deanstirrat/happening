@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { isTodaySF, isTomorrowSF, formatDateMediumSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
@@ -24,6 +25,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const searchParams = useSearchParams();
 
   if (events.length === 0) return null;
 
@@ -32,9 +34,17 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
   async function loadMore() {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/events?startDate=${dayKey}&endDate=${dayKey}&limit=50`
-      );
+      const params = new URLSearchParams();
+      params.set("startDate", dayKey);
+      params.set("endDate", dayKey);
+      params.set("limit", "50");
+      // Forward active filters so load-more respects them
+      for (const key of ["hideRecurring", "hideMusic", "category", "neighborhood", "source", "isFree", "timeOfDay"]) {
+        for (const val of searchParams.getAll(key)) {
+          params.append(key, val);
+        }
+      }
+      const res = await fetch(`/api/events?${params.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       const shownIds = new Set(events.map((e) => e.id));

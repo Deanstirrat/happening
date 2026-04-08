@@ -6,7 +6,32 @@ import { categorizeEvent } from "../lib/categorize";
 import type { ScrapedEvent } from "../lib/types";
 
 async function main() {
-  // Target events that are likely miscategorized:
+  // Pass 1: deterministic trivia/bingo backfill — no AI needed
+  const triviaEvents = await prisma.event.findMany({
+    where: {
+      category: { in: ["COMMUNITY", "NIGHTLIFE", "OTHER"] },
+      OR: [
+        { title: { contains: "trivia", mode: "insensitive" } },
+        { title: { contains: "bingo", mode: "insensitive" } },
+        { tags: { has: "trivia" } },
+        { tags: { has: "bingo" } },
+      ],
+    },
+    select: { id: true, title: true, category: true },
+  });
+
+  if (triviaEvents.length > 0) {
+    console.log(`Backfilling ${triviaEvents.length} trivia/bingo events → TRIVIA_BINGO...`);
+    await prisma.event.updateMany({
+      where: { id: { in: triviaEvents.map((e) => e.id) } },
+      data: { category: "TRIVIA_BINGO", categorized: true },
+    });
+    console.log(`Done — ${triviaEvents.length} events recategorized.`);
+  } else {
+    console.log("No trivia/bingo events found to backfill.");
+  }
+
+  // Pass 2: AI recategorization for likely-miscategorized events
   // 1. All OTHER events
   // 2. MUSIC_ROCK_PUNK events from foopee — foopee tags every event with "punk, rock, diy"
   //    regardless of genre, causing the AI to over-assign MUSIC_ROCK_PUNK

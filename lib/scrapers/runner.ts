@@ -3,7 +3,7 @@ import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
 import type { ScrapedEvent } from "@/lib/types";
 import { BaseScraper } from "./base";
-import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, MIN_TOKENS } from "@/lib/fuzzy";
+import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, isVenueFuzzyMatch, MIN_TOKENS } from "@/lib/fuzzy";
 import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 
@@ -207,6 +207,7 @@ export async function runScraper(
     imageUrl: string | null;
     venueName: string | null;
     description: string | null;
+    startDate: Date;
   };
 
   // Pre-build per-SF-day cache to avoid O(n²) DB queries in the dedup loop.
@@ -221,7 +222,7 @@ export async function runScraper(
     const dayEnd = new Date(dayStart.getTime() + 86400000);
     const rows = await prisma.event.findMany({
       where: { startDate: { gte: dayStart, lt: dayEnd } },
-      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true },
+      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true, startDate: true },
     });
     dayEventsCache.set(key, rows);
   }
@@ -329,6 +330,34 @@ export async function runScraper(
         }
       }
 
+      // Same-time + fuzzy-venue + title containment: catches cases where different sources
+      // describe the same event with different title prefixes/suffixes (e.g. a promoter name
+      // prepended: "Curiosity Guild: Fool's Errand" vs "Fool's Errand") at the same venue.
+      // Uses start time + venue as primary signals; title containment as a light guard.
+      // This fires even when incomingTokens.size < MIN_TOKENS (short titles like "Fool's Errand").
+      if (event.venueName && !isGenericVenue(event.venueName)) {
+        const incomingTime = event.startDate.getTime();
+        const TIME_WINDOW_MS = 15 * 60 * 1000; // ±15 minutes
+        const sameTimeVenueMatch = dayEvents.find((e) => {
+          if (!e.venueName || isGenericVenue(e.venueName)) return false;
+          if (Math.abs(e.startDate.getTime() - incomingTime) > TIME_WINDOW_MS) return false;
+          if (!isVenueFuzzyMatch(event.venueName!, e.venueName)) return false;
+          const existingTokens = tokenize(e.title);
+          const minSize = Math.min(incomingTokens.size, existingTokens.size);
+          if (minSize === 0) return false;
+          let shared = 0;
+          for (const t of incomingTokens) {
+            if (existingTokens.has(t)) shared++;
+          }
+          return shared / minSize >= 0.5 && !areLikelyDifferentEvents(incomingTokens, existingTokens);
+        });
+        if (sameTimeVenueMatch) {
+          console.log(`[${slug}] Same-time+venue duplicate: "${event.title}" ≈ "${sameTimeVenueMatch.title}" at ${event.venueName}`);
+          await enrichExisting(sameTimeVenueMatch.id, sameTimeVenueMatch.sourceUrl, sameTimeVenueMatch.imageUrl, sameTimeVenueMatch.description);
+          continue;
+        }
+      }
+
       // Venue + partial-title match: same venue on the same SF day with ≥2 shared tokens.
       // Catches cases where titles diverge (e.g. one source adds an opening act) but the
       // event is clearly the same based on venue + key artist/name tokens.
@@ -402,8 +431,10 @@ export async function runScraper(
     // Geocode
     const geo = await geocodeEvent(event);
 
-    // Categorize
-    const category = await categorizeEvent(event);
+    // Categorize — use pre-assigned category if the scraper provided one
+    const category = event.category
+      ? (event.category as import("@prisma/client").EventCategory)
+      : await categorizeEvent(event);
 
     // Upsert
     try {
@@ -442,6 +473,7 @@ export async function runScraper(
           imageUrl: event.imageUrl ?? null,
           venueName: event.venueName ?? null,
           description: event.description ?? null,
+          startDate: event.startDate,
         });
       }
     } catch (err: any) {

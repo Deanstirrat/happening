@@ -14,11 +14,10 @@ export async function GET(req: NextRequest) {
   // Extract search early so it can influence the date window
   const search = p.get("search") ?? "";
 
-  // Default lower bound: today in SF timezone. When searching, drop the lower
-  // bound so results aren't limited to upcoming events.
+  // Default lower bound: today in SF timezone.
   const windowStart = p.get("startDate")
     ? sfDayStart(p.get("startDate")!)
-    : search ? null : sfMidnightToday;
+    : sfMidnightToday;
   const windowEnd = p.get("endDate")
     ? sfDayEnd(p.get("endDate")!)
     : endOfDay(addDays(now, 30));

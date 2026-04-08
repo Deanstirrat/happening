@@ -15,6 +15,7 @@ const CATEGORIES = [
   "ART_GALLERY",
   "ART_PERFORMANCE",
   "COMEDY",
+  "TRIVIA_BINGO",
   "FOOD_DRINK",
   "NIGHTLIFE",
   "COMMUNITY",
@@ -33,7 +34,7 @@ const CATEGORIES = [
 const GENERIC_SOURCE_TAGS = new Set(["punk", "rock", "diy"]);
 
 const CATEGORY_PROMPT = `Categorize the following SF Bay Area event into exactly one category from this list:
-MUSIC_ELECTRONIC, MUSIC_ROCK_PUNK, MUSIC_JAZZ_BLUES, MUSIC_HIPHOP, MUSIC_RNB_SOUL, MUSIC_CLASSICAL, MUSIC_OTHER, ART_GALLERY, ART_PERFORMANCE, COMEDY, FOOD_DRINK, NIGHTLIFE, COMMUNITY, TECH, TALKS_LECTURES, SPORTS_FITNESS, FILM, THEATER, OUTDOOR, FAMILY, OTHER
+MUSIC_ELECTRONIC, MUSIC_ROCK_PUNK, MUSIC_JAZZ_BLUES, MUSIC_HIPHOP, MUSIC_RNB_SOUL, MUSIC_CLASSICAL, MUSIC_OTHER, ART_GALLERY, ART_PERFORMANCE, COMEDY, TRIVIA_BINGO, FOOD_DRINK, NIGHTLIFE, COMMUNITY, TECH, TALKS_LECTURES, SPORTS_FITNESS, FILM, THEATER, OUTDOOR, FAMILY, OTHER
 
 Category guidance:
 - MUSIC_ELECTRONIC: techno, house, ambient, EDM, industrial, synthwave, EBM, darkwave, noise, DJ sets
@@ -47,6 +48,7 @@ Category guidance:
 - ART_PERFORMANCE: dance performances, circus, spoken word, immersive art, variety shows
 - THEATER: plays, musicals, improv, stand-up comedy shows at theaters, magic shows
 - COMEDY: comedy showcases, open mics, stand-up shows at bars/clubs
+- TRIVIA_BINGO: pub trivia nights, bar trivia, bingo nights, trivia competitions
 - COMMUNITY: neighborhood events, social mixers, networking, activism, markets, volunteer events
 - TECH: tech talks, hackathons, startup events, software/hardware demos
 - TALKS_LECTURES: talks, lectures, panels, cocktail-hour educational events (Nerd Nite, Curiosity Guild, Profs & Pints, Science on Tap), author readings, public lectures, history tours, astronomy events, science outreach

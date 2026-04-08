@@ -46,6 +46,36 @@ export function isFuzzyMatch(a: Set<string>, b: Set<string>): boolean {
   return jaccard >= FUZZY_THRESHOLD || containment >= CONTAINMENT_THRESHOLD;
 }
 
+/**
+ * Returns true if two venue name strings refer to the same venue.
+ * Uses token-based matching: matches if one token set is fully contained in
+ * the other, or if Jaccard similarity ≥ 0.5 with at least 1 shared token.
+ * Handles cases like "Public Works" vs "Public Works SF".
+ */
+export function isVenueFuzzyMatch(a: string, b: string): boolean {
+  const tokenizeVenue = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+  const tokA = tokenizeVenue(a);
+  const tokB = tokenizeVenue(b);
+  if (tokA.length === 0 || tokB.length === 0) return false;
+  const setA = new Set(tokA);
+  const setB = new Set(tokB);
+  let intersection = 0;
+  for (const t of setA) {
+    if (setB.has(t)) intersection++;
+  }
+  if (intersection === 0) return false;
+  // Full containment: smaller set is entirely within the larger
+  if (intersection === Math.min(setA.size, setB.size)) return true;
+  // Partial match: Jaccard ≥ 0.5
+  const union = setA.size + setB.size - intersection;
+  return intersection / union >= 0.5;
+}
+
 // Keep the old export for any external callers.
 export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 1;

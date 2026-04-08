@@ -229,18 +229,19 @@ export async function runScraper(
 
   // Load blocklist once for this run
   const blocklist = await prisma.eventBlocklist.findMany({
-    select: { dedupeHash: true, sourceUrl: true },
+    select: { dedupeHash: true, sourceUrl: true, title: true },
   });
   const blockedHashes = new Set(blocklist.map((b) => b.dedupeHash).filter(Boolean) as string[]);
   const blockedUrls = new Set(blocklist.map((b) => b.sourceUrl).filter(Boolean) as string[]);
+  const blockedTitles = new Set(blocklist.map((b) => b.title.toLowerCase().trim()));
 
   let inserted = 0;
 
   for (const event of events) {
     const dedupeHash = scraper.computeDedupeHash(event);
 
-    // Skip blocklisted events
-    if (blockedHashes.has(dedupeHash) || blockedUrls.has(event.sourceUrl)) {
+    // Skip blocklisted events (by hash, URL, or title)
+    if (blockedHashes.has(dedupeHash) || blockedUrls.has(event.sourceUrl) || blockedTitles.has(event.title.toLowerCase().trim())) {
       console.log(`[${slug}] Blocked: "${event.title}"`);
       continue;
     }

@@ -7,7 +7,7 @@ import AdminNav from "../_components/AdminNav";
 import VisitorLineChart from "./VisitorLineChart";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; window?: string }>;
+  searchParams: Promise<{ secret?: string; window?: string; chartWin?: string }>;
 }
 
 function windowLabel(w: string) {
@@ -17,7 +17,8 @@ function windowLabel(w: string) {
 }
 
 export default async function MetricsPage({ searchParams }: Props) {
-  const { secret, window: win = "7" } = await searchParams;
+  const { secret, window: win = "7", chartWin = "48" } = await searchParams;
+  const chartHours = chartWin === "24" ? 24 : chartWin === "168" ? 168 : 48;
 
   if (!secret || secret !== process.env.SCRAPE_SECRET) {
     return (
@@ -30,8 +31,8 @@ export default async function MetricsPage({ searchParams }: Props) {
   const windowDays = win === "all" ? null : win === "30" ? 30 : 7;
   const since = windowDays ? new Date(Date.now() - windowDays * 86400_000) : null;
 
-  // Fetch page visits (windowed) + last 48h by hour for chart
-  const chart48Start = subHours(startOfHour(new Date()), 47);
+  // Fetch page visits (windowed) + chart window by hour
+  const chartStart = subHours(startOfHour(new Date()), chartHours - 1);
 
   const [featuredEvents, windowVisits, chartVisits] = await Promise.all([
     prisma.event.findMany({
@@ -55,7 +56,7 @@ export default async function MetricsPage({ searchParams }: Props) {
       select: { sessionId: true, createdAt: true },
     }),
     prisma.pageVisit.findMany({
-      where: { createdAt: { gte: chart48Start } },
+      where: { createdAt: { gte: chartStart } },
       select: { sessionId: true, createdAt: true },
     }),
   ]);
@@ -79,10 +80,10 @@ export default async function MetricsPage({ searchParams }: Props) {
   const daysInWindow = windowDays ?? Math.max(1, Math.ceil((Date.now() - (windowVisits[windowVisits.length - 1]?.createdAt.getTime() ?? Date.now())) / 86400_000));
   const avgDaily = windowDays ? (totalVisits / windowDays).toFixed(1) : (totalVisits / Math.max(1, daysInWindow)).toFixed(1);
 
-  // 48-hour hourly chart data
+  // Hourly chart data for selected window
   const hourlyMap = new Map<string, { visits: number; uniqueSessions: Set<string> }>();
-  for (let i = 0; i < 48; i++) {
-    const h = subHours(startOfHour(new Date()), 47 - i);
+  for (let i = 0; i < chartHours; i++) {
+    const h = subHours(startOfHour(new Date()), chartHours - 1 - i);
     hourlyMap.set(h.toISOString(), { visits: 0, uniqueSessions: new Set() });
   }
   for (const v of chartVisits) {
@@ -93,7 +94,7 @@ export default async function MetricsPage({ searchParams }: Props) {
       entry.uniqueSessions.add(v.sessionId);
     }
   }
-  const chartHours = Array.from(hourlyMap.entries()).map(([hour, data]) => ({
+  const chartData = Array.from(hourlyMap.entries()).map(([hour, data]) => ({
     hour,
     visits: data.visits,
     unique: data.uniqueSessions.size,
@@ -150,10 +151,30 @@ export default async function MetricsPage({ searchParams }: Props) {
           ))}
         </div>
 
-        {/* 48-hour line chart */}
+        {/* Chart with interval tabs */}
         <div className="bg-surface-container rounded-2xl p-5">
-          <p className="font-body text-xs text-on-surface-variant mb-2">visits by hour — last 48 hours</p>
-          <VisitorLineChart data={chartHours} label="" />
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-body text-xs text-on-surface-variant">
+              visits by hour —{" "}
+              {chartWin === "24" ? "last 24 hours" : chartWin === "168" ? "last 7 days" : "last 48 hours"}
+            </p>
+            <div className="flex gap-1 bg-surface-container-high rounded-lg p-0.5">
+              {(["24", "48", "168"] as const).map((v) => (
+                <Link
+                  key={v}
+                  href={`${base}&chartWin=${v}`}
+                  className={`px-2.5 py-1 rounded-md font-body text-[11px] transition-colors ${
+                    chartWin === v
+                      ? "bg-surface-container-highest text-on-surface font-semibold"
+                      : "text-on-surface-variant hover:text-on-surface"
+                  }`}
+                >
+                  {v === "168" ? "7d" : `${v}h`}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <VisitorLineChart data={chartData} xLabelStep={chartWin === "168" ? 24 : 6} />
         </div>
       </section>
 

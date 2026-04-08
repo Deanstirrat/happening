@@ -11,7 +11,7 @@ interface HourlyPoint {
 
 interface Props {
   data: HourlyPoint[];
-  label: string;
+  xLabelStep?: number; // show an x-axis label every N hours (default 6)
 }
 
 function smoothPath(pts: [number, number][]): string {
@@ -26,7 +26,7 @@ function smoothPath(pts: [number, number][]): string {
   return d;
 }
 
-export default function VisitorLineChart({ data, label }: Props) {
+export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 160 });
   const [tooltip, setTooltip] = useState<{
@@ -72,12 +72,12 @@ export default function VisitorLineChart({ data, label }: Props) {
     Math.round((yTop / yTickCount) * i)
   );
 
-  // X-axis labels — show every 6 hours
+  // X-axis labels — show every xLabelStep hours
   const xLabels = data
     .map((d, i) => ({ i, d }))
     .filter(({ d }) => {
       const h = new Date(d.hour).getHours();
-      return h % 6 === 0;
+      return h % xLabelStep === 0;
     });
 
   const hoverRadius = W / data.length / 2;
@@ -229,10 +229,6 @@ export default function VisitorLineChart({ data, label }: Props) {
         </div>
       )}
 
-      {/* Chart label */}
-      <p className="absolute bottom-0 left-9 font-body text-[10px] text-on-surface-variant/50">
-        {label}
-      </p>
     </div>
   );
 }

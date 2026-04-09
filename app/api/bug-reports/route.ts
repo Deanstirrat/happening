@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
-  const { description, pageUrl, userAgent } = await req.json();
+  const { description, email, pageUrl, userAgent } = await req.json();
 
   if (!description?.trim()) {
     return NextResponse.json({ error: "Description required" }, { status: 400 });
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   const report = await prisma.bugReport.create({
     data: {
       description: description.trim(),
+      email: email?.trim() || null,
       pageUrl: pageUrl ?? null,
       userAgent: userAgent ?? null,
     },

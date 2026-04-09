@@ -12,6 +12,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Image as ImageIcon,
+  Calendar,
+  Clock,
+  MapPin,
 } from "lucide-react";
 import type { ExtractedEvent } from "@/lib/extract";
 
@@ -114,6 +117,32 @@ function toTimePickerValue(timeRaw: string): string {
     return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
   }
   return "";
+}
+
+// ─── Display formatters (for preview card) ────────────────────────────────────
+
+function formatDateForDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  // dateStr is YYYY-MM-DD from the date picker
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  // Construct in local time to avoid UTC midnight → prev-day shift
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatTimeForDisplay(timeStr: string): string {
+  if (!timeStr) return "";
+  // timeStr is HH:MM from the time picker
+  const [h, min] = timeStr.split(":").map(Number);
+  if (h === undefined || min === undefined) return "";
+  const date = new Date(2000, 0, 1, h, min);
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -353,7 +382,6 @@ export default function SubmitWizard() {
     return (
       <PreviewStep
         form={form}
-        setField={setField}
         submitting={submitting}
         submitResult={submitResult}
         onSubmit={handleSubmit}
@@ -532,7 +560,6 @@ function ImportStep({
 
 function PreviewStep({
   form,
-  setField,
   submitting,
   submitResult,
   onSubmit,
@@ -540,13 +567,19 @@ function PreviewStep({
   onBack,
 }: {
   form: FormState;
-  setField: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
   submitting: boolean;
   submitResult: { type: "success" | "duplicate" | "error"; message: string } | null;
   onSubmit: () => void;
   onEditMore: () => void;
   onBack: () => void;
 }) {
+  const dateDisplay = formatDateForDisplay(form.dateRaw);
+  const timeDisplay = formatTimeForDisplay(form.timeRaw);
+  const tags = form.tags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
@@ -560,85 +593,89 @@ function PreviewStep({
           Back
         </button>
         <span className="font-body text-xs text-on-surface-variant uppercase tracking-widest">
-          Smart Preview
+          Preview
         </span>
         <div className="w-16" />
       </div>
 
-      {/* Image */}
-      {form.imageUrl && (
-        <img
-          src={form.imageUrl}
-          alt="Event"
-          className="w-full max-h-72 object-cover rounded-2xl"
-        />
-      )}
-
-      {/* Editable fields card */}
-      <div className="bg-surface-container-low rounded-2xl p-5 flex flex-col gap-4">
-        <PreviewField
-          label="Event name"
-          value={form.title}
-          placeholder="Event title"
-          required
-          onChange={(v) => setField("title", v)}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <PreviewField
-            label="Date"
-            value={form.dateRaw}
-            placeholder=""
-            required
-            type="date"
-            onChange={(v) => setField("dateRaw", v)}
+      {/* Event card — mirrors the real listing */}
+      <div className="bg-surface-container-low rounded-2xl overflow-hidden flex flex-col">
+        {form.imageUrl && (
+          <img
+            src={form.imageUrl}
+            alt="Event"
+            className="w-full max-h-72 object-cover"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
-          <PreviewField
-            label="Time"
-            value={form.timeRaw}
-            placeholder=""
-            type="time"
-            onChange={(v) => setField("timeRaw", v)}
-          />
-        </div>
-        <PreviewField
-          label="Venue"
-          value={form.venueName}
-          placeholder="Venue name"
-          onChange={(v) => setField("venueName", v)}
-        />
-        <PreviewField
-          label="Address"
-          value={form.venueAddress}
-          placeholder="Street address"
-          onChange={(v) => setField("venueAddress", v)}
-        />
-        <PreviewField
-          label="Price"
-          value={form.price}
-          placeholder="e.g. $15, Free, PWYW"
-          onChange={(v) => setField("price", v)}
-        />
-        {form.tags && (
-          <div>
-            <span className="font-body text-xs text-on-surface-variant uppercase tracking-widest">
-              Tags
-            </span>
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {form.tags
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean)
-                .map((tag) => (
-                  <span
-                    key={tag}
-                    className="font-body text-xs bg-surface-container px-2.5 py-1 rounded-full text-on-surface-variant"
-                  >
-                    {tag}
-                  </span>
-                ))}
-            </div>
-          </div>
         )}
+
+        <div className="p-5 flex flex-col gap-4">
+          {/* Title */}
+          <h2 className="font-display text-2xl font-bold text-on-surface leading-tight">
+            {form.title || <span className="text-on-surface-variant italic">Untitled Event</span>}
+          </h2>
+
+          {/* Date / time */}
+          <div className="flex flex-col gap-1.5">
+            {dateDisplay ? (
+              <div className="flex items-center gap-2 font-body text-sm text-on-surface-variant">
+                <Calendar size={14} className="shrink-0" />
+                {dateDisplay}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 font-body text-sm text-on-surface-variant/50 italic">
+                <Calendar size={14} className="shrink-0" />
+                No date set
+              </div>
+            )}
+            {timeDisplay && (
+              <div className="flex items-center gap-2 font-body text-sm text-on-surface-variant">
+                <Clock size={14} className="shrink-0" />
+                {timeDisplay}
+              </div>
+            )}
+          </div>
+
+          {/* Venue */}
+          {(form.venueName || form.venueAddress) && (
+            <div className="flex items-start gap-2 font-body text-sm text-on-surface-variant">
+              <MapPin size={14} className="shrink-0 mt-0.5" />
+              <span>
+                {form.venueName}
+                {form.venueName && form.venueAddress && " · "}
+                {form.venueAddress}
+              </span>
+            </div>
+          )}
+
+          {/* Price */}
+          {(form.price || form.isFree) && (
+            <span className="font-body text-sm font-semibold text-on-surface">
+              {form.isFree ? "Free" : form.price}
+            </span>
+          )}
+
+          {/* Description */}
+          {form.description && (
+            <p className="font-body text-sm text-on-surface-variant leading-relaxed">
+              {form.description}
+            </p>
+          )}
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="font-body text-xs bg-surface-container px-2.5 py-1 rounded-full text-on-surface-variant"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Result message */}
@@ -680,41 +717,9 @@ function PreviewStep({
           onClick={onEditMore}
           className="font-body text-sm text-on-surface-variant hover:text-on-surface transition-colors text-center"
         >
-          Edit more details
+          Edit details
         </button>
       </div>
-    </div>
-  );
-}
-
-function PreviewField({
-  label,
-  value,
-  placeholder,
-  required,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  required?: boolean;
-  onChange: (v: string) => void;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="font-body text-xs text-on-surface-variant uppercase tracking-widest mb-1 block">
-        {label}
-        {required && <span className="text-[#ef4444] ml-1">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        {...(type === "text" ? { placeholder } : {})}
-        className="w-full bg-surface-container text-on-surface text-sm px-3 py-2 rounded-lg outline-none focus:bg-surface-container-high placeholder:text-on-surface-variant font-body transition-colors"
-      />
     </div>
   );
 }

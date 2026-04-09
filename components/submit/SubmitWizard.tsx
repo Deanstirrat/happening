@@ -76,11 +76,52 @@ const CATEGORY_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ];
 
+// ─── Date/time conversion helpers ────────────────────────────────────────────
+
+function toDatePickerValue(dateRaw: string): string {
+  if (!dateRaw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) return dateRaw;
+  const MONTHS: Record<string, number> = {
+    jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+    jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+  };
+  const match = dateRaw.match(
+    /(?:(?:mon|tue|wed|thu|fri|sat|sun)\w*[\s,]+)?(\w+)\s+(\d{1,2})(?:[,\s]+(\d{4}))?/i
+  );
+  if (match) {
+    const monthKey = match[1].slice(0, 3).toLowerCase();
+    const month = MONTHS[monthKey];
+    const day = parseInt(match[2]);
+    const year = match[3] ? parseInt(match[3]) : new Date().getFullYear();
+    if (month && day) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
+function toTimePickerValue(timeRaw: string): string {
+  if (!timeRaw) return "";
+  if (/^\d{2}:\d{2}$/.test(timeRaw)) return timeRaw;
+  const start = timeRaw.split(/\s*[-–—]\s*/)[0].trim();
+  const match = start.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (match) {
+    let hours = parseInt(match[1]);
+    const mins = parseInt(match[2] ?? "0");
+    const meridiem = match[3]?.toLowerCase();
+    if (meridiem === "pm" && hours !== 12) hours += 12;
+    if (meridiem === "am" && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+  }
+  return "";
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function SubmitWizard() {
   const [step, setStep] = useState<Step>("import");
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [cameFromDetails, setCameFromDetails] = useState(false);
 
   // Import step state
   const [urlInput, setUrlInput] = useState("");
@@ -113,8 +154,8 @@ export default function SubmitWizard() {
     setForm((prev) => ({
       ...prev,
       title: data.title ?? prev.title,
-      dateRaw: data.dateRaw ?? prev.dateRaw,
-      timeRaw: data.timeRaw ?? prev.timeRaw,
+      dateRaw: data.dateRaw ? (toDatePickerValue(data.dateRaw) || data.dateRaw) : prev.dateRaw,
+      timeRaw: data.timeRaw ? (toTimePickerValue(data.timeRaw) || data.timeRaw) : prev.timeRaw,
       venueName: data.venueName ?? prev.venueName,
       venueAddress: data.venueAddress ?? prev.venueAddress,
       price: data.price ?? prev.price,
@@ -272,6 +313,7 @@ export default function SubmitWizard() {
   function reset() {
     setStep("import");
     setForm(EMPTY);
+    setCameFromDetails(false);
     setUrlInput("");
     setFlyerFile(null);
     setFlyerPreview(null);
@@ -316,7 +358,7 @@ export default function SubmitWizard() {
         submitResult={submitResult}
         onSubmit={handleSubmit}
         onEditMore={() => setStep("details")}
-        onBack={() => setStep("import")}
+        onBack={() => (cameFromDetails ? setStep("details") : setStep("import"))}
       />
     );
   }
@@ -333,11 +375,9 @@ export default function SubmitWizard() {
       uploading={uploading}
       imageRef={imageRef}
       onImageFileSelect={handleImageFileSelect}
-      submitting={submitting}
-      submitResult={submitResult}
-      onSubmit={handleSubmit}
-      onBack={() => (flyerFile || urlInput ? setStep("preview") : setStep("import"))}
-      fromPreview={!!(flyerFile || urlInput)}
+      onGoToPreview={() => { setCameFromDetails(true); setStep("preview"); }}
+      onBack={() => (flyerFile || urlInput || cameFromDetails ? setStep("preview") : setStep("import"))}
+      fromPreview={!!(flyerFile || urlInput || cameFromDetails)}
     />
   );
 }
@@ -547,14 +587,16 @@ function PreviewStep({
           <PreviewField
             label="Date"
             value={form.dateRaw}
-            placeholder="e.g. April 5, 2026"
+            placeholder=""
             required
+            type="date"
             onChange={(v) => setField("dateRaw", v)}
           />
           <PreviewField
             label="Time"
             value={form.timeRaw}
-            placeholder="e.g. 9pm – 2am"
+            placeholder=""
+            type="time"
             onChange={(v) => setField("timeRaw", v)}
           />
         </div>
@@ -628,7 +670,7 @@ function PreviewStep({
             </>
           ) : (
             <>
-              Looks good
+              Submit for Review
               <ArrowRight size={15} />
             </>
           )}
@@ -651,12 +693,14 @@ function PreviewField({
   placeholder,
   required,
   onChange,
+  type = "text",
 }: {
   label: string;
   value: string;
   placeholder: string;
   required?: boolean;
   onChange: (v: string) => void;
+  type?: string;
 }) {
   return (
     <div>
@@ -665,10 +709,10 @@ function PreviewField({
         {required && <span className="text-[#ef4444] ml-1">*</span>}
       </label>
       <input
-        type="text"
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        {...(type === "text" ? { placeholder } : {})}
         className="w-full bg-surface-container text-on-surface text-sm px-3 py-2 rounded-lg outline-none focus:bg-surface-container-high placeholder:text-on-surface-variant font-body transition-colors"
       />
     </div>
@@ -687,9 +731,7 @@ function DetailsStep({
   uploading,
   imageRef,
   onImageFileSelect,
-  submitting,
-  submitResult,
-  onSubmit,
+  onGoToPreview,
   onBack,
   fromPreview,
 }: {
@@ -702,9 +744,7 @@ function DetailsStep({
   uploading: boolean;
   imageRef: React.RefObject<HTMLInputElement | null>;
   onImageFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  submitting: boolean;
-  submitResult: { type: "success" | "duplicate" | "error"; message: string } | null;
-  onSubmit: () => void;
+  onGoToPreview: () => void;
   onBack: () => void;
   fromPreview: boolean;
 }) {
@@ -759,20 +799,18 @@ function DetailsStep({
         <div className="grid grid-cols-2 gap-4">
           <Field label="Date" required>
             <input
-              type="text"
+              type="date"
               value={form.dateRaw}
               onChange={(e) => setField("dateRaw", e.target.value)}
-              placeholder="e.g. April 5, 2026"
               required
               className="input-field"
             />
           </Field>
           <Field label="Time">
             <input
-              type="text"
+              type="time"
               value={form.timeRaw}
               onChange={(e) => setField("timeRaw", e.target.value)}
-              placeholder="e.g. 9pm – 2am"
               className="input-field"
             />
           </Field>
@@ -938,34 +976,14 @@ function DetailsStep({
         </Field>
       </div>
 
-      {/* Result message */}
-      {submitResult && submitResult.type !== "success" && (
-        <div
-          className={`flex items-start gap-3 p-4 rounded-xl font-body text-sm ${
-            submitResult.type === "duplicate"
-              ? "bg-[#f59e0b]/10 text-[#f59e0b]"
-              : "bg-[#ef4444]/10 text-[#ef4444]"
-          }`}
-        >
-          <AlertCircle size={16} className="shrink-0 mt-0.5" />
-          {submitResult.message}
-        </div>
-      )}
-
       <button
         type="button"
-        onClick={onSubmit}
-        disabled={!form.title || !form.dateRaw || submitting || uploading}
+        onClick={onGoToPreview}
+        disabled={!form.title || !form.dateRaw || uploading}
         className="font-body text-sm font-semibold px-6 py-3 rounded-full bg-on-surface text-surface hover:opacity-90 transition-opacity disabled:opacity-40 self-start flex items-center gap-2"
       >
-        {submitting ? (
-          <>
-            <Loader size={14} className="animate-spin" />
-            Submitting...
-          </>
-        ) : (
-          "Publish Event"
-        )}
+        Preview Event
+        <ArrowRight size={15} />
       </button>
 
       <style jsx>{`

@@ -47,7 +47,7 @@ export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null
   const startTime = timeRaw ? startTimeOnly(timeRaw) : null;
   const combined = startTime ? `${dateRaw} ${startTime}` : null;
 
-  const timeSuffixes = ["h:mma", "h:mm a", "ha", "h a"];
+  const timeSuffixes = ["h:mma", "h:mm a", "ha", "h a", "HH:mm", "h:mm"];
 
   for (const fmt of DATE_FORMATS) {
     const attempts = [

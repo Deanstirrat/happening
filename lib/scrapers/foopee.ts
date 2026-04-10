@@ -5,6 +5,11 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 
 const BASE = "http://www.foopee.com/punk/the-list/";
 
+// Known venue name corrections for foopee's HTML (which sometimes has typos)
+const VENUE_NAME_CORRECTIONS: Record<string, string> = {
+  "rickshaw shop": "Rickshaw Stop",
+};
+
 /**
  * Foopee Punk List — http://www.foopee.com/punk/the-list/
  *
@@ -84,6 +89,12 @@ export class FoopeeScraper extends BaseScraper {
           .filter(Boolean);
 
         if (!bands.length) return;
+
+        // Apply venue name corrections for known foopee typos
+        const correctedVenueName = venueName
+          ? (VENUE_NAME_CORRECTIONS[venueName.toLowerCase()] ?? venueName)
+          : venueName;
+
         // Use first band as title; put full lineup in description when there are multiple
         const title = bands[0];
         const description =
@@ -106,7 +117,7 @@ export class FoopeeScraper extends BaseScraper {
           title,
           description,
           startDate: sfDateFromLocal(year, month, day, 19, 0),
-          venueName: venueName || undefined,
+          venueName: correctedVenueName || undefined,
           price,
           isFree,
           sourceUrl,

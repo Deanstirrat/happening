@@ -1,32 +1,22 @@
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
-import { createHash } from "crypto";
 import { prisma } from "../lib/prisma";
 import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, MIN_TOKENS } from "../lib/fuzzy";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const LOW_QUALITY_DOMAINS = ["foopee.com", "19hz.info"];
 
-function computeHash(startDate: Date, title: string): string {
-  const dateStr = startDate.toISOString().slice(0, 10);
-  const normalizedTitle = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return createHash("sha256").update(`${dateStr}::${normalizedTitle}`).digest("hex");
-}
-
 async function main() {
   console.log(`Mode: ${DRY_RUN ? "DRY RUN (no writes)" : "LIVE"}\n`);
 
   const events = await prisma.event.findMany({
-    select: { id: true, title: true, startDate: true, imageUrl: true, sourceUrl: true, dedupeHash: true },
+    where: { status: { not: "ARCHIVED" } },
+    select: { id: true, title: true, startDate: true, imageUrl: true, sourceUrl: true, dedupeHash: true, venueName: true },
   });
   console.log(`Loaded ${events.length} events`);
 
-  // Group by calendar date
+  // Group by calendar date (UTC)
   const byDate = new Map<string, typeof events>();
   for (const event of events) {
     const dateKey = event.startDate.toISOString().slice(0, 10);
@@ -48,28 +38,61 @@ async function main() {
 
   let pairsChecked = 0;
   let fuzzyHits = 0;
+  let containmentHits = 0;
+
+  const normVenue = (s: string) => (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
   for (const [, group] of byDate) {
     if (group.length < 2) continue;
 
     for (let i = 0; i < group.length; i++) {
       const tokensI = tokenize(group[i].title);
-      if (tokensI.size < MIN_TOKENS) continue;
 
       for (let j = i + 1; j < group.length; j++) {
         pairsChecked++;
         const tokensJ = tokenize(group[j].title);
-        if (tokensJ.size < MIN_TOKENS) continue;
 
-        if (isFuzzyMatch(tokensI, tokensJ) && !areLikelyDifferentEvents(tokensI, tokensJ)) {
+        // Standard fuzzy match (requires MIN_TOKENS on both sides)
+        if (
+          tokensI.size >= MIN_TOKENS &&
+          tokensJ.size >= MIN_TOKENS &&
+          isFuzzyMatch(tokensI, tokensJ) &&
+          !areLikelyDifferentEvents(tokensI, tokensJ)
+        ) {
           union(group[i].id, group[j].id);
           fuzzyHits++;
+          continue;
+        }
+
+        // Token-containment check: handles short headliner titles (1-2 tokens) like single-word
+        // band names where the shorter title's tokens are fully contained in the longer title.
+        // E.g. "Goh" (1 token) vs "Goh, Ingrata, Sissy Fit, Fatale" (5 tokens).
+        // Requires same normalized venue to avoid false positives across different events.
+        const shorterSize = Math.min(tokensI.size, tokensJ.size);
+        if (shorterSize >= 1 && shorterSize <= 2) {
+          const [shorter, longer] = tokensI.size <= tokensJ.size
+            ? [tokensI, tokensJ]
+            : [tokensJ, tokensI];
+
+          let allContained = true;
+          for (const t of shorter) {
+            if (!longer.has(t)) { allContained = false; break; }
+          }
+
+          if (allContained && !areLikelyDifferentEvents(shorter, longer)) {
+            const vI = normVenue(group[i].venueName ?? "");
+            const vJ = normVenue(group[j].venueName ?? "");
+            if (vI && vI === vJ) {
+              union(group[i].id, group[j].id);
+              containmentHits++;
+            }
+          }
         }
       }
     }
   }
 
-  console.log(`Pairs checked: ${pairsChecked}, fuzzy hits: ${fuzzyHits}\n`);
+  console.log(`Pairs checked: ${pairsChecked}, fuzzy hits: ${fuzzyHits}, containment hits: ${containmentHits}\n`);
 
   // Build duplicate groups
   const groups = new Map<string, typeof events>();
@@ -83,7 +106,7 @@ async function main() {
   const duplicateGroups = [...groups.values()].filter((g) => g.length > 1);
   console.log(`Duplicate groups found: ${duplicateGroups.length}`);
 
-  let totalDeleted = 0;
+  let totalArchived = 0;
   let totalMerged = 0;
 
   for (const group of duplicateGroups) {
@@ -106,18 +129,19 @@ async function main() {
     console.log(`\n  Group (keeping "${winner.title}"):\n    ${titles}`);
 
     if (!DRY_RUN) {
-      await prisma.event.deleteMany({ where: { id: { in: losers.map((e) => e.id) } } });
-      const newHash = computeHash(winner.startDate, winner.title);
-      await prisma.event.update({ where: { id: winner.id }, data: { dedupeHash: newHash } });
+      await prisma.event.updateMany({
+        where: { id: { in: losers.map((e) => e.id) } },
+        data: { status: "ARCHIVED" },
+      });
     }
 
-    totalDeleted += losers.length;
+    totalArchived += losers.length;
     totalMerged++;
   }
 
   console.log(`\nSummary:`);
   console.log(`  ${totalMerged} duplicate groups resolved`);
-  console.log(`  ${totalDeleted} events ${DRY_RUN ? "would be" : ""} deleted`);
+  console.log(`  ${totalArchived} events ${DRY_RUN ? "would be" : ""} archived`);
 
   await prisma.$disconnect();
 }

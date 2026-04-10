@@ -88,7 +88,7 @@ export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
 }
 
 // Words that indicate different time-slots of the same recurring event.
-const TIME_SLOT_WORDS = new Set(["early", "late", "morning", "afternoon", "evening", "night"]);
+const TIME_SLOT_WORDS = new Set(["early", "late", "morning", "afternoon", "evening", "night", "matinee"]);
 
 // Generic filler words that one source appends but another omits — not meaningful differentiators.
 const GENERIC_DISAMBIG_WORDS = new Set(["more", "djs"]);

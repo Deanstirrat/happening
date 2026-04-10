@@ -101,6 +101,7 @@ import { AssemblePuzzleryScraper } from "./assemblepuzzlery";
 import { UcTheatreScraper } from "./uctheatre";
 import { GreatStarTheaterScraper } from "./greatstartheater";
 import { UsfcaScraper } from "./usfca";
+import { TixrScraper } from "./tixr";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
@@ -132,6 +133,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   uctheatre: new UcTheatreScraper(),
   greatstartheater: new GreatStarTheaterScraper(),
   usfca: new UsfcaScraper(),
+  tixr: new TixrScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

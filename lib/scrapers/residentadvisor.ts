@@ -14,6 +14,14 @@ const SF_AREA_ID = 218; // San Francisco/Oakland
 const PAGE_SIZE = 50;
 const MAX_PAGES = 5;
 
+// Bounding box for the greater SF Bay Area
+const BAY_AREA_BOUNDS = {
+  latMin: 36.9,
+  latMax: 38.9,
+  lngMin: -123.2,
+  lngMax: -121.5,
+};
+
 const EVENT_LISTINGS_QUERY = `
   query GetEventListings($filters: FilterInputDtoInput, $pageSize: Int, $page: Int) {
     eventListings(filters: $filters, pageSize: $pageSize, page: $page) {
@@ -126,6 +134,22 @@ export class ResidentAdvisorScraper extends BaseScraper {
               .slice(0, 1000) || undefined
           : undefined;
 
+        const lat: number | undefined = ev.venue?.location?.latitude ?? undefined;
+        const lng: number | undefined = ev.venue?.location?.longitude ?? undefined;
+
+        // Drop events whose venue falls outside the Bay Area — RA's area filter is leaky
+        if (
+          lat !== undefined &&
+          lng !== undefined &&
+          (lat < BAY_AREA_BOUNDS.latMin ||
+            lat > BAY_AREA_BOUNDS.latMax ||
+            lng < BAY_AREA_BOUNDS.lngMin ||
+            lng > BAY_AREA_BOUNDS.lngMax)
+        ) {
+          console.warn(`[residentadvisor] skipping out-of-area event "${ev.title}" (${lat}, ${lng})`);
+          continue;
+        }
+
         events.push({
           externalId: String(ev.id),
           title: ev.title,
@@ -134,8 +158,8 @@ export class ResidentAdvisorScraper extends BaseScraper {
           endDate,
           venueName: ev.venue?.name,
           venueAddress: ev.venue?.address || undefined,
-          latitude: ev.venue?.location?.latitude ?? undefined,
-          longitude: ev.venue?.location?.longitude ?? undefined,
+          latitude: lat,
+          longitude: lng,
           price: costStr,
           isFree: !costStr || costStr.toLowerCase().includes("free"),
           imageUrl,

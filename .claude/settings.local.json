@@ -90,7 +90,11 @@
       "Bash(/opt/homebrew/opt/libpq/bin/psql \"postgresql://postgres:jpqrnbUxwbqvmpmWtcBNBjRWXaamTFEd@crossover.proxy.rlwy.net:17451/railway\" -c \":*)",
       "Bash(npx vercel:*)",
       "Bash(ls *.json)",
-      "Bash(ls /Users/deanstirrat/Desktop/side_projects/happening/.env*)"
+      "Bash(ls /Users/deanstirrat/Desktop/side_projects/happening/.env*)",
+      "WebFetch(domain:www.theuctheatre.org)",
+      "WebFetch(domain:www.greatstartheater.org)",
+      "Read(//Users/deanstirrat/.nvm/versions/node/**)",
+      "Bash(volta --version)"
     ]
   }
 }

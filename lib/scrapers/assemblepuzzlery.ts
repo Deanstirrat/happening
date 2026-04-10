@@ -7,16 +7,13 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 /**
  * Assemble Puzzlery — assemblepuzzlery.com/pages/events
  *
- * Shopify Dawn theme with an unstructured rich-text events page.
- * Events are listed under month headings (h1) with each event as:
- *   <h2>Event Title @Venue Name</h2>
- *   <p>Wednesday April 8</p>
- *   <p>6-9pm</p>
+ * Shopify Dawn theme. Events are listed as h2 titles with a div sibling
+ * containing the date and time concatenated in a single text node, e.g.:
+ *   "Wednesday April 156-9pm"  →  date: April 15, time: 6pm
  *
- * Events are hosted at external venues (Gilman Brewing, Mad Oak, etc.).
- * We extract the venue name from the "@Venue" suffix in the title.
- *
- * All events share the same list URL (no individual event pages).
+ * Standard day-boundary regex fails because the day number (15) is immediately
+ * followed by the time hour (6) with no separator. We extract the day using
+ * the valid day-range pattern (1-31), then parse the time from the remainder.
  */
 
 const EVENTS_URL = "https://assemblepuzzlery.com/pages/events";
@@ -26,26 +23,45 @@ const MONTH_MAP: Record<string, number> = {
   july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
 };
 
-// "Wednesday April 8" or "April 8" → { month, day }
-function parseDateText(text: string): { month: number; day: number } | null {
-  const m = text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/i);
+/**
+ * Parse date + time from a concatenated string like "Wednesday April 156-9pm".
+ *
+ * Day extraction uses the range 1-31:
+ *   30-31  →  3[01]
+ *   10-29  →  [12]\d
+ *   1-9    →  \d  (single digit, lowest priority to avoid ambiguity)
+ *
+ * After matching the day, the remainder is parsed for the start time.
+ */
+function parseDateAndTime(
+  text: string,
+  resolveYear: (m: number, d: number) => number
+): { startDate: Date } | null {
+  const m = text.match(
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(3[01]|[12]\d|\d)/i
+  );
   if (!m) return null;
+
   const month = MONTH_MAP[m[1].toLowerCase()];
   if (!month) return null;
-  return { month, day: parseInt(m[2]) };
-}
+  const day = parseInt(m[2]);
 
-// "6-9pm" or "7pm" or "6:30-9pm" → start hour and minute
-function parseTimeText(text: string): { hour: number; minute: number } | null {
-  // Match the first time (start time), possibly with a range like "6-9pm" or "6:30-9pm"
-  const m = text.match(/(\d{1,2})(?::(\d{2}))?(?:-\d{1,2}(?::\d{2})?)?\s*(am|pm)/i);
-  if (!m) return null;
-  let hour = parseInt(m[1]);
-  const minute = m[2] ? parseInt(m[2]) : 0;
-  const ampm = m[3].toLowerCase();
-  if (ampm === "pm" && hour < 12) hour += 12;
-  if (ampm === "am" && hour === 12) hour = 0;
-  return { hour, minute };
+  // Text after the matched day contains the time (e.g. "6-9pm")
+  const afterDay = text.slice((m.index ?? 0) + m[0].length);
+  const timePart = afterDay.match(/^(\d{1,2})(?::(\d{2}))?(?:-[\d:]+)?\s*(am|pm)/i);
+
+  let hour = 18; // default 6pm
+  let minute = 0;
+  if (timePart) {
+    hour = parseInt(timePart[1]);
+    minute = timePart[2] ? parseInt(timePart[2]) : 0;
+    const ampm = timePart[3].toLowerCase();
+    if (ampm === "pm" && hour < 12) hour += 12;
+    if (ampm === "am" && hour === 12) hour = 0;
+  }
+
+  const year = resolveYear(month, day);
+  return { startDate: sfDateFromLocal(year, month, day, hour, minute) };
 }
 
 // "Puzzle Night @Gilman Brewing" → "Gilman Brewing"
@@ -78,7 +94,6 @@ export class AssemblePuzzleryScraper extends BaseScraper {
     const events: ScrapedEvent[] = [];
     const nowMs = Date.now();
 
-    // Each event is an h2 followed by p siblings for date and time
     $("h2").each((_, el) => {
       const $h2 = $(el);
       const title = $h2.text().trim();
@@ -87,39 +102,23 @@ export class AssemblePuzzleryScraper extends BaseScraper {
       // Skip month headings like "April 2026"
       if (/^\w+ \d{4}$/.test(title)) return;
 
-      // Date and time are in a div sibling. Sometimes they're in separate divs,
-      // sometimes in one div separated by <br>. Split on <br> first.
-      const $next1 = $h2.next("div, p");
-      const rawHtml = ($next1.html() ?? "");
-      const brParts = rawHtml.split(/<br\s*\/?>/i);
-      const dateText = brParts[0].replace(/<[^>]+>/g, "").trim();
-      const timeText = brParts.length > 1
-        ? brParts[1].replace(/<[^>]+>/g, "").trim()
-        : $next1.next("div, p").text().trim();
+      // The date+time live in the next div sibling as a single concatenated text node
+      const dateTimeText = $h2.next("div, p").text().trim();
+      if (!dateTimeText) return;
 
-      if (!dateText) return;
-
-      const dateParsed = parseDateText(dateText);
-      if (!dateParsed) {
-        console.warn(`[assemblepuzzlery] could not parse date from: "${dateText}" for "${title}"`);
+      const parsed = parseDateAndTime(dateTimeText, this.resolveYear.bind(this));
+      if (!parsed) {
+        console.warn(`[assemblepuzzlery] could not parse date from: "${dateTimeText}" for "${title}"`);
         return;
       }
 
-      const timeParsed = parseTimeText(timeText);
-      const hour = timeParsed?.hour ?? 18; // default 6pm
-      const minute = timeParsed?.minute ?? 0;
-
-      const year = this.resolveYear(dateParsed.month, dateParsed.day);
-      const startDate = sfDateFromLocal(year, dateParsed.month, dateParsed.day, hour, minute);
-      if (startDate.getTime() < nowMs - 86_400_000) return;
-
-      const venueName = extractVenue(title) ?? "Assemble Puzzlery";
+      if (parsed.startDate.getTime() < nowMs - 86_400_000) return;
 
       events.push({
         title,
-        startDate,
+        startDate: parsed.startDate,
         sourceUrl: EVENTS_URL,
-        venueName,
+        venueName: extractVenue(title) ?? "Assemble Puzzlery",
         tags: ["puzzles", "games", "community"],
       });
     });

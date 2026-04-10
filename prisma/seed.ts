@@ -114,6 +114,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "tixr",
+    name: "Tixr SF",
+    url: "https://www.tixr.com/search?q=san+francisco",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.AGGREGATOR,
+    enabled: false, // DataDome bot protection blocks all automated access (403 + CAPTCHA)
+  },
+  {
     slug: "kqed",
     name: "KQED Live Events",
     url: "https://www.kqed.org/events",
@@ -214,7 +222,7 @@ const sources = [
     slug: "uctheatre",
     name: "The UC Theatre",
     url: "https://www.theuctheatre.org/",
-    scrapeType: ScrapeType.PLAYWRIGHT,
+    scrapeType: ScrapeType.CHEERIO,
     category: SourceCategory.VENUE,
     enabled: true,
   },

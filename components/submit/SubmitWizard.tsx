@@ -886,12 +886,15 @@ function DetailsStep({
         </Field>
 
         <Field label="Source URL">
+          <p className="font-body text-xs text-on-surface-variant mb-1.5">
+            Adding a link helps other users find more info and lets us verify the event.
+          </p>
           <input
             type="url"
             value={form.sourceUrl}
             onChange={(e) => setField("sourceUrl", e.target.value)}
             placeholder="Instagram post, event page, etc."
-            className="input-field"
+            className="input-field ring-1 ring-primary/40 focus:ring-primary"
           />
         </Field>
 

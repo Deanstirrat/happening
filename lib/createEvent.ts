@@ -3,7 +3,7 @@ import { computeDedupeHash } from "@/lib/dedupeHash";
 import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
-import { sfDayStart } from "@/lib/sfDate";
+import { sfDayStart, sfDateFromLocal } from "@/lib/sfDate";
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -56,7 +56,21 @@ export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null
     ];
     for (const [str, f] of attempts) {
       const result = tryParse(str, f, currentYear);
-      if (result) return result;
+      if (result) {
+        // date-fns/parse interprets in server-local time (UTC on prod).
+        // Re-interpret the parsed components as SF local time so "11:30 AM"
+        // from a user means 11:30 AM Pacific, not 11:30 AM UTC.
+        if (startTime) {
+          return sfDateFromLocal(
+            result.getFullYear(),
+            result.getMonth() + 1,
+            result.getDate(),
+            result.getHours(),
+            result.getMinutes(),
+          );
+        }
+        return result;
+      }
     }
   }
 

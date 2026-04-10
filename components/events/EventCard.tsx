@@ -23,7 +23,7 @@ const NEIGHBORHOOD_DISPLAY: Record<string, string> = {
 };
 
 function formatPrice(price: string): string {
-  return price;
+  return price.startsWith("$") ? price : `$${price}`;
 }
 
 interface EventCardProps {

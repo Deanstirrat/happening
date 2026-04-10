@@ -204,7 +204,11 @@ export default async function EventDetailPage({
           {/* Price + availability */}
           <div className="flex items-baseline gap-3 mb-8">
             <span className="font-headline font-bold text-3xl text-on-surface">
-              {event.isFree ? "Free" : event.price ?? "See site"}
+              {event.isFree
+                ? "Free"
+                : event.price
+                  ? event.price.startsWith("$") ? event.price : `$${event.price}`
+                  : "See site"}
             </span>
           </div>
 

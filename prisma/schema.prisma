@@ -115,15 +115,17 @@ enum FeaturedRequestStatus {
 }
 
 model FeaturedRequest {
-  id        String                @id @default(cuid())
-  name      String
-  email     String
-  eventName String
-  eventDate String?
-  eventUrl  String?
-  message   String
-  status    FeaturedRequestStatus @default(NEW)
-  createdAt DateTime              @default(now())
+  id             String                @id @default(cuid())
+  name           String
+  email          String
+  eventName      String
+  eventDate      String?
+  eventUrl       String?
+  message        String
+  eventId        String?
+  suggestedEdits Json?
+  status         FeaturedRequestStatus @default(NEW)
+  createdAt      DateTime              @default(now())
 
   @@map("featured_requests")
 }

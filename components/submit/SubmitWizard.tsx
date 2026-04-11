@@ -147,7 +147,7 @@ function formatTimeForDisplay(timeStr: string): string {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function SubmitWizard() {
+export default function SubmitWizard({ fromFeature = false }: { fromFeature?: boolean }) {
   const [step, setStep] = useState<Step>("import");
   const [form, setForm] = useState<FormState>(EMPTY);
   const [cameFromDetails, setCameFromDetails] = useState(false);
@@ -312,6 +312,7 @@ export default function SubmitWizard() {
           category: form.category || undefined,
           imageUrl: form.imageUrl || undefined,
           unknownSourceUrl: unknownSourceUrl || undefined,
+          fromFeature: fromFeature || undefined,
         }),
       });
       const data = await res.json();

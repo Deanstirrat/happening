@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
       category,
       unknownSourceUrl,
       recurringType,
+      fromFeature,
     } = body;
+
+    const effectiveNote = fromFeature
+      ? `[FEATURE REQUEST]${submitterNote ? ` ${submitterNote}` : ""}`
+      : submitterNote;
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
       description,
       tags,
       sourceUrl,
-      submitterNote,
+      submitterNote: effectiveNote,
       imageUrl: imageUrl || null,
       categoryOverride: category || null,
       recurringType: recurringType || null,
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
           startDate,
           outcome: "DUPLICATE",
           eventId: result.eventId,
-          submitterNote: submitterNote || null,
+          submitterNote: effectiveNote || null,
           unknownSourceUrl: unknownSourceUrl || null,
         },
       });

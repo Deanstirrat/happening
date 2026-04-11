@@ -5,7 +5,14 @@ export const metadata = {
   description: "Know about an underground SF event? Submit it and we'll add it to the calendar.",
 };
 
-export default function SubmitPage() {
+interface Props {
+  searchParams: Promise<{ fromFeature?: string }>;
+}
+
+export default async function SubmitPage({ searchParams }: Props) {
+  const { fromFeature } = await searchParams;
+  const isFromFeature = fromFeature === "true";
+
   return (
     <div className="max-w-screen-sm mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <div className="mb-8">
@@ -16,7 +23,15 @@ export default function SubmitPage() {
           Upload a flyer, paste an event link, or fill in the details yourself.
         </p>
       </div>
-      <SubmitWizard />
+      {isFromFeature && (
+        <div className="bg-surface-container rounded-xl px-4 py-3 mb-6">
+          <p className="font-body text-sm text-on-surface">
+            submitting a new event for featuring? fill in the details below and we&apos;ll
+            review it for the spotlight.
+          </p>
+        </div>
+      )}
+      <SubmitWizard fromFeature={isFromFeature} />
     </div>
   );
 }

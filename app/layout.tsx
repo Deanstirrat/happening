@@ -30,7 +30,7 @@ export default function RootLayout({
             href="/feature"
             className="hover:text-on-surface transition-colors"
           >
-            feature your event
+            feature an event
           </a>
         </footer>
         <BugReportButton />

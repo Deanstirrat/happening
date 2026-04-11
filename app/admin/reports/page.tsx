@@ -172,7 +172,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                       </span>
                       <div className="ml-auto">
                         <Suspense>
-                          <FeatureRequestActions id={req.id} status={req.status} secret={secret} />
+                          <FeatureRequestActions id={req.id} status={req.status} secret={secret} hasLinkedEvent={false} />
                         </Suspense>
                       </div>
                     </div>

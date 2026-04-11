@@ -12,7 +12,7 @@ import { ArrowLeft, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
-import EventFlyer from "./EventFlyer";
+import EventFlyerContainer from "./EventFlyerContainer";
 
 /** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
 function extractLocationFromTitle(title: string): string | null {
@@ -146,25 +146,14 @@ export default async function EventDetailPage({
       {/* Main grid: flyer left, details right */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12 lg:mb-16">
         {/* Flyer */}
-        <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container">
-          <EventFlyer
-            proxiedImageUrl={proxiedImageUrl}
-            categoryImage={categoryImage}
-            categoryColor={categoryColor}
-            title={event.title}
-            categoryLabel={categoryLabel}
-          />
-          {/* Tags overlay */}
-          {event.tags.length > 0 && (
-            <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">
-              {event.tags.slice(0, 4).map((tag: string) => (
-                <span key={tag} className="chip text-[0.6rem]">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        <EventFlyerContainer
+          proxiedImageUrl={proxiedImageUrl}
+          categoryImage={categoryImage}
+          categoryColor={categoryColor}
+          title={event.title}
+          categoryLabel={categoryLabel}
+          tags={event.tags}
+        />
 
         {/* Details */}
         <div className="flex flex-col">

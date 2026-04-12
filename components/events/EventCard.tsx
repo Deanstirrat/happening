@@ -7,16 +7,6 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
 import { CategoryImage } from "@/components/events/CategoryImage";
 
-function upgradeToHighRes(url: string): string {
-  // img.evbuc.com wraps the real CDN URL in its path: https://img.evbuc.com/<encoded-url>
-  // Strip the proxy and query params to get the full-res original.
-  if (url.includes("img.evbuc.com/")) {
-    const pathPart = url.replace(/^https?:\/\/img\.evbuc\.com\//, "");
-    const inner = decodeURIComponent(pathPart).split("?")[0];
-    return inner.startsWith("http") ? inner : `https://${inner}`;
-  }
-  return url;
-}
 
 function recurringLabel(event: EventSummary): string | null {
   if (!event.tags?.includes("recurring")) return null;
@@ -54,8 +44,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
-  const normalizedUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
-  const rawImageUrl = (featured && normalizedUrl) ? upgradeToHighRes(normalizedUrl) : normalizedUrl;
+  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
   const imageUrl = rawImageUrl?.startsWith("http")
     ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
     : rawImageUrl;

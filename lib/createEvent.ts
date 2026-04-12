@@ -90,6 +90,7 @@ export interface EventFields {
   title: string;
   dateRaw: string;
   timeRaw?: string | null;
+  allDay?: boolean;
   venueName?: string | null;
   venueAddress?: string | null;
   price?: string | null;
@@ -113,6 +114,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     title,
     dateRaw,
     timeRaw,
+    allDay: allDayField,
     venueName,
     venueAddress,
     price,
@@ -136,13 +138,16 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
 
   // If no time was provided, store at noon SF time to avoid UTC midnight landing
   // on the previous SF calendar day (e.g. 00:00 UTC = 5 PM PDT the day before).
-  if (!timeRaw?.trim()) {
+  const noTimeProvided = !timeRaw?.trim();
+  if (noTimeProvided) {
     const y = startDate.getFullYear();
     const m = String(startDate.getMonth() + 1).padStart(2, "0");
     const d = String(startDate.getDate()).padStart(2, "0");
     const sfMidnight = sfDayStart(`${y}-${m}-${d}`);
     startDate.setTime(sfMidnight.getTime() + 12 * 60 * 60 * 1000);
   }
+  // allDay is true if caller explicitly sets it, OR if no time was provided (and caller didn't override)
+  const allDay = allDayField !== undefined ? allDayField : noTimeProvided;
 
   const dedupeHash = computeDedupeHash(startDate, title);
 
@@ -181,6 +186,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
       title: title.trim(),
       description: description ?? null,
       startDate,
+      allDay,
       venueName: venueName || null,
       venueAddress: venueAddress || null,
       neighborhood: geo.neighborhood,

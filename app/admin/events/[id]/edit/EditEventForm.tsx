@@ -12,6 +12,7 @@ interface EventData {
   description: string | null;
   startDate: Date;
   endDate: Date | null;
+  allDay: boolean;
   venueName: string | null;
   venueAddress: string | null;
   neighborhood: string | null;
@@ -30,11 +31,24 @@ function toDatetimeLocal(date: Date | null): string {
   return formatDatetimeLocalSF(date);
 }
 
+function toDateOnly(date: Date | null): string {
+  if (!date) return "";
+  // Returns YYYY-MM-DD in SF timezone
+  return formatDatetimeLocalSF(date).slice(0, 10);
+}
+
 function sfIsoFromDatetimeLocal(localStr: string): string {
   // Interpret a datetime-local value ("2026-03-27T20:00") as SF local time
   const m = localStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
   if (!m) return new Date(localStr).toISOString();
   return sfDateFromLocal(+m[1], +m[2], +m[3], +m[4], +m[5]).toISOString();
+}
+
+function sfIsoFromDateOnly(dateStr: string): string {
+  // Interpret a YYYY-MM-DD value as noon SF time (avoids UTC day-boundary issues)
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return new Date(dateStr).toISOString();
+  return sfDateFromLocal(+m[1], +m[2], +m[3], 12, 0).toISOString();
 }
 
 export default function EditEventForm({ event, secret }: { event: EventData; secret: string }) {
@@ -44,6 +58,7 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
 
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description ?? "");
+  const [allDay, setAllDay] = useState(event.allDay);
   const [startDate, setStartDate] = useState(toDatetimeLocal(event.startDate));
   const [endDate, setEndDate] = useState(toDatetimeLocal(event.endDate));
   const [venueName, setVenueName] = useState(event.venueName ?? "");
@@ -72,8 +87,9 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
       body: JSON.stringify({
         title,
         description: description || null,
-        startDate: sfIsoFromDatetimeLocal(startDate),
-        endDate: endDate ? sfIsoFromDatetimeLocal(endDate) : null,
+        allDay,
+        startDate: allDay ? sfIsoFromDateOnly(startDate) : sfIsoFromDatetimeLocal(startDate),
+        endDate: endDate ? (allDay ? sfIsoFromDateOnly(endDate) : sfIsoFromDatetimeLocal(endDate)) : null,
         venueName: venueName || null,
         venueAddress: venueAddress || null,
         neighborhood: neighborhood || null,
@@ -128,11 +144,34 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
         />
       </div>
 
+      <div className="flex items-center gap-2 -mb-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allDay}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setAllDay(next);
+              // Convert datetime-local ↔ date-only values when toggling
+              if (next) {
+                setStartDate((v) => v.slice(0, 10));
+                setEndDate((v) => v.slice(0, 10));
+              } else {
+                setStartDate((v) => v.length === 10 ? `${v}T12:00` : v);
+                setEndDate((v) => v.length === 10 ? `${v}T12:00` : v);
+              }
+            }}
+            className="w-4 h-4 accent-[#4ade80]"
+          />
+          <span className="font-body text-sm text-on-surface">All day event</span>
+        </label>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={labelClass}>Start Date</label>
+          <label className={labelClass}>Start {allDay ? "Date" : "Date & Time"}</label>
           <input
-            type="datetime-local"
+            type={allDay ? "date" : "datetime-local"}
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             required
@@ -140,9 +179,9 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
           />
         </div>
         <div>
-          <label className={labelClass}>End Date</label>
+          <label className={labelClass}>End {allDay ? "Date" : "Date & Time"}</label>
           <input
-            type="datetime-local"
+            type={allDay ? "date" : "datetime-local"}
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             className={inputClass}

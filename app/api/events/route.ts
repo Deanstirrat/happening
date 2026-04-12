@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
         title: true,
         startDate: true,
         endDate: true,
+        allDay: true,
         venueName: true,
         venueAddress: true,
         neighborhood: true,

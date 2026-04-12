@@ -7,6 +7,7 @@ export interface EventSummary {
   title: string;
   startDate: string;
   endDate: string | null;
+  allDay: boolean;
   venueName: string | null;
   venueAddress: string | null;
   neighborhood: string | null;
@@ -43,6 +44,7 @@ export interface ScrapedEvent {
   description?: string;
   startDate: Date;
   endDate?: Date;
+  allDay?: boolean;
   venueName?: string;
   venueAddress?: string;
   sourceUrl: string;

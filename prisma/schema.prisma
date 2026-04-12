@@ -29,6 +29,7 @@ model Event {
   description  String?
   startDate    DateTime
   endDate      DateTime?
+  allDay       Boolean        @default(false)
   venueName    String?
   venueAddress String?
   city         String         @default("San Francisco")

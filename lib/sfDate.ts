@@ -149,6 +149,18 @@ export function formatCarouselDateSF(date: Date): string {
   return `${datePart} • ${formatTimeSF(date)}`;
 }
 
+/** "MON, OCT 21" — for featured carousel overlay when event is all-day */
+export function formatCarouselDateOnlySF(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+    .format(date)
+    .toUpperCase();
+}
+
 /** Returns the SF local hour (0-23) for a given Date */
 export function sfHourOf(date: Date): number {
   const h = Number(

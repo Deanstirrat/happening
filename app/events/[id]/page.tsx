@@ -64,10 +64,9 @@ export async function generateMetadata({
   if (!event) return {};
 
   const dateLabel = formatDateLongSF(event.startDate);
-  const timeLabel = formatTimeSF(event.startDate);
   const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
 
-  const parts = [`${dateLabel} at ${timeLabel}`];
+  const parts = [event.allDay ? dateLabel : `${dateLabel} at ${formatTimeSF(event.startDate)}`];
   if (venueDisplayName) parts.push(venueDisplayName);
   if (event.neighborhood) parts.push(event.neighborhood);
   if (event.description) parts.push(event.description.slice(0, 120).trim());
@@ -116,8 +115,8 @@ export default async function EventDetailPage({
     ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
     : rawImageUrl;
   const dateLabel = formatDateLongSF(event.startDate);
-  const timeLabel = formatTimeSF(event.startDate);
-  const endTimeLabel = event.endDate ? formatTimeSF(event.endDate) : null;
+  const timeLabel = event.allDay ? null : formatTimeSF(event.startDate);
+  const endTimeLabel = !event.allDay && event.endDate ? formatTimeSF(event.endDate) : null;
   const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
   const mapsQuery = event.venueAddress ?? (venueDisplayName ? `${venueDisplayName}, San Francisco, CA` : null);
 
@@ -184,10 +183,17 @@ export default async function EventDetailPage({
               <Clock size={12} className="text-primary" />
               {dateLabel}
             </span>
-            <span className="bg-surface-container rounded-DEFAULT px-3 py-1.5 text-xs font-body text-on-surface flex items-center gap-1.5">
-              <Clock size={12} className="text-primary" />
-              {timeLabel}{endTimeLabel ? ` – ${endTimeLabel}` : ""}
-            </span>
+            {timeLabel ? (
+              <span className="bg-surface-container rounded-DEFAULT px-3 py-1.5 text-xs font-body text-on-surface flex items-center gap-1.5">
+                <Clock size={12} className="text-primary" />
+                {timeLabel}{endTimeLabel ? ` – ${endTimeLabel}` : ""}
+              </span>
+            ) : (
+              <span className="bg-surface-container rounded-DEFAULT px-3 py-1.5 text-xs font-body text-on-surface-variant flex items-center gap-1.5">
+                <Clock size={12} className="text-on-surface-variant" />
+                All day
+              </span>
+            )}
           </div>
 
           {/* Price + availability */}

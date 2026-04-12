@@ -29,6 +29,7 @@ export default async function EditEventPage({ params, searchParams }: Props) {
       description: true,
       startDate: true,
       endDate: true,
+      allDay: true,
       venueName: true,
       venueAddress: true,
       neighborhood: true,

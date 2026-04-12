@@ -1,11 +1,22 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Repeat2, Star } from "lucide-react";
-import { formatCarouselDateSF, formatTimeSF } from "@/lib/sfDate";
+import { formatCarouselDateSF, formatCarouselDateOnlySF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
 import { CategoryImage } from "@/components/events/CategoryImage";
+
+function upgradeToHighRes(url: string): string {
+  // img.evbuc.com wraps the real CDN URL in its path: https://img.evbuc.com/<encoded-url>
+  // Strip the proxy and query params to get the full-res original.
+  if (url.includes("img.evbuc.com/")) {
+    const pathPart = url.replace(/^https?:\/\/img\.evbuc\.com\//, "");
+    const inner = decodeURIComponent(pathPart).split("?")[0];
+    return inner.startsWith("http") ? inner : `https://${inner}`;
+  }
+  return url;
+}
 
 function recurringLabel(event: EventSummary): string | null {
   if (!event.tags?.includes("recurring")) return null;
@@ -32,8 +43,10 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, featured = false }: EventCardProps) {
-  const carouselDate = formatCarouselDateSF(new Date(event.startDate));
-  const time = formatTimeSF(new Date(event.startDate));
+  const carouselDate = event.allDay
+    ? formatCarouselDateOnlySF(new Date(event.startDate))
+    : formatCarouselDateSF(new Date(event.startDate));
+  const time = event.allDay ? "All day" : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
@@ -41,7 +54,8 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
-  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const normalizedUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
+  const rawImageUrl = (featured && normalizedUrl) ? upgradeToHighRes(normalizedUrl) : normalizedUrl;
   const imageUrl = rawImageUrl?.startsWith("http")
     ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
     : rawImageUrl;
@@ -201,7 +215,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
 
 // Grid variant (used in tuesday, etc.)
 export function EventCardGrid({ event }: { event: EventSummary }) {
-  const time = formatTimeSF(new Date(event.startDate));
+  const time = event.allDay ? "All day" : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;

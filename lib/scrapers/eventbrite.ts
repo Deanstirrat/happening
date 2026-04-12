@@ -304,7 +304,9 @@ export class EventbriteScraper extends BaseScraper {
         undefined;
 
     const imageUrl: string | undefined =
+      item?.image?.original?.url ??
       item?.image?.url ??
+      item?.logo?.original?.url ??
       item?.logo?.url ??
       item?.image_url ??
       undefined;

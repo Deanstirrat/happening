@@ -1,4 +1,4 @@
 [deploy]
-startCommand = "(npx prisma migrate resolve --rolled-back 20260412000000_add_all_day_to_events 2>/dev/null || true) && npx prisma migrate deploy && npm start"
+startCommand = "sh scripts/start.sh"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 60

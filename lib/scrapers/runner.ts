@@ -102,6 +102,8 @@ import { UcTheatreScraper } from "./uctheatre";
 import { GreatStarTheaterScraper } from "./greatstartheater";
 import { UsfcaScraper } from "./usfca";
 import { TixrScraper } from "./tixr";
+import { CityBoxOfficeScraper } from "./cityboxoffice";
+import { CivicKitchenScraper } from "./civickitchen";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
@@ -134,6 +136,8 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   greatstartheater: new GreatStarTheaterScraper(),
   usfca: new UsfcaScraper(),
   tixr: new TixrScraper(),
+  cityboxoffice: new CityBoxOfficeScraper(),
+  civickitchen: new CivicKitchenScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

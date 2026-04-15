@@ -135,7 +135,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   uctheatre: new UcTheatreScraper(),
   greatstartheater: new GreatStarTheaterScraper(),
   usfca: new UsfcaScraper(),
-  tixr: new TixrScraper(),
+  // tixr: disabled — DataDome bot protection blocks automated access, causing timeouts
   cityboxoffice: new CityBoxOfficeScraper(),
   civickitchen: new CivicKitchenScraper(),
 };

@@ -31,21 +31,20 @@ interface SearchParams {
 function matchesArtists(
   event: { performers: string[]; title: string; category: string | null },
   artistSet: Set<string>
-): boolean {
+): string | null {
   // Check structured performers first (Bandsintown, RA, Foopee)
   for (const p of event.performers) {
-    if (artistSet.has(p.toLowerCase())) return true;
+    if (artistSet.has(p.toLowerCase())) return p;
   }
   // For music events with no structured performers, fall back to title substring match.
   // Only on music categories to avoid false positives (e.g. an artist named "live" or "free").
   if (event.category?.startsWith("MUSIC_") && event.performers.length === 0) {
     const titleLower = event.title.toLowerCase();
     for (const artist of artistSet) {
-      // Require the artist name to be at least 4 chars to avoid single-word collisions
-      if (artist.length >= 4 && titleLower.includes(artist)) return true;
+      if (artist.length >= 4 && titleLower.includes(artist)) return artist;
     }
   }
-  return false;
+  return null;
 }
 
 async function getSpotifyArtists(sid: string): Promise<Set<string> | null> {
@@ -251,20 +250,20 @@ async function getEvents(
 
   // When forYou is active, only keep events matching the user's artists
   const filteredEvents = forYou
-    ? timeFiltered.filter((e) => matchesArtists(e, artistSet!))
+    ? timeFiltered.filter((e) => matchesArtists(e, artistSet!) !== null)
     : timeFiltered;
 
   const allGrouped: Record<string, EventSummary[]> = {};
   for (const event of filteredEvents) {
     const dk = sfDayKey(event.startDate);
     if (!allGrouped[dk]) allGrouped[dk] = [];
-    const spotifyMatch = artistSet ? matchesArtists(event, artistSet) : undefined;
+    const spotifyArtist = artistSet ? matchesArtists(event, artistSet) : null;
     allGrouped[dk].push({
       ...event,
       startDate: event.startDate.toISOString(),
       endDate: event.endDate?.toISOString() ?? null,
       featuredAt: event.featuredAt?.toISOString() ?? null,
-      ...(spotifyMatch !== undefined && { spotifyMatch }),
+      ...(spotifyArtist && { spotifyArtist }),
     } as EventSummary);
   }
 

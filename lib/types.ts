@@ -26,7 +26,7 @@ export interface EventSummary {
     slug: string;
     name: string;
   };
-  spotifyMatch?: boolean;
+  spotifyArtist?: string;
 }
 
 export interface EventDetail extends EventSummary {

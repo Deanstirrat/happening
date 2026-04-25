@@ -29,20 +29,20 @@ interface SearchParams {
 }
 
 function matchesArtists(
-  event: { performers: string[]; title: string; tags: string[]; category: string | null },
+  event: { performers: string[]; title: string; category: string | null },
   artistSet: Set<string>
 ): boolean {
+  // Check structured performers first (Bandsintown, RA, Foopee)
   for (const p of event.performers) {
     if (artistSet.has(p.toLowerCase())) return true;
   }
-  for (const tag of event.tags) {
-    if (artistSet.has(tag.toLowerCase())) return true;
-  }
-  // Title match only for music events (avoid false positives on other categories)
+  // For music events with no structured performers, fall back to title substring match.
+  // Only on music categories to avoid false positives (e.g. an artist named "live" or "free").
   if (event.category?.startsWith("MUSIC_") && event.performers.length === 0) {
     const titleLower = event.title.toLowerCase();
     for (const artist of artistSet) {
-      if (titleLower.includes(artist)) return true;
+      // Require the artist name to be at least 4 chars to avoid single-word collisions
+      if (artist.length >= 4 && titleLower.includes(artist)) return true;
     }
   }
   return false;

@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
   const savedState = cookieStore.get("spotify_state")?.value;
   cookieStore.delete("spotify_state");
 
-  const eventsUrl = new URL("/events", req.url);
+  // Respect reverse-proxy headers (Railway serves on 0.0.0.0 internally)
+  const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(/:$/, "");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+  const eventsUrl = new URL("/events", `${proto}://${host}`);
 
   if (error || !code) {
     console.error("[spotify/callback] OAuth error:", error);

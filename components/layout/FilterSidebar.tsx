@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Filter,
   Music,
+  Music2,
 } from "lucide-react";
 
 import { CATEGORY_LABELS, MUSIC_CATEGORIES, SF_NEIGHBORHOODS } from "@/lib/types";
@@ -28,12 +29,36 @@ interface Source {
 
 interface FilterSidebarProps {
   sources: Source[];
+  spotifyConnected?: boolean;
+  spotifyArtistCount?: number;
 }
 
-export default function FilterSidebar({ sources }: FilterSidebarProps) {
+export default function FilterSidebar({ sources, spotifyConnected = false, spotifyArtistCount = 0 }: FilterSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+
+  const currentForYou = searchParams.get("forYou") === "true";
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    await fetch("/api/spotify/disconnect", { method: "POST" });
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("forYou");
+    router.push(`${pathname}?${params.toString()}`);
+    router.refresh();
+  }
+
+  function toggleForYou() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (currentForYou) {
+      params.delete("forYou");
+    } else {
+      params.set("forYou", "true");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
 
   // Read current filter state from URL
   const currentStartDate = searchParams.get("startDate") ?? "";
@@ -95,6 +120,8 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
     if (hideMusic) params.set("hideMusic", hideMusic);
     const hideRecurring = searchParams.get("hideRecurring");
     if (hideRecurring) params.set("hideRecurring", hideRecurring);
+    const forYou = searchParams.get("forYou");
+    if (forYou) params.set("forYou", forYou);
     router.push(`${pathname}?${params.toString()}`);
   }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, timeOfDay, searchParams, router, pathname]);
 
@@ -159,6 +186,52 @@ export default function FilterSidebar({ sources }: FilterSidebarProps) {
         <p className="font-body text-[0.6rem] font-semibold uppercase tracking-widest text-on-surface-variant mb-2 px-1 hidden lg:block">
           Filters
         </p>
+
+        {/* Spotify */}
+        <div className="rounded-DEFAULT overflow-hidden mb-1">
+          <div className="px-3 py-2.5">
+            <div className="flex items-center gap-2 text-on-surface-variant font-body text-xs font-medium uppercase tracking-wider mb-2">
+              <Music2 size={13} />
+              For You
+            </div>
+            {spotifyConnected ? (
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={toggleForYou}
+                  className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full flex items-center justify-between ${
+                    currentForYou
+                      ? "bg-[#1DB954]/20 text-[#1DB954]"
+                      : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                  }`}
+                >
+                  <span>My artists</span>
+                  {spotifyArtistCount > 0 && (
+                    <span className="text-[0.6rem] font-semibold opacity-70">
+                      {spotifyArtistCount.toLocaleString()}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="text-left text-[0.65rem] px-2 py-0.5 font-body text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
+                >
+                  {disconnecting ? "Disconnecting…" : "Disconnect Spotify"}
+                </button>
+              </div>
+            ) : (
+              <a
+                href="/api/spotify/auth"
+                className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-DEFAULT font-body font-semibold transition-colors bg-[#1DB954]/10 text-[#1DB954] hover:bg-[#1DB954]/20 w-full"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                </svg>
+                Connect Spotify
+              </a>
+            )}
+          </div>
+        </div>
 
         {/* Date */}
         <Section

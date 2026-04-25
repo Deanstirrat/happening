@@ -17,6 +17,7 @@ export interface EventSummary {
   imageUrl: string | null;
   sourceUrl: string;
   tags: string[];
+  performers: string[];
   latitude: number | null;
   longitude: number | null;
   featured: boolean;
@@ -25,6 +26,7 @@ export interface EventSummary {
     slug: string;
     name: string;
   };
+  spotifyMatch?: boolean;
 }
 
 export interface EventDetail extends EventSummary {
@@ -52,6 +54,7 @@ export interface ScrapedEvent {
   price?: string;
   isFree?: boolean;
   tags?: string[];
+  performers?: string[];
   latitude?: number;
   longitude?: number;
   category?: string;

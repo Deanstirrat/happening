@@ -164,6 +164,7 @@ export class BandsintownScraper extends BaseScraper {
       imageUrl,
       sourceUrl,
       tags: ["music", "concert", "live"],
+      performers: [artist],
     };
   }
 

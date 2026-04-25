@@ -122,6 +122,7 @@ export class FoopeeScraper extends BaseScraper {
           isFree,
           sourceUrl,
           tags: ["punk", "rock", "diy"],
+          performers: bands,
         });
       });
     });

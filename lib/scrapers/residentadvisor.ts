@@ -167,6 +167,7 @@ export class ResidentAdvisorScraper extends BaseScraper {
             ? `https://ra.co${ev.contentUrl}`
             : "https://ra.co/events/us/sanfrancisco",
           tags: ["electronic", "club", ...artists.slice(0, 3)],
+          performers: artists,
         });
       }
 

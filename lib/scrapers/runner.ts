@@ -525,6 +525,7 @@ export async function runScraper(
           imageUrl: event.imageUrl,
           sourceUrl: event.sourceUrl,
           tags: event.tags ?? [],
+          performers: event.performers ?? [],
           geocoded: geo.latitude != null,
           categorized: true,
           sourceId: source.id,

@@ -43,6 +43,7 @@ model Event {
   imageUrl     String?
   sourceUrl    String
   tags         String[]
+  performers   String[]
   status        EventStatus    @default(PUBLISHED)
   submitterNote String?
   geocoded      Boolean        @default(false)
@@ -167,6 +168,19 @@ model InstagramSeenPost {
   seenAt    DateTime @default(now())
 
   @@map("instagram_seen_posts")
+}
+
+model SpotifySession {
+  id           String   @id @default(cuid())
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  artists      String[]
+  artistCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("spotify_sessions")
 }
 
 model EventBlocklist {

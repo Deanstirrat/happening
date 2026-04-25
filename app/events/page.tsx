@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
@@ -24,6 +25,40 @@ interface SearchParams {
   hideMusic?: string;
   hideRecurring?: string;
   timeOfDay?: string;
+  forYou?: string;
+}
+
+function matchesArtists(
+  event: { performers: string[]; title: string; tags: string[]; category: string | null },
+  artistSet: Set<string>
+): boolean {
+  for (const p of event.performers) {
+    if (artistSet.has(p.toLowerCase())) return true;
+  }
+  for (const tag of event.tags) {
+    if (artistSet.has(tag.toLowerCase())) return true;
+  }
+  // Title match only for music events (avoid false positives on other categories)
+  if (event.category?.startsWith("MUSIC_") && event.performers.length === 0) {
+    const titleLower = event.title.toLowerCase();
+    for (const artist of artistSet) {
+      if (titleLower.includes(artist)) return true;
+    }
+  }
+  return false;
+}
+
+async function getSpotifyArtists(sid: string): Promise<Set<string> | null> {
+  try {
+    const session = await prisma.spotifySession.findUnique({
+      where: { id: sid },
+      select: { artists: true },
+    });
+    if (!session) return null;
+    return new Set(session.artists);
+  } catch {
+    return null;
+  }
 }
 
 async function getWeeklyFeaturedEvents(
@@ -63,6 +98,7 @@ async function getWeeklyFeaturedEvents(
       imageUrl: true,
       sourceUrl: true,
       tags: true,
+      performers: true,
       latitude: true,
       longitude: true,
       featured: true,
@@ -92,18 +128,20 @@ async function getSources() {
 const MAX_DAYS = 10;
 const INITIAL_PER_OTHER_DAY = 10;
 
-async function getEvents(params: SearchParams): Promise<{
+async function getEvents(
+  params: SearchParams,
+  artistSet: Set<string> | null
+): Promise<{
   grouped: Record<string, EventSummary[]>;
   hasMorePerDay: Record<string, boolean>;
   totalPerDay: Record<string, number>;
   total: number;
 }> {
   const hasSearch = !!params.search;
+  const forYou = params.forYou === "true" && artistSet !== null && artistSet.size > 0;
   const now = new Date();
   const todayKey = sfDayKey(now);
   const todayStart = sfDayStart(todayKey);
-  // Default lower bound: SF midnight today. Drop it only when searching so
-  // search results aren't limited to upcoming events.
   const windowStart = params.startDate
     ? sfDayStart(params.startDate)
     : hasSearch ? null : todayStart;
@@ -127,7 +165,6 @@ async function getEvents(params: SearchParams): Promise<{
       : [params.source]
     : [];
 
-  // When hiding music, use non-music categories as inclusion list
   const effectiveCategories =
     params.hideMusic === "true" && categories.length === 0
       ? NON_MUSIC_CATEGORIES
@@ -135,8 +172,6 @@ async function getEvents(params: SearchParams): Promise<{
       ? categories.filter((c) => !c.startsWith("MUSIC_"))
       : categories;
 
-  // Exclude events that are completely in the past (SF timezone).
-  // Only applied when a date window is active (not a search-all query).
   const notEndedCondition: Prisma.EventWhereInput | null = windowStart
     ? {
         OR: [
@@ -158,7 +193,6 @@ async function getEvents(params: SearchParams): Promise<{
 
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
-    // Hide events that have already ended
     AND: [
       ...(notEndedCondition ? [notEndedCondition] : []),
       ...(searchCondition ? [searchCondition] : []),
@@ -184,8 +218,6 @@ async function getEvents(params: SearchParams): Promise<{
     ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
   };
 
-  // Fetch enough events to fill MAX_DAYS days. We over-fetch slightly so we
-  // can detect whether each day has more events beyond INITIAL_PER_OTHER_DAY.
   const rawEvents = await prisma.event.findMany({
     where,
     take: 2000,
@@ -204,6 +236,7 @@ async function getEvents(params: SearchParams): Promise<{
       imageUrl: true,
       sourceUrl: true,
       tags: true,
+      performers: true,
       latitude: true,
       longitude: true,
       featured: true,
@@ -212,24 +245,29 @@ async function getEvents(params: SearchParams): Promise<{
     },
   });
 
-  const filteredEvents = params.timeOfDay
+  const timeFiltered = params.timeOfDay
     ? rawEvents.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
     : rawEvents;
 
-  // Group all events by day
+  // When forYou is active, only keep events matching the user's artists
+  const filteredEvents = forYou
+    ? timeFiltered.filter((e) => matchesArtists(e, artistSet!))
+    : timeFiltered;
+
   const allGrouped: Record<string, EventSummary[]> = {};
   for (const event of filteredEvents) {
     const dk = sfDayKey(event.startDate);
     if (!allGrouped[dk]) allGrouped[dk] = [];
+    const spotifyMatch = artistSet ? matchesArtists(event, artistSet) : undefined;
     allGrouped[dk].push({
       ...event,
       startDate: event.startDate.toISOString(),
       endDate: event.endDate?.toISOString() ?? null,
       featuredAt: event.featuredAt?.toISOString() ?? null,
+      ...(spotifyMatch !== undefined && { spotifyMatch }),
     } as EventSummary);
   }
 
-  // Keep at most MAX_DAYS days; for non-today days slice to INITIAL_PER_OTHER_DAY
   const allDays = Object.keys(allGrouped).sort();
   const visibleDays = allDays.slice(0, MAX_DAYS);
 
@@ -258,16 +296,24 @@ export default async function EventsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+
+  // Load Spotify session if present
+  const cookieStore = await cookies();
+  const sid = cookieStore.get("spotify_sid")?.value;
+  const artistSet = sid ? await getSpotifyArtists(sid) : null;
+  const spotifyConnected = artistSet !== null;
+  const spotifyArtistCount = artistSet?.size ?? 0;
+
   const [sources, { grouped, hasMorePerDay, totalPerDay, total }, weeklyFeatured] = await Promise.all([
     getSources(),
-    getEvents(params),
+    getEvents(params, artistSet),
     getWeeklyFeaturedEvents(params),
   ]);
 
   const days = Object.keys(grouped).sort();
   const hasEvents = days.length > 0;
+  const forYouActive = params.forYou === "true" && spotifyConnected;
 
-  // Hide carousel only when "deep" filters are active (category, neighborhood, source, free, search)
   const hasNonTopFilters = !!(
     params.category || params.neighborhood || params.source ||
     params.isFree || params.search
@@ -277,7 +323,7 @@ export default async function EventsPage({
     params.startDate || params.endDate || params.category ||
     params.neighborhood || params.source || params.isFree ||
     params.search || params.hideMusic || params.hideRecurring ||
-    params.timeOfDay
+    params.timeOfDay || params.forYou
   );
 
   return (
@@ -285,32 +331,36 @@ export default async function EventsPage({
       {/* Filter sidebar */}
       <div className="w-full lg:w-52 lg:shrink-0">
         <Suspense>
-          <FilterSidebar sources={sources} />
+          <FilterSidebar
+            sources={sources}
+            spotifyConnected={spotifyConnected}
+            spotifyArtistCount={spotifyArtistCount}
+          />
         </Suspense>
       </div>
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        {/* Hero headline */}
         <div className="mb-8">
           <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
-            san francisco
+            {forYouActive ? "for you" : "san francisco"}
           </h1>
           <p className="font-body text-on-surface-variant text-sm mt-2">
             {total > 0
-              ? `${total} event${total !== 1 ? "s" : ""} found`
+              ? `${total} event${total !== 1 ? "s" : ""} found${forYouActive ? " matching your Spotify artists" : ""}`
+              : forYouActive
+              ? "No matching events — try a wider date range or connect more artists"
               : "No events found — try adjusting your filters"}
           </p>
         </div>
 
-        {!hasNonTopFilters && weeklyFeatured.length > 0 && (
+        {!hasNonTopFilters && weeklyFeatured.length > 0 && !forYouActive && (
           <div className="mb-6">
             <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-3">featured events</h2>
             <FeaturedCarousel events={weeklyFeatured} />
           </div>
         )}
 
-        {/* Quick filters — always visible */}
         <div className="mb-8">
           <Suspense>
             <TimeFilterTabs />

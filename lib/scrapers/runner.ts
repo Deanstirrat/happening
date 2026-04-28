@@ -104,6 +104,7 @@ import { UsfcaScraper } from "./usfca";
 import { TixrScraper } from "./tixr";
 import { CityBoxOfficeScraper } from "./cityboxoffice";
 import { CivicKitchenScraper } from "./civickitchen";
+import { ChurchOfClownScraper } from "./churchofclown";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
@@ -138,6 +139,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   // tixr: disabled — DataDome bot protection blocks automated access, causing timeouts
   cityboxoffice: new CityBoxOfficeScraper(),
   civickitchen: new CivicKitchenScraper(),
+  churchofclown: new ChurchOfClownScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

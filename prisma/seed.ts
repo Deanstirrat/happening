@@ -234,6 +234,30 @@ const sources = [
     category: SourceCategory.VENUE,
     enabled: true,
   },
+  {
+    slug: "cityboxoffice",
+    name: "City Box Office",
+    url: "https://www.cityboxoffice.com/performancelisting.asp",
+    scrapeType: ScrapeType.API,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "civickitchen",
+    name: "Civic Kitchen SF",
+    url: "https://www.civickitchensf.com/classes-and-events/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "churchofclown",
+    name: "Church of Clown",
+    url: "https://www.churchofclown.org/events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
   // ── Institutional ────────────────────────────────────────────────────────
   {
     slug: "usfca",

@@ -105,6 +105,7 @@ import { TixrScraper } from "./tixr";
 import { CityBoxOfficeScraper } from "./cityboxoffice";
 import { CivicKitchenScraper } from "./civickitchen";
 import { ChurchOfClownScraper } from "./churchofclown";
+import { ExploratoriumScraper } from "./exploratorium";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
@@ -140,6 +141,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   cityboxoffice: new CityBoxOfficeScraper(),
   civickitchen: new CivicKitchenScraper(),
   churchofclown: new ChurchOfClownScraper(),
+  exploratorium: new ExploratoriumScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

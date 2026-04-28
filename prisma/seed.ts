@@ -283,6 +283,14 @@ const sources = [
     category: SourceCategory.INSTITUTIONAL,
     enabled: true,
   },
+  {
+    slug: "exploratorium",
+    name: "Exploratorium",
+    url: "https://www.exploratorium.edu/visit/calendar",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.INSTITUTIONAL,
+    enabled: true,
+  },
   // ── Community ────────────────────────────────────────────────────────────
   {
     slug: "reddit-sfevents",

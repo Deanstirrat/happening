@@ -64,8 +64,10 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
   const currentStartDate = searchParams.get("startDate") ?? "";
   const currentEndDate = searchParams.get("endDate") ?? "";
   const currentCategories = searchParams.getAll("category");
+  const currentExcludedCategories = searchParams.getAll("excludeCategory");
   const currentNeighborhoods = searchParams.getAll("neighborhood");
   const currentSources = searchParams.getAll("source");
+  const currentExcludedSources = searchParams.getAll("excludeSource");
   const currentFreeOnly = searchParams.get("isFree") === "true";
   const currentTimeOfDay = searchParams.get("timeOfDay") ?? "";
 
@@ -73,13 +75,16 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
   const [startDate, setStartDate] = useState(currentStartDate);
   const [endDate, setEndDate] = useState(currentEndDate);
   const [categories, setCategories] = useState<string[]>(currentCategories);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>(currentExcludedCategories);
   const [neighborhoods, setNeighborhoods] = useState<string[]>(currentNeighborhoods);
   const [selectedSources, setSelectedSources] = useState<string[]>(currentSources);
+  const [excludedSources, setExcludedSources] = useState<string[]>(currentExcludedSources);
   const [freeOnly, setFreeOnly] = useState(currentFreeOnly);
   const [timeOfDay, setTimeOfDay] = useState(currentTimeOfDay);
 
   const [musicOpen, setMusicOpen] = useState(
-    currentCategories.some((c) => MUSIC_CATEGORY_SET.has(c))
+    currentCategories.some((c) => MUSIC_CATEGORY_SET.has(c)) ||
+    currentExcludedCategories.some((c) => MUSIC_CATEGORY_SET.has(c))
   );
 
   const [openSections, setOpenSections] = useState({
@@ -104,13 +109,39 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
     );
   };
 
+  // Cycles: neutral → include → exclude → neutral
+  const cycleFilter = (
+    value: string,
+    included: string[],
+    excluded: string[],
+    setIncluded: (v: string[]) => void,
+    setExcluded: (v: string[]) => void
+  ) => {
+    if (included.includes(value)) {
+      setIncluded(included.filter((v) => v !== value));
+      setExcluded([...excluded, value]);
+    } else if (excluded.includes(value)) {
+      setExcluded(excluded.filter((v) => v !== value));
+    } else {
+      setIncluded([...included, value]);
+    }
+  };
+
+  const filterItemClass = (value: string, included: string[], excluded: string[]) => {
+    if (included.includes(value)) return "bg-secondary-container text-on-secondary-container";
+    if (excluded.includes(value)) return "bg-error-container text-on-error-container line-through opacity-70";
+    return "text-on-surface-variant hover:text-on-surface hover:bg-surface-container";
+  };
+
   const applyFilters = useCallback(() => {
     const params = new URLSearchParams();
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     categories.forEach((c) => params.append("category", c));
+    excludedCategories.forEach((c) => params.append("excludeCategory", c));
     neighborhoods.forEach((n) => params.append("neighborhood", n));
     selectedSources.forEach((s) => params.append("source", s));
+    excludedSources.forEach((s) => params.append("excludeSource", s));
     if (freeOnly) params.set("isFree", "true");
     if (timeOfDay) params.set("timeOfDay", timeOfDay);
     // preserve search and quick-toggle params (managed outside the filter tray)
@@ -123,7 +154,7 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
     const forYou = searchParams.get("forYou");
     if (forYou) params.set("forYou", forYou);
     router.push(`${pathname}?${params.toString()}`);
-  }, [startDate, endDate, categories, neighborhoods, selectedSources, freeOnly, timeOfDay, searchParams, router, pathname]);
+  }, [startDate, endDate, categories, excludedCategories, neighborhoods, selectedSources, excludedSources, freeOnly, timeOfDay, searchParams, router, pathname]);
 
   const applyToday = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -141,8 +172,10 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
     setStartDate("");
     setEndDate("");
     setCategories([]);
+    setExcludedCategories([]);
     setNeighborhoods([]);
     setSelectedSources([]);
+    setExcludedSources([]);
     setFreeOnly(false);
     setTimeOfDay("");
     setMusicOpen(false);
@@ -150,10 +183,10 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
   };
 
   const hasFilters =
-    startDate || endDate || categories.length || neighborhoods.length || selectedSources.length || freeOnly || timeOfDay;
+    startDate || endDate || categories.length || excludedCategories.length || neighborhoods.length || selectedSources.length || excludedSources.length || freeOnly || timeOfDay;
 
   const activeFilterCount =
-    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + neighborhoods.length + selectedSources.length + (freeOnly ? 1 : 0) + (timeOfDay ? 1 : 0);
+    (startDate ? 1 : 0) + (endDate ? 1 : 0) + categories.length + excludedCategories.length + neighborhoods.length + selectedSources.length + excludedSources.length + (freeOnly ? 1 : 0) + (timeOfDay ? 1 : 0);
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -302,18 +335,14 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
           label="Category"
           open={openSections.category}
           onToggle={() => toggleSection("category")}
-          activeCount={categories.length}
+          activeCount={categories.length + excludedCategories.length}
         >
           <div className="flex flex-col gap-0.5">
             {OTHER_CATEGORY_ENTRIES.map(([value, label]) => (
               <button
                 key={value}
-                onClick={() => toggleMulti(value, categories, setCategories)}
-                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                  categories.includes(value)
-                    ? "bg-secondary-container text-on-secondary-container"
-                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                }`}
+                onClick={() => cycleFilter(value, categories, excludedCategories, setCategories, setExcludedCategories)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${filterItemClass(value, categories, excludedCategories)}`}
               >
                 {label}
               </button>
@@ -325,6 +354,8 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
                 className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors w-full flex items-center justify-between ${
                   categories.some((c) => MUSIC_CATEGORY_SET.has(c))
                     ? "bg-secondary-container text-on-secondary-container"
+                    : excludedCategories.some((c) => MUSIC_CATEGORY_SET.has(c))
+                    ? "bg-error-container text-on-error-container opacity-70"
                     : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
                 }`}
               >
@@ -338,6 +369,11 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
                       {categories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
                     </span>
                   )}
+                  {excludedCategories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length > 0 && (
+                    <span className="text-[0.6rem] font-semibold leading-none px-1 py-0.5 rounded-full bg-error text-on-error">
+                      -{excludedCategories.filter((c) => MUSIC_CATEGORY_SET.has(c)).length}
+                    </span>
+                  )}
                   {musicOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                 </span>
               </button>
@@ -346,12 +382,8 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
                   {MUSIC_GENRE_ENTRIES.map(([value, label]) => (
                     <button
                       key={value}
-                      onClick={() => toggleMulti(value, categories, setCategories)}
-                      className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                        categories.includes(value)
-                          ? "bg-secondary-container text-on-secondary-container"
-                          : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                      }`}
+                      onClick={() => cycleFilter(value, categories, excludedCategories, setCategories, setExcludedCategories)}
+                      className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${filterItemClass(value, categories, excludedCategories)}`}
                     >
                       {label}
                     </button>
@@ -393,18 +425,14 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
           label="Source"
           open={openSections.source}
           onToggle={() => toggleSection("source")}
-          activeCount={selectedSources.length}
+          activeCount={selectedSources.length + excludedSources.length}
         >
           <div className="flex flex-col gap-0.5">
             {sources.map((s) => (
               <button
                 key={s.slug}
-                onClick={() => toggleMulti(s.slug, selectedSources, setSelectedSources)}
-                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${
-                  selectedSources.includes(s.slug)
-                    ? "bg-secondary-container text-on-secondary-container"
-                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                }`}
+                onClick={() => cycleFilter(s.slug, selectedSources, excludedSources, setSelectedSources, setExcludedSources)}
+                className={`text-left text-xs px-2 py-1 rounded-DEFAULT font-body transition-colors ${filterItemClass(s.slug, selectedSources, excludedSources)}`}
               >
                 {s.name}
               </button>

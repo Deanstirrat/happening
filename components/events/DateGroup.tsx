@@ -45,7 +45,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
       params.set("endDate", dayKey);
       params.set("limit", String(PAGE_SIZE));
       params.set("page", String(nextPage + 1));
-      for (const key of ["hideRecurring", "hideMusic", "category", "neighborhood", "source", "isFree", "timeOfDay"]) {
+      for (const key of ["hideRecurring", "hideMusic", "category", "excludeCategory", "neighborhood", "source", "excludeSource", "isFree", "timeOfDay"]) {
         for (const val of searchParams.getAll(key)) {
           params.append(key, val);
         }

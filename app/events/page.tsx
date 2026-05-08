@@ -17,8 +17,10 @@ interface SearchParams {
   startDate?: string;
   endDate?: string;
   category?: string | string[];
+  excludeCategory?: string | string[];
   neighborhood?: string | string[];
   source?: string | string[];
+  excludeSource?: string | string[];
   isFree?: string;
   search?: string;
   page?: string;
@@ -153,6 +155,11 @@ async function getEvents(
       ? params.category
       : [params.category]
     : [];
+  const excludedCategories = params.excludeCategory
+    ? Array.isArray(params.excludeCategory)
+      ? params.excludeCategory
+      : [params.excludeCategory]
+    : [];
   const neighborhoods = params.neighborhood
     ? Array.isArray(params.neighborhood)
       ? params.neighborhood
@@ -162,6 +169,11 @@ async function getEvents(
     ? Array.isArray(params.source)
       ? params.source
       : [params.source]
+    : [];
+  const excludedSources = params.excludeSource
+    ? Array.isArray(params.excludeSource)
+      ? params.excludeSource
+      : [params.excludeSource]
     : [];
 
   const effectiveCategories =
@@ -195,6 +207,9 @@ async function getEvents(
     AND: [
       ...(notEndedCondition ? [notEndedCondition] : []),
       ...(searchCondition ? [searchCondition] : []),
+      ...(params.hideRecurring === "true" ? [{ NOT: { tags: { has: "recurring" } } }] : []),
+      ...(excludedCategories.length > 0 ? [{ NOT: { category: { in: excludedCategories as any } } }] : []),
+      ...(excludedSources.length > 0 ? [{ NOT: { source: { slug: { in: excludedSources } } } }] : []),
     ],
     ...(windowStart || windowEnd
       ? {
@@ -214,7 +229,6 @@ async function getEvents(
       source: { slug: { in: sources } },
     }),
     ...(params.isFree === "true" && { isFree: true }),
-    ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
   };
 
   const rawEvents = await prisma.event.findMany({

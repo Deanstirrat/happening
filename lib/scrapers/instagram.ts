@@ -48,6 +48,10 @@ interface ApifyPost {
   displayUrl: string | null;
   timestamp: string; // ISO 8601
   ownerUsername: string;
+  // Present on video/reel posts — a guaranteed static JPEG thumbnail
+  thumbnailSrc?: string | null;
+  // Present on carousel posts — array of per-slide media objects
+  sidecarItems?: Array<{ displayUrl?: string | null; thumbnailSrc?: string | null }> | null;
 }
 
 export class InstagramScraper extends BaseScraper {
@@ -220,9 +224,10 @@ export class InstagramScraper extends BaseScraper {
     try {
       // Venue tier → prefer vision; fall back to caption if image unavailable.
       // Promoter tier → caption only (cheaper, sufficient for text-first posts).
+      const imageUrl = this.bestImageUrl(post);
       let extracted;
-      if (account.tier === "venue" && post.displayUrl) {
-        const img = await this.fetchImageAsBase64(post.displayUrl);
+      if (account.tier === "venue" && imageUrl) {
+        const img = await this.fetchImageAsBase64(imageUrl);
         extracted = img
           ? await extractEventFromImage(img.base64, img.mediaType, caption)
           : await extractEventFromCaption(caption);
@@ -247,8 +252,8 @@ export class InstagramScraper extends BaseScraper {
       // Discard events that are already over (>1 day in the past).
       if (startDate.getTime() < Date.now() - 86_400_000) return null;
 
-      const imageUrl = post.displayUrl
-        ? await this.uploadImageToBlob(post.displayUrl, shortCode) ?? post.displayUrl
+      const storedImageUrl = imageUrl
+        ? (await this.uploadImageToBlob(imageUrl, shortCode)) ?? undefined
         : undefined;
 
       return {
@@ -259,7 +264,7 @@ export class InstagramScraper extends BaseScraper {
         venueName: extracted.venueName ?? account.venueName,
         venueAddress: extracted.venueAddress ?? undefined,
         sourceUrl,
-        imageUrl,
+        imageUrl: storedImageUrl,
         price: extracted.price ?? undefined,
         isFree: extracted.isFree || this.parseFree(extracted.price ?? undefined),
         tags: [...(extracted.tags ?? []), "instagram"],
@@ -271,8 +276,28 @@ export class InstagramScraper extends BaseScraper {
   }
 
   /**
+   * Pick the best static image URL from a post. For video/reel posts Apify
+   * sets `thumbnailSrc` to a guaranteed JPEG still; `displayUrl` on video posts
+   * is sometimes a video CDN URL that browsers can't render as <img>. For
+   * carousels we scan slides for the first image-backed URL.
+   */
+  private bestImageUrl(post: ApifyPost): string | null {
+    // thumbnailSrc is a static JPEG thumbnail present on video/reel posts
+    if (post.thumbnailSrc) return post.thumbnailSrc;
+    // For carousels, pick the first slide that has a static image URL
+    if (post.sidecarItems?.length) {
+      for (const slide of post.sidecarItems) {
+        const url = slide.thumbnailSrc ?? slide.displayUrl;
+        if (url) return url;
+      }
+    }
+    return post.displayUrl;
+  }
+
+  /**
    * Download an Instagram CDN image and upload it to Vercel Blob for permanent storage.
-   * Falls back to null if Blob is not configured or the upload fails.
+   * Falls back to null if Blob is not configured, the upload fails, or the URL
+   * resolves to a non-image content type (e.g. video/mp4 for reels).
    */
   private async uploadImageToBlob(url: string, shortCode: string): Promise<string | null> {
     if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
@@ -283,6 +308,10 @@ export class InstagramScraper extends BaseScraper {
       });
       if (!res.ok) return null;
       const contentType = res.headers.get("content-type") ?? "image/jpeg";
+      if (!contentType.startsWith("image/")) {
+        console.warn(`[instagram] Skipping non-image content (${contentType}) for ${shortCode}`);
+        return null;
+      }
       const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
       const blob = await put(`event-images/instagram-${shortCode}.${ext}`, res.body!, {
         access: "public",
@@ -297,7 +326,8 @@ export class InstagramScraper extends BaseScraper {
 
   /**
    * Download an image URL and return it base64-encoded with its MIME type,
-   * suitable for passing directly to extractEventFromImage().
+   * suitable for passing directly to extractEventFromImage(). Returns null for
+   * non-image content types (e.g. video/mp4) so callers fall back to caption.
    */
   private async fetchImageAsBase64(
     url: string
@@ -309,6 +339,7 @@ export class InstagramScraper extends BaseScraper {
       });
       if (!res.ok) return null;
       const contentType = res.headers.get("content-type") ?? "image/jpeg";
+      if (!contentType.startsWith("image/")) return null;
       const mediaType = contentType.split(";")[0].trim();
       const buffer = await res.arrayBuffer();
       return { base64: Buffer.from(buffer).toString("base64"), mediaType };

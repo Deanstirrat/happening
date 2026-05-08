@@ -518,6 +518,7 @@ export async function runScraper(
           description: event.description,
           startDate: event.startDate,
           endDate: event.endDate,
+          allDay: event.allDay ?? false,
           venueName: event.venueName,
           venueAddress: event.venueAddress,
           neighborhood: geo.neighborhood,

@@ -89,8 +89,8 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
           </span>
         </h2>
         {collapsed
-          ? <ChevronDown size={16} className="text-on-surface-variant shrink-0" />
-          : <ChevronUp size={16} className="text-on-surface-variant shrink-0" />}
+          ? <ChevronUp size={16} className="text-on-surface-variant shrink-0" />
+          : <ChevronDown size={16} className="text-on-surface-variant shrink-0" />}
       </button>
 
       {!collapsed && (

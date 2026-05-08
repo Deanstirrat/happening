@@ -27,6 +27,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
   const [extra, setExtra] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [nextPage, setNextPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(initialHasMore);
   const [collapsed, setCollapsed] = useState(false);
   const searchParams = useSearchParams();
 
@@ -34,7 +35,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
 
   const allEvents = [...events, ...extra];
   const trueTotal = totalCount ?? allEvents.length;
-  const hasMore = initialHasMore && allEvents.length < trueTotal;
+  const hasMore = hasMorePages && allEvents.length < trueTotal;
   const remaining = trueTotal - allEvents.length;
 
   async function loadMore() {
@@ -66,6 +67,9 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
             : null,
         }))
         .filter((e) => !shownIds.has(e.id));
+      if (newEvents.length === 0 || data.events.length < PAGE_SIZE) {
+        setHasMorePages(false);
+      }
       setExtra((prev) => [...prev, ...newEvents]);
       setNextPage((p) => p + 1);
     } catch {

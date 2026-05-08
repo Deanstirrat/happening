@@ -70,6 +70,40 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
           ))}
         </div>
 
+        {/* Arrow buttons */}
+        {multi && (
+          <>
+            <button
+              onClick={prev}
+              aria-label="Previous event"
+              className="absolute left-0 top-0 h-full w-16 flex items-center justify-start pl-3 opacity-0 hover:opacity-100 transition-opacity duration-300 group"
+              style={{ background: "linear-gradient(to right, rgba(0,0,0,0.35) 0%, transparent 100%)" }}
+            >
+              <svg
+                width="28" height="28" viewBox="0 0 24 24" fill="none"
+                className="text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-200"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              onClick={next}
+              aria-label="Next event"
+              className="absolute right-0 top-0 h-full w-16 flex items-center justify-end pr-3 opacity-0 hover:opacity-100 transition-opacity duration-300 group"
+              style={{ background: "linear-gradient(to left, rgba(0,0,0,0.35) 0%, transparent 100%)" }}
+            >
+              <svg
+                width="28" height="28" viewBox="0 0 24 24" fill="none"
+                className="text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-200"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </>
+        )}
+
         {/* Dot indicators — inside card at bottom */}
         {multi && (
           <div className="absolute bottom-3 left-0 right-0 flex gap-1.5 items-center justify-center pointer-events-none">

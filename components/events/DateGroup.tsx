@@ -26,7 +26,7 @@ const PAGE_SIZE = 50;
 export default function DateGroup({ date, dayKey, events, initialHasMore = false, totalCount }: DateGroupProps) {
   const [extra, setExtra] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [nextPage, setNextPage] = useState(1);
+  const [nextPage, setNextPage] = useState(0);
   const [hasMorePages, setHasMorePages] = useState(initialHasMore);
   const [collapsed, setCollapsed] = useState(false);
   const searchParams = useSearchParams();
@@ -46,7 +46,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
       params.set("endDate", dayKey);
       params.set("limit", String(PAGE_SIZE));
       params.set("page", String(nextPage + 1));
-      for (const key of ["hideRecurring", "hideMusic", "category", "excludeCategory", "neighborhood", "source", "excludeSource", "isFree", "timeOfDay"]) {
+      for (const key of ["hideRecurring", "hideMusic", "category", "excludeCategory", "neighborhood", "source", "excludeSource", "isFree", "timeOfDay", "forYou"]) {
         for (const val of searchParams.getAll(key)) {
           params.append(key, val);
         }

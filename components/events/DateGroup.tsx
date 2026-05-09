@@ -27,6 +27,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
   const [extra, setExtra] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [nextPage, setNextPage] = useState(0);
+  const [hasMorePages, setHasMorePages] = useState(initialHasMore);
   const [collapsed, setCollapsed] = useState(false);
   const searchParams = useSearchParams();
 
@@ -34,7 +35,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
 
   const allEvents = [...events, ...extra];
   const trueTotal = totalCount ?? allEvents.length;
-  const hasMore = initialHasMore && allEvents.length < trueTotal;
+  const hasMore = hasMorePages && allEvents.length < trueTotal;
   const remaining = trueTotal - allEvents.length;
 
   async function loadMore() {
@@ -45,7 +46,7 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
       params.set("endDate", dayKey);
       params.set("limit", String(PAGE_SIZE));
       params.set("page", String(nextPage + 1));
-      for (const key of ["hideRecurring", "hideMusic", "category", "neighborhood", "source", "isFree", "timeOfDay", "forYou"]) {
+      for (const key of ["hideRecurring", "hideMusic", "category", "excludeCategory", "neighborhood", "source", "excludeSource", "isFree", "timeOfDay", "forYou"]) {
         for (const val of searchParams.getAll(key)) {
           params.append(key, val);
         }
@@ -66,6 +67,9 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
             : null,
         }))
         .filter((e) => !shownIds.has(e.id));
+      if (newEvents.length === 0 || data.events.length < PAGE_SIZE) {
+        setHasMorePages(false);
+      }
       setExtra((prev) => [...prev, ...newEvents]);
       setNextPage((p) => p + 1);
     } catch {
@@ -89,8 +93,8 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
           </span>
         </h2>
         {collapsed
-          ? <ChevronDown size={16} className="text-on-surface-variant shrink-0" />
-          : <ChevronUp size={16} className="text-on-surface-variant shrink-0" />}
+          ? <ChevronUp size={16} className="text-on-surface-variant shrink-0" />
+          : <ChevronDown size={16} className="text-on-surface-variant shrink-0" />}
       </button>
 
       {!collapsed && (

@@ -23,8 +23,10 @@ export async function GET(req: NextRequest) {
     : endOfDay(addDays(now, 30));
 
   const categories = p.getAll("category");
+  const excludedCategories = p.getAll("excludeCategory");
   const neighborhoods = p.getAll("neighborhood");
   const sources = p.getAll("source");
+  const excludedSources = p.getAll("excludeSource");
   const isFree = p.get("isFree") === "true";
   const hideMusic = p.get("hideMusic") === "true";
   const hideRecurring = p.get("hideRecurring") === "true";
@@ -62,10 +64,12 @@ export async function GET(req: NextRequest) {
 
   const where: Prisma.EventWhereInput = {
     status: "PUBLISHED",
-    // Hide events that have already ended
     AND: [
       notEndedCondition,
       ...(searchCondition ? [searchCondition] : []),
+      ...(hideRecurring ? [{ NOT: { tags: { has: "recurring" } } }] : []),
+      ...(excludedCategories.length > 0 ? [{ NOT: { category: { in: excludedCategories as any } } }] : []),
+      ...(excludedSources.length > 0 ? [{ NOT: { source: { slug: { in: excludedSources } } } }] : []),
     ],
     startDate: {
       ...(windowStart ? { gte: windowStart } : {}),
@@ -75,8 +79,6 @@ export async function GET(req: NextRequest) {
     ...(neighborhoods.length > 0 && { neighborhood: { in: neighborhoods } }),
     ...(sources.length > 0 && { source: { slug: { in: sources } } }),
     ...(isFree && { isFree: true }),
-    ...(hideRecurring && { NOT: { tags: { has: "recurring" } } }),
-    // map view only returns events with coordinates
     ...(view === "map" && {
       latitude: { not: null },
       longitude: { not: null },

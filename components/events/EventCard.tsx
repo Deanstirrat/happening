@@ -36,7 +36,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   const carouselDate = event.allDay
     ? formatCarouselDateOnlySF(new Date(event.startDate))
     : formatCarouselDateSF(new Date(event.startDate));
-  const time = event.allDay ? "All day" : formatTimeSF(new Date(event.startDate));
+  const time = event.allDay ? null : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
@@ -173,8 +173,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             {event.title}
           </h3>
           <p className="text-on-surface-variant text-xs font-body mt-0.5">
-            {time}
-            {event.venueName ? ` · ${event.venueName}` : ""}
+            {[time, event.venueName].filter(Boolean).join(" · ")}
           </p>
           <div className="flex items-center gap-1.5 mt-1.5">
             {event.spotifyArtist && (
@@ -212,7 +211,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
 
 // Grid variant (used in tuesday, etc.)
 export function EventCardGrid({ event }: { event: EventSummary }) {
-  const time = event.allDay ? "All day" : formatTimeSF(new Date(event.startDate));
+  const time = event.allDay ? null : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
   const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
@@ -274,8 +273,7 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
             {event.title}
           </h3>
           <p className="text-on-surface-variant text-xs font-body truncate">
-            {time}
-            {event.venueName ? ` · ${event.venueName}` : ""}
+            {[time, event.venueName].filter(Boolean).join(" · ")}
           </p>
           <div className="flex items-center justify-between mt-auto">
             <span

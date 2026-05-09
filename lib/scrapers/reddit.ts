@@ -43,9 +43,9 @@ const MONTH_NAMES: Record<string, number> = {
 
 /**
  * Try to extract a date (and optional time) from a Reddit post title.
- * Returns a Date in SF local time, or null if no date found.
+ * Returns { date, hasTime } or null if no date found.
  */
-function parseDateFromTitle(title: string, createdUtc: number): Date | null {
+function parseDateFromTitle(title: string, createdUtc: number): { date: Date; hasTime: boolean } | null {
   const now = new Date();
   const currentYear = now.getFullYear();
 
@@ -65,7 +65,7 @@ function parseDateFromTitle(title: string, createdUtc: number): Date | null {
       year = resolveYear(month, day, now);
     }
     const time = extractTime(title);
-    return sfDateFromLocal(year, month, day, time.hours, time.minutes);
+    return { date: sfDateFromLocal(year, month, day, time?.hours ?? 0, time?.minutes ?? 0), hasTime: !!time };
   }
 
   // Pattern 2: [Month D] or [Month DD] e.g. [March 28] or [Mar 28]
@@ -77,7 +77,7 @@ function parseDateFromTitle(title: string, createdUtc: number): Date | null {
       const day = parseInt(namedMonthMatch[2]);
       const year = namedMonthMatch[3] ? parseInt(namedMonthMatch[3]) : resolveYear(month, day, now);
       const time = extractTime(title);
-      return sfDateFromLocal(year, month, day, time.hours, time.minutes);
+      return { date: sfDateFromLocal(year, month, day, time?.hours ?? 0, time?.minutes ?? 0), hasTime: !!time };
     }
   }
 
@@ -90,7 +90,7 @@ function parseDateFromTitle(title: string, createdUtc: number): Date | null {
       const day = parseInt(looseMatch[2]);
       const year = looseMatch[3] ? parseInt(looseMatch[3]) : resolveYear(month, day, now);
       const time = extractTime(title);
-      return sfDateFromLocal(year, month, day, time.hours, time.minutes);
+      return { date: sfDateFromLocal(year, month, day, time?.hours ?? 0, time?.minutes ?? 0), hasTime: !!time };
     }
   }
 
@@ -106,12 +106,11 @@ function resolveYear(month: number, day: number, now: Date): number {
 
 /**
  * Try to extract a time from a string like "8pm", "7:30pm", "8:00 PM".
- * Returns { hours: 0, minutes: 0 } (midnight) if none found — events without
- * a time will still appear on the correct day.
+ * Returns null if none found.
  */
-function extractTime(text: string): { hours: number; minutes: number } {
+function extractTime(text: string): { hours: number; minutes: number } | null {
   const match = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
-  if (!match) return { hours: 0, minutes: 0 };
+  if (!match) return null;
   let hours = parseInt(match[1]);
   const minutes = match[2] ? parseInt(match[2]) : 0;
   const period = match[3].toLowerCase();
@@ -199,8 +198,9 @@ export class RedditSFEventsScraper extends BaseScraper {
     const { id, selftext, permalink, created_utc, preview } = post.data;
     const title = decodeHtmlEntities(post.data.title);
 
-    const startDate = parseDateFromTitle(title, created_utc);
-    if (!startDate) return null;
+    const parsed = parseDateFromTitle(title, created_utc);
+    if (!parsed) return null;
+    const { date: startDate, hasTime } = parsed;
 
     // Skip events in the past (more than 1 day ago)
     if (startDate.getTime() < Date.now() - 86400_000) return null;
@@ -225,6 +225,7 @@ export class RedditSFEventsScraper extends BaseScraper {
       title: cleanedTitle,
       description,
       startDate,
+      allDay: !hasTime,
       sourceUrl,
       imageUrl,
       tags: ["reddit", "sf"],

@@ -19,8 +19,8 @@ import {
 import { CATEGORY_LABELS, MUSIC_CATEGORIES, SF_NEIGHBORHOODS } from "@/lib/types";
 
 const MUSIC_CATEGORY_SET = new Set(MUSIC_CATEGORIES as readonly string[]);
-const MUSIC_GENRE_ENTRIES = Object.entries(CATEGORY_LABELS).filter(([k]) => MUSIC_CATEGORY_SET.has(k));
-const OTHER_CATEGORY_ENTRIES = Object.entries(CATEGORY_LABELS).filter(([k]) => !MUSIC_CATEGORY_SET.has(k));
+const MUSIC_GENRE_ENTRIES = Object.entries(CATEGORY_LABELS).filter(([k]) => MUSIC_CATEGORY_SET.has(k)).sort(([, a], [, b]) => a.localeCompare(b));
+const OTHER_CATEGORY_ENTRIES = Object.entries(CATEGORY_LABELS).filter(([k]) => !MUSIC_CATEGORY_SET.has(k)).sort(([, a], [, b]) => a.localeCompare(b));
 
 interface Source {
   slug: string;

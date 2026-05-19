@@ -194,6 +194,27 @@ model EventBlocklist {
   @@map("event_blocklist")
 }
 
+model CostEntry {
+  id           String      @id @default(cuid())
+  service      CostService
+  amount       Float
+  billingMonth DateTime    // first day of the billing month (UTC)
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  @@index([billingMonth])
+  @@index([service])
+  @@map("cost_entries")
+}
+
+enum CostService {
+  CLAUDE_CODE
+  CLAUDE_API
+  APIFY
+  RAILWAY
+  OTHER
+}
+
 enum ScrapeType {
   CHEERIO
   PLAYWRIGHT

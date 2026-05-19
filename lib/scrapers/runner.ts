@@ -106,6 +106,10 @@ import { CityBoxOfficeScraper } from "./cityboxoffice";
 import { CivicKitchenScraper } from "./civickitchen";
 import { ChurchOfClownScraper } from "./churchofclown";
 import { ExploratoriumScraper } from "./exploratorium";
+import { BrokeAssStuartScraper } from "./brokeassstuart";
+import { StorkClubScraper } from "./storkclub";
+import { BorderlandsBooksScraper } from "./borderlandsbooks";
+import { GreenAppleBooksScraper } from "./greenapplebooks";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
@@ -142,6 +146,10 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   civickitchen: new CivicKitchenScraper(),
   churchofclown: new ChurchOfClownScraper(),
   exploratorium: new ExploratoriumScraper(),
+  brokeassstuart: new BrokeAssStuartScraper(),
+  storkclub: new StorkClubScraper(),
+  borderlandsbooks: new BorderlandsBooksScraper(),
+  greenapplebooks: new GreenAppleBooksScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

@@ -138,6 +138,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "brokeassstuart",
+    name: "Broke Ass Stuart (DoTheBay)",
+    url: "https://brokeassstuart.dothebay.com/events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
     slug: "instagram",
     name: "Instagram Venues",
     url: "https://www.instagram.com",
@@ -154,6 +162,30 @@ const sources = [
     enabled: true,
   },
   // ── Venue sites ──────────────────────────────────────────────────────────
+  {
+    slug: "storkclub",
+    name: "Thee Stork Club",
+    url: "https://theestorkclub.com/calendar/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "borderlandsbooks",
+    name: "Borderlands Books",
+    url: "https://borderlands-books.com/v2/events/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "greenapplebooks",
+    name: "Green Apple Books",
+    url: "https://greenapplebooks.com/events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
   {
     slug: "medicine-for-nightmares",
     name: "Medicine for Nightmares",

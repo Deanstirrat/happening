@@ -10,6 +10,7 @@
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",
+    "auto-feature": "tsx scripts/auto-feature.ts",
     "scrape:one": "tsx scripts/scrape.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",

@@ -8,6 +8,7 @@ interface Props {
 
 const navItems = [
   { key: "metrics", label: "metrics", href: "/admin/metrics" },
+  { key: "costs", label: "costs", href: "/admin/costs" },
   { key: "submissions", label: "submissions", href: "/admin/submissions" },
   { key: "curation", label: "curation", href: "/admin/curation" },
   { key: "events", label: "events", href: "/admin/events" },

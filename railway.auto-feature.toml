@@ -1,0 +1,7 @@
+[build]
+dockerfilePath = "Dockerfile.scrape"
+
+[deploy]
+startCommand = "npm run auto-feature"
+# Cron schedule: 0 5 * * * (5am UTC = 10pm PT — 1h after scrape's 4h hard limit)
+# Set this in the Railway dashboard under the service's Settings → Cron Schedule.

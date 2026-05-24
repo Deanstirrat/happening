@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import AdminNav from "../_components/AdminNav";
 import AiSuggestions from "./AiSuggestions";
+import InsightPanel from "./InsightPanel";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { addDays } from "date-fns";
 
@@ -26,7 +27,7 @@ export default async function CurationPage({ searchParams }: Props) {
   const windowStart = sfDayStart(todayKey);
   const windowEnd = sfDayEnd(sfDayKey(addDays(now, 14)));
 
-  const [featuredCount, weeklyCount] = await Promise.all([
+  const [featuredCount, weeklyCount, latestInsight] = await Promise.all([
     prisma.event.count({
       where: { status: "PUBLISHED", featured: true, startDate: { gte: now } },
     }),
@@ -37,6 +38,10 @@ export default async function CurationPage({ searchParams }: Props) {
         startDate: { gte: windowStart, lte: windowEnd },
         NOT: [{ tags: { has: "recurring" } }, { tags: { has: "sfpl" } }],
       },
+    }),
+    prisma.curationInsight.findFirst({
+      orderBy: { weekOf: "desc" },
+      select: { weekOf: true, insight: true, createdAt: true },
     }),
   ]);
 
@@ -55,6 +60,19 @@ export default async function CurationPage({ searchParams }: Props) {
       </div>
 
       <AiSuggestions secret={secret} />
+
+      <InsightPanel
+        secret={secret}
+        latest={
+          latestInsight
+            ? {
+                weekOf: latestInsight.weekOf.toISOString(),
+                insight: latestInsight.insight,
+                createdAt: latestInsight.createdAt.toISOString(),
+              }
+            : null
+        }
+      />
     </div>
   );
 }

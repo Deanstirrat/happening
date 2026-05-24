@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/curation/auto-feature",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/admin/curation/reflect",
+      "schedule": "0 9 * * 1"
+    }
+  ]
+}

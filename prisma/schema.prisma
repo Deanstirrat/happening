@@ -194,6 +194,17 @@ model EventBlocklist {
   @@map("event_blocklist")
 }
 
+model CurationInsight {
+  id        String   @id @default(cuid())
+  weekOf    DateTime @unique
+  insight   String   @db.Text
+  topEvents Json
+  createdAt DateTime @default(now())
+
+  @@index([weekOf])
+  @@map("curation_insights")
+}
+
 model CostEntry {
   id           String      @id @default(cuid())
   service      CostService

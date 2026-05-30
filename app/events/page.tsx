@@ -34,6 +34,15 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Common English words that appear constantly in event titles and are too ambiguous
+// to reliably identify an artist, even with word-boundary matching.
+const TITLE_MATCH_DENYLIST = new Set([
+  "free", "live", "open", "real", "bass", "band", "solo", "wave", "soul",
+  "rock", "jazz", "funk", "folk", "doom", "pure", "wild", "blue", "gold",
+  "dark", "dawn", "rise", "echo", "fire", "rain", "sage", "west", "east",
+  "moon", "star", "nova", "void", "holy", "dead", "loud", "soft", "warm",
+]);
+
 function matchesArtists(
   event: { performers: string[]; title: string; category: string | null },
   artistSet: Set<string>
@@ -45,10 +54,15 @@ function matchesArtists(
   // For music events with no structured performers, fall back to title word-boundary match.
   // Only on music categories to avoid false positives (e.g. an artist named "live" or "free").
   // Word boundaries prevent "Char" from matching inside "Charles", etc.
+  // Denylist skips common English words that appear in event titles regardless of artist names.
   if (event.category?.startsWith("MUSIC_") && event.performers.length === 0) {
     const titleLower = event.title.toLowerCase();
     for (const artist of artistSet) {
-      if (artist.length >= 4 && new RegExp(`\\b${escapeRegExp(artist)}\\b`).test(titleLower)) {
+      if (
+        artist.length >= 4 &&
+        !TITLE_MATCH_DENYLIST.has(artist) &&
+        new RegExp(`\\b${escapeRegExp(artist)}\\b`).test(titleLower)
+      ) {
         return artist;
       }
     }

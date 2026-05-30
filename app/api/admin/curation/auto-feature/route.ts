@@ -59,6 +59,13 @@ async function runAutoFeature() {
     return { ok: true, message: "Weekly featured limit already reached", featured: 0, blocked: 0 };
   }
 
+  // Load the two most recent weekly reflections to feed back into the prompt
+  const recentInsights = await prisma.curationInsight.findMany({
+    orderBy: { weekOf: "desc" },
+    take: 2,
+    select: { insight: true },
+  });
+
   // Build per-day budgets for the window
   const dayBudgets: {
     key: string;
@@ -144,7 +151,7 @@ async function runAutoFeature() {
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [
       {
         role: "user",
@@ -194,7 +201,11 @@ SKIP entirely:
 - Standard gallery openings, generic fitness/wellness, book readings from unknown authors
 - TECH category events
 - Anything that could happen in any American city
-
+${recentInsights.length > 0 ? `
+---
+${recentInsights.map((i) => i.insight).join("\n\n")}
+---
+` : ""}
 Aim to fill the per-day slots shown above. Prioritize Friday/Saturday/Sunday with more picks, Mon-Thu with 1-2 each. Stay within the ${remainingWeeklyBudget} total budget.
 
 Return ONLY a valid JSON object — no prose before or after:

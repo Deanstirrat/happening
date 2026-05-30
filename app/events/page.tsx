@@ -30,6 +30,10 @@ interface SearchParams {
   forYou?: string;
 }
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function matchesArtists(
   event: { performers: string[]; title: string; category: string | null },
   artistSet: Set<string>
@@ -38,12 +42,15 @@ function matchesArtists(
   for (const p of event.performers) {
     if (artistSet.has(p.toLowerCase())) return p;
   }
-  // For music events with no structured performers, fall back to title substring match.
+  // For music events with no structured performers, fall back to title word-boundary match.
   // Only on music categories to avoid false positives (e.g. an artist named "live" or "free").
+  // Word boundaries prevent "Char" from matching inside "Charles", etc.
   if (event.category?.startsWith("MUSIC_") && event.performers.length === 0) {
     const titleLower = event.title.toLowerCase();
     for (const artist of artistSet) {
-      if (artist.length >= 4 && titleLower.includes(artist)) return artist;
+      if (artist.length >= 4 && new RegExp(`\\b${escapeRegExp(artist)}\\b`).test(titleLower)) {
+        return artist;
+      }
     }
   }
   return null;

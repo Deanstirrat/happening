@@ -61,6 +61,17 @@ export class DecenteredScraper extends BaseScraper {
         ? `https://events.decentered.org/events/${externalId}`
         : undefined;
 
+      // Description is entity-encoded HTML; cheerio decodes entities in xmlMode
+      // so rawDesc is the literal HTML string (tags preserved)
+      const rawDesc = $el.find("description").text().trim();
+
+      // Extract any external website link embedded in the description HTML
+      const $desc = cheerio.load(rawDesc);
+      const descWebsiteUrl = $desc("a[href]")
+        .map((_: number, el: cheerio.Element) => $desc(el).attr("href") ?? "")
+        .get()
+        .find((href: string) => href.startsWith("http") && !href.includes("decentered.org"));
+
       // <link> is either an S3 image URL (poster) or an external event URL
       const link = $el.find("link").text().trim();
       let sourceUrl: string;
@@ -68,15 +79,13 @@ export class DecenteredScraper extends BaseScraper {
 
       if (link && (link.includes("s3.amazonaws.com") || link.includes("decentered-images"))) {
         imageUrl = link;
-        sourceUrl = internalUrl ?? `https://events.decentered.org`;
+        sourceUrl = descWebsiteUrl ?? internalUrl ?? `https://events.decentered.org`;
       } else if (link) {
-        sourceUrl = link;
+        sourceUrl = descWebsiteUrl ?? link;
       } else {
-        sourceUrl = internalUrl ?? `https://events.decentered.org`;
+        sourceUrl = descWebsiteUrl ?? internalUrl ?? `https://events.decentered.org`;
       }
 
-      // Description is entity-encoded HTML; cheerio decodes entities in xmlMode
-      const rawDesc = $el.find("description").text().trim();
       const sections = rawDesc
         .split(/<br\s*\/?>/i)
         .map((s) => s.trim())

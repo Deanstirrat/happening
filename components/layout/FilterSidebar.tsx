@@ -226,6 +226,9 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
             <div className="flex items-center gap-2 text-on-surface-variant font-body text-xs font-medium uppercase tracking-wider mb-2">
               <Music2 size={13} />
               For You
+              <span className="text-[0.55rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant/60 normal-case">
+                coming soon
+              </span>
             </div>
             {spotifyConnected ? (
               <div className="flex flex-col gap-1.5">

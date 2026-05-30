@@ -8,11 +8,13 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate";
-import { ArrowLeft, Clock, MapPin, ExternalLink, Tag } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, ExternalLink } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
 import EventFlyerContainer from "./EventFlyerContainer";
+import EventEditPanel from "./EventEditPanel";
+import { getSessionUser } from "@/lib/auth";
 
 /** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
 function extractLocationFromTitle(title: string): string | null {
@@ -102,6 +104,8 @@ export default async function EventDetailPage({
 }) {
   const [{ id }, { secret }] = await Promise.all([params, searchParams]);
   const isAdmin = secret && secret === process.env.SCRAPE_SECRET;
+  const sessionUser = await getSessionUser();
+  const isEditor = !!sessionUser;
   const event = await getEvent(id);
   if (!event) notFound();
 
@@ -129,6 +133,9 @@ export default async function EventDetailPage({
           <FeaturedToggle id={event.id} featured={event.featured} secret={secret!} />
         </div>
       )}
+
+      {/* Editor bar */}
+      {isEditor && <EventEditPanel event={event} />}
 
       {/* Back nav */}
       <div className="flex items-center justify-between mb-8">

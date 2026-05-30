@@ -54,13 +54,23 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
       <Link href={`/events/${event.id}`} className="block group">
         <div className="relative rounded-lg overflow-hidden aspect-[16/9] bg-surface-container">
           {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={event.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, 60vw"
-            />
+            <>
+              <Image
+                src={imageUrl}
+                alt=""
+                fill
+                aria-hidden
+                className="object-cover scale-110 blur-2xl opacity-60 saturate-150"
+                sizes="(max-width: 768px) 100vw, 60vw"
+              />
+              <Image
+                src={imageUrl}
+                alt={event.title}
+                fill
+                className="object-contain transition-transform duration-500 group-hover:scale-105"
+                sizes="(max-width: 768px) 100vw, 60vw"
+              />
+            </>
           ) : categoryImage ? (
             <CategoryImage
               src={categoryImage}
@@ -230,13 +240,23 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
         {/* Image */}
         <div className="relative aspect-[4/3] bg-surface-container-high">
           {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={event.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
+            <>
+              <Image
+                src={imageUrl}
+                alt=""
+                fill
+                aria-hidden
+                className="object-cover scale-110 blur-2xl opacity-60 saturate-150"
+                sizes="(max-width: 768px) 50vw, 25vw"
+              />
+              <Image
+                src={imageUrl}
+                alt={event.title}
+                fill
+                className="object-contain transition-transform duration-500 group-hover:scale-105"
+                sizes="(max-width: 768px) 50vw, 25vw"
+              />
+            </>
           ) : categoryImage ? (
             <CategoryImage
               src={categoryImage}

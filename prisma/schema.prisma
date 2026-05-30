@@ -226,6 +226,47 @@ enum CostService {
   OTHER
 }
 
+enum UserRole {
+  ADMIN
+  EDITOR
+}
+
+model User {
+  id        String        @id @default(cuid())
+  email     String        @unique
+  name      String?
+  role      UserRole      @default(EDITOR)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  sessions  UserSession[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@map("user_sessions")
+}
+
+model MagicLinkToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@map("magic_link_tokens")
+}
+
 enum ScrapeType {
   CHEERIO
   PLAYWRIGHT

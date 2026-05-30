@@ -15,6 +15,7 @@ const navItems = [
   { key: "blocklist", label: "blocklist", href: "/admin/blocklist" },
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "reports", label: "reports", href: "/admin/reports" },
+  { key: "users", label: "users", href: "/admin/users" },
 ];
 
 // Pages that map to the "reports" nav item

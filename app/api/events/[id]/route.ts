@@ -19,17 +19,14 @@ export async function GET(
   return NextResponse.json(event);
 }
 
+const DATE_FIELDS = new Set(["startDate", "endDate"]);
+const ARRAY_FIELDS = new Set(["tags", "performers"]);
 const PATCHABLE_FIELDS = new Set([
-  "title",
-  "description",
-  "imageUrl",
-  "startDate",
-  "endDate",
-  "venueName",
-  "venueAddress",
-  "neighborhood",
-  "price",
-  "isFree",
+  "title", "description", "imageUrl",
+  "startDate", "endDate", "allDay",
+  "venueName", "venueAddress", "city", "neighborhood",
+  "category", "price", "isFree",
+  "tags", "performers", "status", "recurringType", "sourceUrl",
 ]);
 
 export async function PATCH(
@@ -37,9 +34,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getSessionUser(req);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const body = await req.json().catch(() => null);
@@ -50,8 +45,10 @@ export async function PATCH(
   const data: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body)) {
     if (!PATCHABLE_FIELDS.has(key)) continue;
-    if (key === "startDate" || key === "endDate") {
+    if (DATE_FIELDS.has(key)) {
       data[key] = value ? new Date(value as string) : null;
+    } else if (ARRAY_FIELDS.has(key)) {
+      data[key] = Array.isArray(value) ? value : [];
     } else {
       data[key] = value;
     }
@@ -63,4 +60,16 @@ export async function PATCH(
 
   const event = await prisma.event.update({ where: { id }, data });
   return NextResponse.json(event);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getSessionUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  await prisma.event.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

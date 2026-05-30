@@ -124,7 +124,7 @@ export default async function EventDetailPage({
   const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
   const mapsQuery = event.venueAddress ?? (venueDisplayName ? `${venueDisplayName}, San Francisco, CA` : null);
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happening.so";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now";
 
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",

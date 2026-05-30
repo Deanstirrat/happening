@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMagicLinkToken, createSession, sessionCookieOptions } from "@/lib/auth";
 
+function siteUrl(path: string) {
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now";
+  return `${base.replace(/\/$/, "")}${path}`;
+}
+
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login?error=missing", req.url));
+    return NextResponse.redirect(siteUrl("/login?error=missing"));
   }
 
   const email = await verifyMagicLinkToken(token);
   if (!email) {
-    return NextResponse.redirect(new URL("/login?error=invalid", req.url));
+    return NextResponse.redirect(siteUrl("/login?error=invalid"));
   }
 
   const sessionToken = await createSession(email);
-  const response = NextResponse.redirect(new URL("/events", req.url));
+  const response = NextResponse.redirect(siteUrl("/events"));
   response.cookies.set(sessionCookieOptions(sessionToken));
   return response;
 }

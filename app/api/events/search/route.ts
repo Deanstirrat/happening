@@ -11,13 +11,14 @@ export async function GET(req: NextRequest) {
   const events = await prisma.event.findMany({
     where: {
       status: "PUBLISHED",
+      startDate: { gte: new Date() },
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { venueName: { contains: q, mode: "insensitive" } },
       ],
     },
     take: 10,
-    orderBy: { startDate: "desc" },
+    orderBy: { startDate: "asc" },
     select: {
       id: true,
       title: true,

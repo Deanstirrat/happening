@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import NavBar from "@/components/layout/NavBar";
+import NavBarWrapper from "@/components/layout/NavBarWrapper";
 import BugReportButton from "@/components/ui/BugReportButton";
 import PageTracker from "@/components/analytics/PageTracker";
 import { Suspense } from "react";
@@ -20,7 +20,7 @@ export default function RootLayout({
     <html lang="en" className="dark h-full antialiased">
       <body className="min-h-full flex flex-col bg-background text-on-surface">
         <Suspense>
-          <NavBar />
+          <NavBarWrapper />
           <PageTracker />
         </Suspense>
         <main className="flex-1">{children}</main>

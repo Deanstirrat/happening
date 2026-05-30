@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, LogIn, LogOut } from "lucide-react";
 import { useState } from "react";
 
-export default function NavBar() {
+export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchVal, setSearchVal] = useState(searchParams.get("search") ?? "");
   const [searchFocused, setSearchFocused] = useState(false);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.refresh();
+  }
 
   const isActive = (href: string) => pathname.startsWith(href);
 
@@ -47,6 +52,28 @@ export default function NavBar() {
           <NavLink href="/submit" active={isActive("/submit")}>
             submit
           </NavLink>
+        </div>
+
+        {/* Auth */}
+        <div className={`shrink-0 transition-all duration-200 ${searchFocused ? "hidden sm:flex" : "flex"}`}>
+          {isEditor ? (
+            <button
+              onClick={handleLogout}
+              className="font-body text-xs text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1.5 px-2 py-1.5"
+              title="Sign out"
+            >
+              <LogOut size={13} />
+              <span className="hidden sm:inline">sign out</span>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="font-body text-xs text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1.5 px-2 py-1.5"
+            >
+              <LogIn size={13} />
+              <span className="hidden sm:inline">sign in</span>
+            </Link>
+          )}
         </div>
 
         {/* Search — takes remaining space, expands on focus */}

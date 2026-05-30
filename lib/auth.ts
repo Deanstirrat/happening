@@ -103,7 +103,7 @@ export async function verifyMagicLinkToken(token: string): Promise<string | null
 export async function sendMagicLinkEmail(email: string, token: string) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happening.so";
   const link = `${baseUrl}/api/auth/verify?token=${token}`;
-  const fromEmail = process.env.RESEND_FROM_EMAIL ?? "happening <noreply@happening.so>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
 
   const resend = new Resend(process.env.RESEND_API_KEY);
 

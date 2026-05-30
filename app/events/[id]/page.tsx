@@ -124,7 +124,63 @@ export default async function EventDetailPage({
   const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
   const mapsQuery = event.venueAddress ?? (venueDisplayName ? `${venueDisplayName}, San Francisco, CA` : null);
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happening.so";
+
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.title,
+    startDate: event.startDate.toISOString(),
+    ...(event.endDate ? { endDate: event.endDate.toISOString() } : {}),
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    url: `${baseUrl}/events/${event.id}`,
+    ...(event.imageUrl ? { image: [event.imageUrl] } : {}),
+    ...(event.description ? { description: event.description } : {}),
+    location: {
+      "@type": "Place",
+      name: venueDisplayName ?? "San Francisco",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: event.city,
+        addressRegion: "CA",
+        addressCountry: "US",
+        ...(event.venueAddress ? { streetAddress: event.venueAddress } : {}),
+      },
+      ...(event.latitude && event.longitude
+        ? { geo: { "@type": "GeoCoordinates", latitude: event.latitude, longitude: event.longitude } }
+        : {}),
+    },
+    organizer: {
+      "@type": "Organization",
+      name: event.source.name,
+      url: event.source.url,
+    },
+    offers: {
+      "@type": "Offer",
+      url: event.sourceUrl,
+      ...(event.isFree
+        ? { price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" }
+        : event.price
+          ? { price: event.price.replace(/^\$/, ""), priceCurrency: "USD" }
+          : {}),
+    },
+    ...(event.performers.length > 0
+      ? {
+          performer: event.performers.map((p) => ({
+            "@type": "PerformingGroup",
+            name: p,
+          })),
+        }
+      : {}),
+  };
+
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Admin bar */}
       {isAdmin && (
@@ -298,7 +354,7 @@ export default async function EventDetailPage({
       {similar.length > 0 && (
         <div>
           <h2 className="font-headline font-bold text-2xl text-on-surface lowercase mb-6">
-            similar pulses
+            similar events
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {similar.map((e: typeof similar[number]) => {
@@ -366,5 +422,6 @@ export default async function EventDetailPage({
         </div>
       </footer>
     </div>
+    </>
   );
 }

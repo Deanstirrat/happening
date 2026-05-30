@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
     "postbuild": "cp -r .next/static .next/standalone/.next/static && cp -rn public/. .next/standalone/public/",
     "postinstall": "prisma generate && playwright install --with-deps chromium",
     "start": "node .next/standalone/server.js",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { exchangeCode, fetchAllLikedArtists } from "@/lib/spotify";
+import { exchangeCode } from "@/lib/spotify";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
   // Respect reverse-proxy headers (Railway serves on 0.0.0.0 internally)
   const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(/:$/, "");
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
-  const eventsUrl = new URL("/events", `${proto}://${host}`);
+  const base = `${proto}://${host}`;
+  const eventsUrl = new URL("/events", base);
 
   if (error || !code) {
     console.error("[spotify/callback] OAuth error:", error);
@@ -31,16 +32,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const tokens = await exchangeCode(code);
-    const artists = await fetchAllLikedArtists(tokens.access_token);
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
+    // Create a pending session — artist sync happens on the connecting page via SSE
     const session = await prisma.spotifySession.create({
       data: {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt,
-        artists,
-        artistCount: artists.length,
+        artists: [],
+        artistCount: 0,
+        synced: false,
       },
     });
 
@@ -52,8 +54,7 @@ export async function GET(req: NextRequest) {
       path: "/",
     });
 
-    eventsUrl.searchParams.set("forYou", "true");
-    return NextResponse.redirect(eventsUrl);
+    return NextResponse.redirect(new URL("/spotify/connecting", base));
   } catch (err) {
     console.error("[spotify/callback]", err);
     eventsUrl.searchParams.set("spotifyError", "auth");

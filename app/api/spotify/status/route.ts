@@ -10,10 +10,11 @@ export async function GET() {
 
   const session = await prisma.spotifySession.findUnique({
     where: { id: sid },
-    select: { artistCount: true },
+    select: { artistCount: true, synced: true },
   });
 
   if (!session) return NextResponse.json({ connected: false });
+  if (!session.synced) return NextResponse.json({ connected: false, syncing: true });
 
   return NextResponse.json({ connected: true, artistCount: session.artistCount });
 }

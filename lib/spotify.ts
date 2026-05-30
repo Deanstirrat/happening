@@ -65,23 +65,46 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
   return res.json();
 }
 
-export async function fetchAllLikedArtists(accessToken: string): Promise<string[]> {
-  const artists = new Set<string>();
+type TracksPage = {
+  items: Array<{ track: { artists: Array<{ name: string }> } }>;
+  next: string | null;
+};
+
+// Yields batches of unique artist display names (original casing) as each page loads.
+// Caller is responsible for deduplication across calls if needed.
+export async function* streamLikedArtists(accessToken: string): AsyncGenerator<string[]> {
   let url: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
+  const seen = new Set<string>();
 
   while (url) {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) throw new Error(`Spotify tracks fetch failed: ${response.status}`);
-    const data: { items: Array<{ track: { artists: Array<{ name: string }> } }>; next: string | null } = await response.json();
+    const data: TracksPage = await response.json();
+
+    const batch: string[] = [];
     for (const item of data.items ?? []) {
       for (const artist of item.track?.artists ?? []) {
-        if (artist.name) artists.add(artist.name.toLowerCase());
+        if (artist.name) {
+          const lower = artist.name.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            batch.push(artist.name);
+          }
+        }
       }
     }
+
+    if (batch.length > 0) yield batch;
     url = data.next ?? null;
   }
+}
 
-  return Array.from(artists);
+export async function fetchAllLikedArtists(accessToken: string): Promise<string[]> {
+  const artists: string[] = [];
+  for await (const batch of streamLikedArtists(accessToken)) {
+    artists.push(...batch.map((n) => n.toLowerCase()));
+  }
+  return artists;
 }

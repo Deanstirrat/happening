@@ -177,6 +177,7 @@ model SpotifySession {
   expiresAt    DateTime
   artists      String[]
   artistCount  Int      @default(0)
+  synced       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

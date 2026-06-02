@@ -1,22 +1,25 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { sfDateFromLocal } from "@/lib/sfDate";
+import axios from "axios";
 
 /**
  * Eventbrite SF — eventbrite.com/d/ca--san-francisco/events/
  *
- * Eventbrite removed public API search in 2023. We instead scrape their
- * SF discovery page, extracting event data from the JSON blob Eventbrite
- * embeds in the page for React hydration (window.__SERVER_DATA__).
- * Falls back to JSON-LD <script> blocks if the hydration key changes.
+ * Eventbrite removed public API search in 2023 and has since moved to
+ * full client-side rendering — window.__SERVER_DATA__ is no longer embedded
+ * in the initial HTML. Event data is now fetched via their internal API
+ * after JS hydration.
  *
- * Pagination: ?page=N up to MAX_PAGES.
+ * Strategy: use Playwright (stealth) to load each discovery page, then
+ * intercept the JSON API response that carries event data. Falls back to
+ * evaluating window.__SERVER_DATA__ (in case they re-add SSR) and then to
+ * JSON-LD in the rendered DOM.
  */
 export class EventbriteScraper extends BaseScraper {
   readonly sourceSlug = "eventbrite";
-  private readonly MAX_PAGES = 10;
+
   private readonly BASE_URLS = [
     "https://www.eventbrite.com/d/ca--san-francisco/events/",
     "https://www.eventbrite.com/d/ca--san-francisco/food-and-drink/",
@@ -31,41 +34,20 @@ export class EventbriteScraper extends BaseScraper {
     "https://www.eventbrite.com/d/ca--san-francisco/hobbies/",
   ];
 
-  // Track series metadata per event sourceUrl so we can filter after price enrichment
   private seriesMeta = new Map<string, { seriesId: string; numChildren: number }>();
 
   async scrape(): Promise<ScrapedEvent[]> {
+    const { chromium } = await import("playwright-extra");
+    const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
+    chromium.use(StealthPlugin());
+
+    const browser = await chromium.launch({ headless: true, timeout: 60000 });
     const seenIds = new Set<string>();
     const events: ScrapedEvent[] = [];
 
-    for (const baseUrl of this.BASE_URLS) {
-      for (let page = 1; page <= this.MAX_PAGES; page++) {
-        const url = `${baseUrl}?page=${page}`;
-        let html: string;
-        try {
-          const { data } = await axios.get(url, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-              Accept: "text/html,application/xhtml+xml",
-            },
-            timeout: 20000,
-          });
-          html = data;
-        } catch (err: any) {
-          console.error(`[eventbrite] Fetch error on ${url}:`, err.message);
-          break;
-        }
-
-        const $ = cheerio.load(html);
-        const pageEvents = this.extractEvents($, html);
-
-        if (pageEvents.length === 0) {
-          console.log(`[eventbrite] No events on ${baseUrl} page ${page} — stopping`);
-          break;
-        }
-
-        // Deduplicate within this scrape run by externalId/sourceUrl
+    try {
+      for (const baseUrl of this.BASE_URLS) {
+        const pageEvents = await this.scrapeUrl(browser, baseUrl);
         for (const event of pageEvents) {
           const key = event.externalId || event.sourceUrl;
           if (key && seenIds.has(key)) continue;
@@ -73,10 +55,11 @@ export class EventbriteScraper extends BaseScraper {
           events.push(event);
         }
       }
+    } finally {
+      await browser.close();
     }
 
-    // Filter out spam events (corporate training, bookable-experience platforms)
-    // before price enrichment to avoid wasting HTTP requests.
+    // Filter spam
     const preSpam = events.length;
     const cleaned = events.filter((e) => {
       const reason = isEventbriteSpam(e);
@@ -86,17 +69,13 @@ export class EventbriteScraper extends BaseScraper {
       }
       return true;
     });
-    const spamDropped = preSpam - cleaned.length;
-    if (spamDropped > 0) {
-      console.log(`[eventbrite] Filtered ${spamDropped} spam events`);
+    if (preSpam - cleaned.length > 0) {
+      console.log(`[eventbrite] Filtered ${preSpam - cleaned.length} spam events`);
     }
 
-    // Enrich events with prices from individual event pages (discovery pages
-    // no longer include price data). Fetch in batches to avoid rate-limiting.
     await this.enrichPrices(cleaned);
 
-    // Filter out paid high-frequency series (e.g. daily bookable services).
-    // Free recurring events are kept.
+    // Drop paid high-frequency series (free recurring events are kept)
     const filtered = cleaned.filter((e) => {
       const meta = this.seriesMeta.get(e.sourceUrl);
       if (!meta || meta.numChildren <= 52) return true;
@@ -112,96 +91,89 @@ export class EventbriteScraper extends BaseScraper {
     return filtered;
   }
 
-  private async enrichPrices(events: ScrapedEvent[]): Promise<void> {
-    const CONCURRENCY = 5;
-    const DELAY_MS = 200;
-    const needsPrice = events.filter((e) => e.price == null);
+  private async scrapeUrl(browser: any, url: string): Promise<ScrapedEvent[]> {
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
 
-    console.log(
-      `[eventbrite] Enriching prices for ${needsPrice.length}/${events.length} events`
+    // Block media/fonts to reduce load time — we only need the JSON data
+    await page.route(
+      /\.(png|jpe?g|gif|svg|webp|css|woff2?|ttf|eot)(\?.*)?$/i,
+      (route: any) => route.abort()
     );
 
-    for (let i = 0; i < needsPrice.length; i += CONCURRENCY) {
-      const batch = needsPrice.slice(i, i + CONCURRENCY);
-      await Promise.all(batch.map((event) => this.fetchEventPrice(event)));
-      if (i + CONCURRENCY < needsPrice.length) {
-        await new Promise((r) => setTimeout(r, DELAY_MS));
-      }
-    }
-  }
+    // Capture any JSON responses from Eventbrite that look like event listings
+    const capturedJson: any[] = [];
+    const inflight: Promise<void>[] = [];
 
-  private async fetchEventPrice(event: ScrapedEvent): Promise<void> {
-    try {
-      const { data: html } = await axios.get(event.sourceUrl, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        timeout: 15000,
-      });
-
-      const $ = cheerio.load(html);
-      $('script[type="application/ld+json"]').each((_, el) => {
-        if (event.price != null) return; // already found
+    page.on("response", (response: any) => {
+      const p = (async () => {
         try {
-          const schema = JSON.parse($(el).html() ?? "");
-          const schemaType: string = schema?.["@type"] ?? "";
-          if (!schemaType.endsWith("Event")) return;
-          const offers = schema.offers;
-          const lowPrice =
-            (Array.isArray(offers) ? offers[0]?.lowPrice : offers?.lowPrice) ??
-            (Array.isArray(offers) ? offers[0]?.price : offers?.price);
-          if (lowPrice != null) {
-            const num = parseFloat(String(lowPrice));
-            if (num === 0) {
-              event.price = "Free";
-              event.isFree = true;
-            } else if (!isNaN(num)) {
-              event.price = `$${num % 1 === 0 ? num.toFixed(0) : num.toFixed(2)}`;
-            }
-          }
+          if (!response.url().includes("eventbrite.com")) return;
+          const ct = response.headers()["content-type"] ?? "";
+          if (!ct.includes("json")) return;
+          const json = await response.json();
+          if (this.looksLikeEventData(json)) capturedJson.push(json);
         } catch {
           // ignore parse errors
         }
-      });
-    } catch {
-      // Silently skip — price remains undefined
-    }
-  }
-
-  private extractEvents(
-    $: ReturnType<typeof cheerio.load>,
-    html: string
-  ): ScrapedEvent[] {
-    // --- Strategy 1: window.__SERVER_DATA__ hydration blob ---
-    const match = html.match(
-      /window\.__SERVER_DATA__\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/
-    );
-    if (match) {
-      try {
-        const data = JSON.parse(match[1]);
-        const results = this.extractFromServerData(data);
-        if (results.length > 0) return results;
-      } catch {
-        // fall through
-      }
-    }
-
-    // --- Strategy 2: JSON-LD blocks ---
-    const results = this.extractFromJsonLd($);
-    if (results.length > 0) return results;
-
-    // --- Debug: log script snippets to help diagnose future structure changes ---
-    console.warn("[eventbrite] Could not extract events — logging script stubs:");
-    $("script").each((i, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 50) {
-        console.warn(`  script[${i}]: ${text.slice(0, 120)}…`);
-      }
+      })();
+      inflight.push(p);
     });
 
-    return [];
+    try {
+      await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
+      await Promise.allSettled(inflight);
+    } catch (err: any) {
+      console.error(`[eventbrite] Failed to load ${url}:`, err.message);
+      await context.close();
+      return [];
+    }
+
+    let events: ScrapedEvent[] = [];
+
+    // Strategy 1: window.__SERVER_DATA__ populated after JS hydration
+    try {
+      const serverData = await page.evaluate(() => (window as any).__SERVER_DATA__);
+      if (serverData) events = this.extractFromServerData(serverData);
+    } catch {
+      // not available
+    }
+
+    // Strategy 2: intercepted API JSON responses
+    if (events.length === 0) {
+      for (const json of capturedJson) {
+        const parsed = this.extractFromServerData(json);
+        if (parsed.length > 0) {
+          events = parsed;
+          break;
+        }
+      }
+    }
+
+    // Strategy 3: JSON-LD in the rendered DOM
+    if (events.length === 0) {
+      const html = await page.content();
+      events = this.extractFromJsonLd(cheerio.load(html));
+    }
+
+    await context.close();
+
+    console.log(`[eventbrite] ${url} → ${events.length} events`);
+    return events;
+  }
+
+  private looksLikeEventData(json: any): boolean {
+    return !!(
+      json?.search_data?.events?.results?.length ||
+      json?.events?.results?.length ||
+      json?.components?.search_results?.events?.length ||
+      (Array.isArray(json?.buckets) && json.buckets.length > 0) ||
+      (Array.isArray(json?.results) && json.results.some((r: any) => r?.id && (r?.name ?? r?.title)))
+    );
   }
 
   private extractFromServerData(data: any): ScrapedEvent[] {
@@ -232,19 +204,24 @@ export class EventbriteScraper extends BaseScraper {
       });
     }
 
+    // Flat results array (intercepted API response format)
+    if (Array.isArray(data?.results)) {
+      return data.results.flatMap((item: any) => {
+        const event = this.parseServerEvent(item);
+        return event ? [event] : [];
+      });
+    }
+
     return [];
   }
 
   private parseServerEvent(item: any): ScrapedEvent | null {
-    // Skip online-only events — not physically in the Bay Area
     if (item?.is_online_event === true || item?.online_event === true) return null;
 
     const title: string = item?.name ?? item?.title;
     if (!title) return null;
 
     // --- Start date ---
-    // Old format: item.start.utc / item.start.local
-    // New format: item.start_date ("2026-04-11") + item.start_time ("21:30")
     const startUtc = item?.start?.utc;
     const startDateField: string | undefined = item?.start_date;
     const startTimeField: string | undefined = item?.start_time;
@@ -292,7 +269,6 @@ export class EventbriteScraper extends BaseScraper {
     const lat = venue?.latitude ?? venue?.address?.latitude;
     const lng = venue?.longitude ?? venue?.address?.longitude;
 
-    // Skip events with a venue address that's clearly outside the Bay Area
     if (venueAddress && !isLikelyBayArea(venueAddress)) return null;
 
     const isFree: boolean =
@@ -316,7 +292,6 @@ export class EventbriteScraper extends BaseScraper {
       item?.eventbrite_url ??
       `https://www.eventbrite.com/e/${item?.id}`;
 
-    // Track series metadata for post-enrichment filtering
     if (item?.series_id) {
       this.seriesMeta.set(sourceUrl, {
         seriesId: String(item.series_id),
@@ -327,10 +302,7 @@ export class EventbriteScraper extends BaseScraper {
     return {
       externalId: String(item?.id ?? ""),
       title,
-      description: (item?.summary ?? item?.description?.text ?? "").slice(
-        0,
-        1000
-      ) || undefined,
+      description: (item?.summary ?? item?.description?.text ?? "").slice(0, 1000) || undefined,
       startDate,
       endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
       venueName,
@@ -356,13 +328,11 @@ export class EventbriteScraper extends BaseScraper {
         return;
       }
 
-      // Eventbrite uses an ItemList wrapping ListItem entries
       const listItems: any[] = schema?.itemListElement ?? [];
       const eventNodes: any[] = listItems
         .map((li: any) => li?.item ?? li)
         .filter(Boolean);
 
-      // Also handle flat arrays or @graph of Event nodes
       const flat: any[] = Array.isArray(schema)
         ? schema
         : schema?.["@graph"] ?? [];
@@ -374,8 +344,6 @@ export class EventbriteScraper extends BaseScraper {
         const title: string = node.name;
         if (!title) continue;
 
-        // Use parseEbLocal so date-only strings ("2026-04-11") are treated as
-        // SF local midnight instead of UTC midnight (which shows as 5 PM PDT).
         const startDate = parseEbLocal(node.startDate) ?? new Date(node.startDate);
         if (isNaN(startDate.getTime())) continue;
 
@@ -383,7 +351,6 @@ export class EventbriteScraper extends BaseScraper {
           ? (parseEbLocal(node.endDate) ?? new Date(node.endDate))
           : undefined;
         const loc = node.location;
-        // Skip virtual/online events
         if (loc?.["@type"] === "VirtualLocation") continue;
         const venueName: string | undefined = loc?.name ?? undefined;
         const venueAddress: string | undefined =
@@ -423,10 +390,68 @@ export class EventbriteScraper extends BaseScraper {
 
     return events;
   }
+
+  private async enrichPrices(events: ScrapedEvent[]): Promise<void> {
+    const CONCURRENCY = 5;
+    const DELAY_MS = 200;
+    const needsPrice = events.filter((e) => e.price == null);
+
+    console.log(
+      `[eventbrite] Enriching prices for ${needsPrice.length}/${events.length} events`
+    );
+
+    for (let i = 0; i < needsPrice.length; i += CONCURRENCY) {
+      const batch = needsPrice.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map((event) => this.fetchEventPrice(event)));
+      if (i + CONCURRENCY < needsPrice.length) {
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
+    }
+  }
+
+  private async fetchEventPrice(event: ScrapedEvent): Promise<void> {
+    try {
+      const { data: html } = await axios.get(event.sourceUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        timeout: 15000,
+      });
+
+      const $ = cheerio.load(html);
+      $('script[type="application/ld+json"]').each((_, el) => {
+        if (event.price != null) return;
+        try {
+          const schema = JSON.parse($(el).html() ?? "");
+          const schemaType: string = schema?.["@type"] ?? "";
+          if (!schemaType.endsWith("Event")) return;
+          const offers = schema.offers;
+          const lowPrice =
+            (Array.isArray(offers) ? offers[0]?.lowPrice : offers?.lowPrice) ??
+            (Array.isArray(offers) ? offers[0]?.price : offers?.price);
+          if (lowPrice != null) {
+            const num = parseFloat(String(lowPrice));
+            if (num === 0) {
+              event.price = "Free";
+              event.isFree = true;
+            } else if (!isNaN(num)) {
+              event.price = `$${num % 1 === 0 ? num.toFixed(0) : num.toFixed(2)}`;
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
+      });
+    } catch {
+      // Silently skip — price remains undefined
+    }
+  }
 }
 
 // ── Spam filtering ──────────────────────────────────────────────────────────
-// Venue substrings (case-insensitive) that indicate corporate training spam
+
 const SPAM_VENUE_PATTERNS = [
   "regus",
   "for venue details reach us at",
@@ -435,10 +460,8 @@ const SPAM_VENUE_PATTERNS = [
   "adeptskil",
 ];
 
-// Venue names that are exact matches for spam (after lowercasing + stripping non-alphanum)
 const SPAM_VENUE_EXACT = new Set(["mid-market"]);
 
-// Title patterns for bookable-experience platforms cross-posting as events
 const SPAM_TITLE_PATTERNS: RegExp[] = [
   /classpop/i,
   /cozymeal/i,
@@ -458,6 +481,7 @@ function isEventbriteSpam(event: ScrapedEvent): string | null {
 }
 
 // ── Geography ───────────────────────────────────────────────────────────────
+
 const BAY_AREA_TERMS = [
   "san francisco", " sf,", ",sf,", "sf ", "oakland", "berkeley", "san jose",
   "palo alto", "mountain view", "sunnyvale", "santa clara", "fremont",
@@ -471,15 +495,12 @@ function isLikelyBayArea(addr: string): boolean {
   return BAY_AREA_TERMS.some((t) => lower.includes(t));
 }
 
-// Eventbrite's .local field is venue-local time with no TZ offset — treat as SF local.
-// Also handles date-only strings ("2026-04-11") by defaulting to midnight SF local.
 function parseEbLocal(raw: string): Date | null {
   const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
   if (!m) return null;
   return sfDateFromLocal(+m[1], +m[2], +m[3], +(m[4] ?? 0), +(m[5] ?? 0));
 }
 
-// Combines new Eventbrite separate date + time fields (e.g. "2026-04-11" + "21:30")
 function parseEbSeparateDateTime(dateStr: string, timeStr: string): Date | null {
   const dm = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!dm) return null;

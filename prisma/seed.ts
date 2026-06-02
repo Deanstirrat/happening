@@ -322,6 +322,14 @@ const sources = [
     category: SourceCategory.VENUE,
     enabled: true,
   },
+  {
+    slug: "folkyeah",
+    name: "(((folkYEAH!)))",
+    url: "https://folkyeah.com/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
   // ── Institutional ────────────────────────────────────────────────────────
   {
     slug: "usfca",

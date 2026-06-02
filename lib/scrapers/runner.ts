@@ -114,6 +114,7 @@ import { BestMedicineComedyScraper } from "./bestmedicinecomedy";
 import { GreenAppleBooksScraper } from "./greenapplebooks";
 import { DiceScraper } from "./dice";
 import { SfDesignWeekScraper } from "./sfdesignweek";
+import { FolkYeahScraper } from "./folkyeah";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -160,6 +161,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   greenapplebooks: new GreenAppleBooksScraper(),
   spotlightcomedy: new SpotlightComedyScraper(),
   bestmedicinecomedy: new BestMedicineComedyScraper(),
+  folkyeah: new FolkYeahScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

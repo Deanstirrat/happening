@@ -34,7 +34,14 @@ type Fields = {
 function toDatetimeLocal(d: Date | string | null | undefined): string {
   if (!d) return "";
   const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 16);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// datetime-local values have no timezone — convert to ISO so the server always receives UTC
+function datetimeLocalToISO(value: string): string | null {
+  if (!value) return null;
+  return new Date(value).toISOString();
 }
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -98,8 +105,8 @@ export default function EventEditPanel({ event }: { event: Event }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...fields,
-        startDate: fields.startDate || null,
-        endDate: fields.endDate || null,
+        startDate: datetimeLocalToISO(fields.startDate),
+        endDate: datetimeLocalToISO(fields.endDate),
         imageUrl: fields.imageUrl || null,
         description: fields.description || null,
         venueName: fields.venueName || null,

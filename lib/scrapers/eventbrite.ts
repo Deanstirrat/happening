@@ -18,7 +18,7 @@ import axios from "axios";
  * JSON-LD in the rendered DOM.
  */
 export class EventbriteScraper extends BaseScraper {
-  readonly sourceSlug = "eventbrite";
+  readonly sourceSlug: string = "eventbrite";
 
   protected readonly BASE_URLS = [
     "https://www.eventbrite.com/d/ca--san-francisco/events/",

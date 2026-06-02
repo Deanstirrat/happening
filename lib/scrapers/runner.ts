@@ -122,7 +122,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   bandsintown: new BandsintownScraper(),
   kqed: new KqedScraper(),
   dothebay: new DothebayScraper(),
-  "reddit-sfevents": new RedditSFEventsScraper(),
+  // reddit-sfevents: disabled — Reddit now requires OAuth for JSON API (403 without auth)
   badslava: new BadslavaTriviaScraper(),
   sfpl: new SfplScraper(),
   // sfrecpark: disabled — low-quality events

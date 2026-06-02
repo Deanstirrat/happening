@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:recategorize": "tsx scripts/recategorize.ts",
-    "db:populate-descriptions": "tsx scripts/populate-descriptions.ts"
+    "db:populate-descriptions": "tsx scripts/populate-descriptions.ts",
+    "enrich-featured": "tsx scripts/enrich-featured.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

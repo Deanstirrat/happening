@@ -108,9 +108,16 @@ import { ChurchOfClownScraper } from "./churchofclown";
 import { ExploratoriumScraper } from "./exploratorium";
 import { BrokeAssStuartScraper } from "./brokeassstuart";
 import { StorkClubScraper } from "./storkclub";
+import { SpotlightComedyScraper } from "./spotlightcomedy";
+import { BestMedicineComedyScraper } from "./bestmedicinecomedy";
 // BorderlandsBooksScraper omitted — disabled, event program on hold
 import { GreenAppleBooksScraper } from "./greenapplebooks";
+import { DiceScraper } from "./dice";
+import { SfDesignWeekScraper } from "./sfdesignweek";
 export const SCRAPERS: Record<string, BaseScraper> = {
+  // ── High-quality aggregators first — populate events with rich data so
+  //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
+  dice: new DiceScraper(),
   "19hz": new NineteenHzScraper(),
   funcheap: new FuncheapScraper(),
   residentadvisor: new ResidentAdvisorScraper(),
@@ -133,6 +140,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   "noe-valley-town-square": new NoeValleyTownSquareScraper(),
   citylights: new CityLightsScraper(),
   sfjazz: new SFJazzScraper(),
+  sfdesignweek: new SfDesignWeekScraper(),
   foopee: new FoopeeScraper(),
   // meetup: paid API only — skipped for now
   sfspca: new SfSpcaScraper(),
@@ -149,8 +157,9 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   brokeassstuart: new BrokeAssStuartScraper(),
   storkclub: new StorkClubScraper(),
   // borderlandsbooks: disabled — event program is currently on hold per their website
-
   greenapplebooks: new GreenAppleBooksScraper(),
+  spotlightcomedy: new SpotlightComedyScraper(),
+  bestmedicinecomedy: new BestMedicineComedyScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

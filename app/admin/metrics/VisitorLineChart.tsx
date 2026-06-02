@@ -3,15 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 
-interface HourlyPoint {
-  hour: string; // ISO string for start of hour
+interface DataPoint {
+  hour: string; // ISO string for start of hour (hourly) or start of day (daily)
   visits: number;
   unique: number;
 }
 
 interface Props {
-  data: HourlyPoint[];
-  xLabelStep?: number; // show an x-axis label every N hours (default 6)
+  data: DataPoint[];
+  xLabelStep?: number;
+  mode?: "hourly" | "daily";
 }
 
 function smoothPath(pts: [number, number][]): string {
@@ -26,13 +27,13 @@ function smoothPath(pts: [number, number][]): string {
   return d;
 }
 
-export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
+export default function VisitorLineChart({ data, xLabelStep = 6, mode = "hourly" }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 160 });
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
-    point: HourlyPoint;
+    point: DataPoint;
     idx: number;
   } | null>(null);
 
@@ -50,7 +51,7 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
   const H = dims.h - PAD.top - PAD.bottom;
 
   const maxV = Math.max(...data.map((d) => d.visits), 1);
-  const yTop = Math.ceil(maxV * 1.15); // a little headroom
+  const yTop = Math.ceil(maxV * 1.15);
 
   const toX = (i: number) => PAD.left + (i / Math.max(data.length - 1, 1)) * W;
   const toY = (v: number) => PAD.top + H - (v / yTop) * H;
@@ -58,7 +59,6 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
   const pts: [number, number][] = data.map((d, i) => [toX(i), toY(d.visits)]);
   const linePath = smoothPath(pts);
 
-  // Area path: line + close down to baseline
   const baseY = PAD.top + H;
   const areaPath =
     linePath +
@@ -66,21 +66,26 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
       ? ` L ${pts[pts.length - 1][0]} ${baseY} L ${pts[0][0]} ${baseY} Z`
       : "");
 
-  // Y-axis ticks
   const yTickCount = 4;
   const yTicks = Array.from({ length: yTickCount + 1 }, (_, i) =>
     Math.round((yTop / yTickCount) * i)
   );
 
-  // X-axis labels — show every xLabelStep hours
-  const xLabels = data
-    .map((d, i) => ({ i, d }))
-    .filter(({ d }) => {
-      const h = new Date(d.hour).getHours();
-      return h % xLabelStep === 0;
-    });
+  const xLabels = mode === "daily"
+    ? data.map((d, i) => ({ i, d })).filter(({ i }) => i % xLabelStep === 0)
+    : data.map((d, i) => ({ i, d })).filter(({ d }) => new Date(d.hour).getHours() % xLabelStep === 0);
 
-  const hoverRadius = W / data.length / 2;
+  const hoverRadius = W / Math.max(data.length, 1) / 2;
+
+  function formatXLabel(iso: string): string {
+    if (mode === "daily") return format(new Date(iso), "MMM d");
+    return format(new Date(iso), "ha").toLowerCase();
+  }
+
+  function formatTooltipDate(iso: string): string {
+    if (mode === "daily") return format(new Date(iso), "EEE, MMM d");
+    return format(new Date(iso), "MMM d, ha").toLowerCase();
+  }
 
   return (
     <div className="relative w-full" style={{ height: "200px" }}>
@@ -92,7 +97,6 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
         onMouseMove={(e) => {
           const rect = svgRef.current!.getBoundingClientRect();
           const mx = e.clientX - rect.left;
-          // find nearest point
           let best = 0;
           let bestDist = Infinity;
           for (let i = 0; i < pts.length; i++) {
@@ -127,25 +131,17 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
           </filter>
         </defs>
 
-        {/* Grid lines */}
         {yTicks.map((v) => (
           <g key={v}>
             <line
-              x1={PAD.left}
-              x2={PAD.left + W}
-              y1={toY(v)}
-              y2={toY(v)}
-              stroke="#353534"
-              strokeWidth="1"
-              strokeDasharray="4 4"
+              x1={PAD.left} x2={PAD.left + W}
+              y1={toY(v)} y2={toY(v)}
+              stroke="#353534" strokeWidth="1" strokeDasharray="4 4"
             />
             <text
-              x={PAD.left - 6}
-              y={toY(v)}
-              textAnchor="end"
-              dominantBaseline="middle"
-              fill="#6b6a69"
-              fontSize="10"
+              x={PAD.left - 6} y={toY(v)}
+              textAnchor="end" dominantBaseline="middle"
+              fill="#6b6a69" fontSize="10"
               fontFamily="Plus Jakarta Sans, sans-serif"
             >
               {v}
@@ -153,54 +149,36 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
           </g>
         ))}
 
-        {/* X labels */}
         {xLabels.map(({ i, d }) => (
           <text
             key={i}
-            x={toX(i)}
-            y={PAD.top + H + 20}
-            textAnchor="middle"
-            fill="#6b6a69"
-            fontSize="10"
+            x={toX(i)} y={PAD.top + H + 20}
+            textAnchor="middle" fill="#6b6a69" fontSize="10"
             fontFamily="Plus Jakarta Sans, sans-serif"
           >
-            {format(new Date(d.hour), "ha").toLowerCase()}
+            {formatXLabel(d.hour)}
           </text>
         ))}
 
-        {/* Area fill */}
-        {data.length > 1 && (
-          <path d={areaPath} fill="url(#areaGrad)" />
-        )}
-
-        {/* Line */}
+        {data.length > 1 && <path d={areaPath} fill="url(#areaGrad)" />}
         {data.length > 1 && (
           <path
-            d={linePath}
-            fill="none"
-            stroke="url(#lineGrad)"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            d={linePath} fill="none"
+            stroke="url(#lineGrad)" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round"
             filter="url(#glow)"
           />
         )}
 
-        {/* Hover vertical line */}
         {tooltip && (
           <line
-            x1={tooltip.x}
-            x2={tooltip.x}
-            y1={PAD.top}
-            y2={PAD.top + H}
-            stroke="#ff727c"
-            strokeWidth="1"
-            strokeOpacity="0.4"
-            strokeDasharray="3 3"
+            x1={tooltip.x} x2={tooltip.x}
+            y1={PAD.top} y2={PAD.top + H}
+            stroke="#ff727c" strokeWidth="1"
+            strokeOpacity="0.4" strokeDasharray="3 3"
           />
         )}
 
-        {/* Dots on hover */}
         {tooltip && (
           <>
             <circle cx={tooltip.x} cy={tooltip.y} r="6" fill="#1c1b1b" stroke="#ff727c" strokeWidth="2" />
@@ -209,7 +187,6 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
         )}
       </svg>
 
-      {/* Tooltip */}
       {tooltip && (
         <div
           className="absolute pointer-events-none z-10"
@@ -223,12 +200,11 @@ export default function VisitorLineChart({ data, xLabelStep = 6 }: Props) {
               {tooltip.point.visits} visit{tooltip.point.visits !== 1 ? "s" : ""}
             </p>
             <p className="font-body text-[10px] text-on-surface-variant">
-              {tooltip.point.unique} unique · {format(new Date(tooltip.point.hour), "MMM d, ha").toLowerCase()}
+              {tooltip.point.unique} unique · {formatTooltipDate(tooltip.point.hour)}
             </p>
           </div>
         </div>
       )}
-
     </div>
   );
 }

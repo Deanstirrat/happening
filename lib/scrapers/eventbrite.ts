@@ -20,7 +20,7 @@ import axios from "axios";
 export class EventbriteScraper extends BaseScraper {
   readonly sourceSlug = "eventbrite";
 
-  private readonly BASE_URLS = [
+  protected readonly BASE_URLS = [
     "https://www.eventbrite.com/d/ca--san-francisco/events/",
     "https://www.eventbrite.com/d/ca--san-francisco/food-and-drink/",
     "https://www.eventbrite.com/d/ca--san-francisco/outdoors-adventure/",

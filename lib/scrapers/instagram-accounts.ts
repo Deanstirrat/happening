@@ -47,6 +47,7 @@ export const INSTAGRAM_ACCOUNTS: InstagramAccount[] = [
   { handle: "el_gaaarage",           venueName: "El Gaaarage",             tier: "venue" },
 
   // ── Bars with regular programming ────────────────────────────────────────
+  { handle: "bar_iris_sf",           venueName: "Bar Iris",                tier: "venue" },
   { handle: "madroneartbar",         venueName: "Madrone Art Bar",         tier: "venue" },
   { handle: "elriosf",               venueName: "El Rio",                  tier: "venue" },
   { handle: "jolenessf",             venueName: "Jolene's",                tier: "venue" },

@@ -10,6 +10,22 @@ const prisma = new PrismaClient({ adapter });
 const sources = [
   // ── Aggregators ──────────────────────────────────────────────────────────
   {
+    slug: "dice",
+    name: "Dice.fm SF",
+    url: "https://dice.fm/browse/sanfrancisco-60dee10ce5e339918757f0db",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
+    slug: "sfdesignweek",
+    name: "SF Design Week",
+    url: "https://sfdesignweek.org/events/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
     slug: "foopee",
     name: "Foopee Punk List",
     url: "https://foopee.com/punk/the-list/",
@@ -287,6 +303,22 @@ const sources = [
     name: "Church of Clown",
     url: "https://www.churchofclown.org/events",
     scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "spotlightcomedy",
+    name: "Spotlight Comedy",
+    url: "https://www.eventbrite.com/o/spotlight-comedy-62788201173/",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "bestmedicinecomedy",
+    name: "Best Medicine Comedy",
+    url: "https://www.eventbrite.com/o/best-medicine-comedy-26380464595/",
+    scrapeType: ScrapeType.PLAYWRIGHT,
     category: SourceCategory.VENUE,
     enabled: true,
   },

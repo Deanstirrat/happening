@@ -7,19 +7,15 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 /**
  * Thee Stork Club — theestorkclub.com/calendar/
  *
- * Static HTML calendar. Each event card has:
- *   .event-date  — "Friday May 10" (no year)
- *   .event-time  — "Show at 8:00PM"
- *   .event-info  — "21+, $20 | Punk Rock"
- *   h3 a         — title + ticket link
- *   img          — event poster (SeeTickets CDN)
+ * As of mid-2026 the calendar is a SeeTickets embedded widget.
+ * Event cards use .seetickets-list-event-container; dates are "Mon Jun 1" (no year).
  */
 
 const CALENDAR_URL = "https://theestorkclub.com/calendar/";
 
 const MONTH_MAP: Record<string, number> = {
-  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
-  July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+  Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
+  Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
 };
 
 function parseStorkDate(
@@ -27,14 +23,14 @@ function parseStorkDate(
   timeStr: string,
   resolveYear: (m: number, d: number) => number
 ): Date | null {
-  // dateStr: "Friday May 10" or "Saturday June 7"
-  const dateMatch = dateStr.match(/([A-Z][a-z]+)\s+(\d{1,2})$/);
+  // dateStr: "Mon Jun 1" or "Thu Jun 4"
+  const dateMatch = dateStr.match(/([A-Z][a-z]{2})\s+(\d{1,2})$/);
   if (!dateMatch) return null;
   const month = MONTH_MAP[dateMatch[1]];
   const day = parseInt(dateMatch[2]);
   if (!month || !day) return null;
 
-  // timeStr: "Show at 8:00PM" or "Show at 7:30PM Doors at 6:30PM"
+  // timeStr: "8:00PM" or "9:00PM"
   const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   let hour = 20;
   let minute = 0;
@@ -73,25 +69,25 @@ export class StorkClubScraper extends BaseScraper {
     const events: ScrapedEvent[] = [];
     const nowMs = Date.now();
 
-    $(".event-item").each((_i, el) => {
+    $(".seetickets-list-event-container").each((_i, el) => {
       const $el = $(el);
 
-      const titleAnchor = $el.find("h3 a").first();
+      const titleAnchor = $el.find(".event-info-block .title a").first();
       const title = titleAnchor.text().trim();
       if (!title) return;
 
       const sourceUrl = titleAnchor.attr("href") ?? CALENDAR_URL;
 
-      const dateStr = $el.find(".event-date").first().text().trim();
-      const timeStr = $el.find(".event-time").first().text().trim();
-      const startDate = parseStorkDate(dateStr, timeStr, this.resolveYear.bind(this));
+      // Date: "Mon Jun 1", time: "8:00PM" (in .see-showtime span)
+      const dateStr = $el.find(".event-info-block .date").first().text().trim();
+      const rawTime = $el.find(".see-showtime").first().text().trim();
+      const startDate = parseStorkDate(dateStr, rawTime, this.resolveYear.bind(this));
       if (!startDate || startDate.getTime() < nowMs - 86_400_000) return;
 
-      const infoText = $el.find(".event-info").first().text().trim();
-      // e.g. "21+, $20 | Punk Rock" or "All ages, Free | Rock"
-      const priceMatch = infoText.match(/\$(\d+(?:\.\d{2})?(?:\s*[-–]\s*\$?\d+(?:\.\d{2})?)?)/);
-      const price = priceMatch ? `$${priceMatch[1]}` : undefined;
-      const isFree = !priceMatch && /free/i.test(infoText) ? true : undefined;
+      // Price: "$12.00-$15.00" or "$0.00"
+      const rawPrice = $el.find(".price").first().text().trim();
+      const price = rawPrice && rawPrice !== "$0.00" ? rawPrice : undefined;
+      const isFree = rawPrice === "$0.00" ? true : undefined;
 
       const imageUrl = $el.find("img").first().attr("src") || undefined;
 
@@ -99,7 +95,7 @@ export class StorkClubScraper extends BaseScraper {
         title,
         startDate,
         sourceUrl,
-        imageUrl: imageUrl || undefined,
+        imageUrl,
         price,
         isFree,
         venueName: "Thee Stork Club",

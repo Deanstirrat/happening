@@ -166,7 +166,7 @@ async function getEvents(
   const todayStart = sfDayStart(todayKey);
   const windowStart = params.startDate
     ? sfDayStart(params.startDate)
-    : hasSearch ? null : todayStart;
+    : todayStart;
   const windowEnd = params.endDate
     ? sfDayEnd(params.endDate)
     : hasSearch ? null : sfDayEnd(sfDayKey(addDays(now, 30)));

@@ -176,7 +176,7 @@ const sources = [
     url: "https://borderlands-books.com/v2/events/",
     scrapeType: ScrapeType.CHEERIO,
     category: SourceCategory.VENUE,
-    enabled: true,
+    enabled: false, // event program is currently on hold per their website
   },
   {
     slug: "greenapplebooks",

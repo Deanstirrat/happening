@@ -108,7 +108,7 @@ import { ChurchOfClownScraper } from "./churchofclown";
 import { ExploratoriumScraper } from "./exploratorium";
 import { BrokeAssStuartScraper } from "./brokeassstuart";
 import { StorkClubScraper } from "./storkclub";
-import { BorderlandsBooksScraper } from "./borderlandsbooks";
+// BorderlandsBooksScraper omitted — disabled, event program on hold
 import { GreenAppleBooksScraper } from "./greenapplebooks";
 export const SCRAPERS: Record<string, BaseScraper> = {
   "19hz": new NineteenHzScraper(),
@@ -148,7 +148,8 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   exploratorium: new ExploratoriumScraper(),
   brokeassstuart: new BrokeAssStuartScraper(),
   storkclub: new StorkClubScraper(),
-  borderlandsbooks: new BorderlandsBooksScraper(),
+  // borderlandsbooks: disabled — event program is currently on hold per their website
+
   greenapplebooks: new GreenAppleBooksScraper(),
 };
 

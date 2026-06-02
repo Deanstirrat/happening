@@ -133,8 +133,9 @@ export class GreenAppleBooksScraper extends BaseScraper {
     seen: Set<string>,
     events: ScrapedEvent[]
   ): void {
-    // Find event anchor links — Green Apple uses /event/YYYY-MM-DD/slug paths
-    const eventLinks = $('a[href*="/event/"]');
+    // Find event anchor links — Green Apple uses /event/YYYY-MM-DD/slug paths.
+    // Use ^= (starts-with) to avoid matching external URLs like thethirdplace.is/event/...
+    const eventLinks = $('a[href^="/event/"]');
     const processed = new Set<string>();
 
     eventLinks.each((_i, el) => {

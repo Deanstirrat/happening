@@ -268,14 +268,50 @@ async function runEnrichFeatured() {
   });
 
   if (events.length === 0) {
+    console.log("[enrich-featured] No upcoming featured events found.");
     return { ok: true, processed: 0, imagesFixed: 0, descriptionsAdded: 0, brokenSources: 0, titleMismatches: [] };
   }
 
-  const results: EnrichResult[] = [];
+  console.log(`\n[enrich-featured] === Enriching ${events.length} featured event(s) ===\n`);
 
-  for (let i = 0; i < events.length; i += CONCURRENCY) {
-    const chunk = events.slice(i, i + CONCURRENCY);
-    const chunkResults = await Promise.all(chunk.map(enrichEvent));
+  const results: EnrichResult[] = [];
+  let i = 0;
+
+  for (let batch = 0; batch < events.length; batch += CONCURRENCY) {
+    const chunk = events.slice(batch, batch + CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map(async (event) => {
+        i++;
+        console.log(`[enrich-featured] [${i}/${events.length}] ${event.title}`);
+        const r = await enrichEvent(event);
+
+        const sourceLabel = r.sourceOk ? `${r.sourceStatus} OK` : `${r.sourceStatus || "ERR"} ⚠`;
+        console.log(`[enrich-featured]   source:      ${event.sourceUrl.slice(0, 70)} → ${sourceLabel}`);
+
+        if (event.imageUrl) {
+          console.log(`[enrich-featured]   image:       ${event.imageUrl.slice(0, 70)} → ${r.imageFixed ? "replaced" : "OK"}`);
+        } else if (r.imageFixed) {
+          console.log(`[enrich-featured]   image:       null → found og:image ✓`);
+        } else {
+          console.log(`[enrich-featured]   image:       null (no og:image found)`);
+        }
+
+        const descLen = (event.description ?? "").length;
+        if (r.descriptionEnriched) {
+          console.log(`[enrich-featured]   description: ${descLen} chars → enriched via ${r.descriptionSource} ✓`);
+        } else if (descLen < DESC_MIN_LENGTH) {
+          console.log(`[enrich-featured]   description: ${descLen} chars → could not enrich`);
+        } else {
+          console.log(`[enrich-featured]   description: ${descLen} chars OK`);
+        }
+
+        if (r.titleMismatch) {
+          console.log(`[enrich-featured]   title check: ⚠ page says "${r.titleMismatch.slice(0, 60)}"`);
+        }
+
+        return r;
+      })
+    );
     results.push(...chunkResults);
   }
 
@@ -283,6 +319,13 @@ async function runEnrichFeatured() {
   const titleMismatches = results
     .filter((r) => r.titleMismatch)
     .map((r) => ({ id: r.id, stored: r.title, page: r.titleMismatch! }));
+
+  console.log(`\n[enrich-featured] === Summary ===`);
+  console.log(`[enrich-featured]   Processed:          ${results.length}`);
+  console.log(`[enrich-featured]   Images fixed:        ${results.filter((r) => r.imageFixed).length}`);
+  console.log(`[enrich-featured]   Descriptions added:  ${results.filter((r) => r.descriptionEnriched).length}`);
+  console.log(`[enrich-featured]   Broken sources:      ${brokenSources.length}`);
+  console.log(`[enrich-featured]   Title mismatches:    ${titleMismatches.length}`);
 
   return {
     ok: true,

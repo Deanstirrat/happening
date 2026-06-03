@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import AdminNav from "../_components/AdminNav";
 import AiSuggestions from "./AiSuggestions";
+import EnrichFeatured from "./EnrichFeatured";
 import InsightPanel from "./InsightPanel";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { addDays } from "date-fns";
@@ -60,6 +61,8 @@ export default async function CurationPage({ searchParams }: Props) {
       </div>
 
       <AiSuggestions secret={secret} />
+
+      <EnrichFeatured secret={secret} />
 
       <InsightPanel
         secret={secret}

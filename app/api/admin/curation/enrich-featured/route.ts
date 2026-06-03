@@ -252,20 +252,27 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 async function runEnrichFeatured() {
+  console.log("[enrich-featured] Starting — querying featured events...");
   const now = new Date();
-  const events = await prisma.event.findMany({
-    where: { featured: true, startDate: { gte: now }, status: "PUBLISHED" },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      sourceUrl: true,
-      imageUrl: true,
-      venueName: true,
-      startDate: true,
-    },
-    orderBy: { featuredAt: "desc" },
-  });
+  const events = await Promise.race([
+    prisma.event.findMany({
+      where: { featured: true, startDate: { gte: now }, status: "PUBLISHED" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        sourceUrl: true,
+        imageUrl: true,
+        venueName: true,
+        startDate: true,
+      },
+      orderBy: { featuredAt: "desc" },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DB query timed out after 15s")), 15_000)
+    ),
+  ]);
+  console.log(`[enrich-featured] Query complete — ${events.length} event(s) found.`);
 
   if (events.length === 0) {
     console.log("[enrich-featured] No upcoming featured events found.");

@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/adminAuth";
 
-const client = new Anthropic();
+const client = new Anthropic({ timeout: 30_000 });
 
 const CONCURRENCY = 3;
 const DESC_MIN_LENGTH = 120;
@@ -283,7 +283,25 @@ async function runEnrichFeatured() {
       chunk.map(async (event) => {
         i++;
         console.log(`[enrich-featured] [${i}/${events.length}] ${event.title}`);
-        const r = await enrichEvent(event);
+        const EVENT_TIMEOUT_MS = 60_000;
+        const r = await Promise.race([
+          enrichEvent(event),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("event timeout")), EVENT_TIMEOUT_MS)
+          ),
+        ]).catch((err: Error) => {
+          console.log(`[enrich-featured]   ⚠ skipped (${err.message})`);
+          return {
+            id: event.id,
+            title: event.title,
+            sourceOk: false,
+            sourceStatus: 0,
+            imageFixed: false,
+            descriptionEnriched: false,
+            descriptionSource: null,
+            titleMismatch: null,
+          } satisfies EnrichResult;
+        });
 
         const sourceLabel = r.sourceOk ? `${r.sourceStatus} OK` : `${r.sourceStatus || "ERR"} ⚠`;
         console.log(`[enrich-featured]   source:      ${event.sourceUrl.slice(0, 70)} → ${sourceLabel}`);

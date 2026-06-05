@@ -1,6 +1,7 @@
 import pThrottle from "p-throttle";
 import type { ScrapedEvent } from "./types";
 import { detectNeighborhood } from "./neighborhoods";
+import { resolveVenue } from "./venues";
 
 interface GeoResult {
   latitude: number | null;
@@ -21,7 +22,10 @@ const throttledFetch = pThrottle({ limit: 1, interval: 1100 })(
   }
 );
 
-export async function geocodeEvent(event: ScrapedEvent): Promise<GeoResult> {
+export async function geocodeEvent(
+  event: ScrapedEvent,
+  sourceSlug?: string
+): Promise<GeoResult> {
   // If scraper already provided coordinates (Eventbrite, Meetup, RA), use them
   if (event.latitude != null && event.longitude != null) {
     const latitude = Number(event.latitude);
@@ -30,6 +34,17 @@ export async function geocodeEvent(event: ScrapedEvent): Promise<GeoResult> {
       latitude,
       longitude,
       neighborhood: detectNeighborhood(latitude, longitude),
+    };
+  }
+
+  // Known venue? Resolve deterministically before hitting the geocode API.
+  // Covers SFPL branches and other recurring venues that don't geocode by name.
+  const known = resolveVenue(event.venueName, sourceSlug);
+  if (known) {
+    return {
+      latitude: known.latitude,
+      longitude: known.longitude,
+      neighborhood: detectNeighborhood(known.latitude, known.longitude),
     };
   }
 

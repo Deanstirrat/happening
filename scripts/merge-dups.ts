@@ -35,7 +35,11 @@ import {
 } from "../lib/merge/mergeFields";
 import { adjudicatePair, synthesizeCluster } from "../lib/merge/adjudicate";
 
-const DRY_RUN = process.argv.includes("--dry-run");
+// Flags can be set via argv (--dry-run / --all) or env (MERGE_DRY_RUN=1 /
+// MERGE_ALL=1). Env is the safer path on Railway: `npm run merge-dups --all`
+// does NOT work — npm swallows flags before a `--`, so it would silently run
+// live + incremental. Use env vars, or `npm run merge-dups -- --all`.
+const DRY_RUN = process.argv.includes("--dry-run") || process.env.MERGE_DRY_RUN === "1";
 // By default a run only judges candidate pairs that involve an event scraped in
 // the last NEW_SINCE_HOURS — pairs between two older events were already judged
 // in a prior run, so re-judging them every night is wasted spend. `--all` (or

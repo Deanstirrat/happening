@@ -15,10 +15,13 @@ startCommand = "npm run merge-dups"
 # (cents/day). No extra env needed beyond the two required keys.
 #
 # ONE-OFF BACKLOG BACKFILL (run once over the whole future catalog, then let the
-# nightly schedule take over): temporarily change the startCommand to add --all
-# and raise throughput on the service:
-#   startCommand = "npm run merge-dups -- --all"
+# nightly schedule take over). Leave the startCommand as-is and drive it with
+# env vars — DON'T write `npm run merge-dups --all`, npm swallows the flag and
+# silently runs live + incremental. Set on the service:
+#   MERGE_ALL=1             # reprocess every pair (the actual backfill switch)
 #   MERGE_MAX_PAIRS=50000   # don't cap below the real candidate count (~16k)
 #   MERGE_CONCURRENCY=20    # raise to your Anthropic tier's headroom
 #   MERGE_RPM=1000          # tier 2 = 1000 rpm; tier 1 stays at 50
-# Do a --dry-run pass first: startCommand = "npm run merge-dups -- --all --dry-run"
+# Dry-run first (logs every proposed merge, writes nothing): also set
+#   MERGE_DRY_RUN=1
+# After the backfill, remove these env vars so nightly reverts to incremental.

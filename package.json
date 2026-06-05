@@ -18,7 +18,8 @@
     "db:populate-descriptions": "tsx scripts/populate-descriptions.ts",
     "db:backfill-venues": "tsx scripts/backfill-venues.ts",
     "db:cleanup-far-events": "tsx scripts/cleanup-far-events.ts",
-    "enrich-featured": "tsx scripts/enrich-featured.ts"
+    "enrich-featured": "tsx scripts/enrich-featured.ts",
+    "health-alert": "tsx scripts/scraper-health-alert.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

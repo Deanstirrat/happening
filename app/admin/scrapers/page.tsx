@@ -1,6 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import {
+  summarizeHealth,
+  STALE_AFTER_DAYS,
+  type SourceHealthInput,
+  type SourceHealthStatus,
+} from "@/lib/scrapers/health";
 import AdminNav from "../_components/AdminNav";
 
 interface Props {
@@ -27,6 +33,14 @@ const SCRAPE_TYPE_STYLES: Record<string, string> = {
   MANUAL: "bg-surface-container text-on-surface-variant",
 };
 
+// Dot color per health status. `ignored` falls back to the enabled/disabled grey.
+const HEALTH_DOT: Record<SourceHealthStatus, string> = {
+  healthy: "#4caf7d",
+  dark: "#e8a13b",
+  stale: "#e85d5d",
+  ignored: "#555",
+};
+
 export default async function ScrapersPage({ searchParams }: Props) {
   const { secret } = await searchParams;
 
@@ -39,7 +53,7 @@ export default async function ScrapersPage({ searchParams }: Props) {
   }
 
   const now = new Date();
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400_000);
 
   const [sources, upcomingBySource, recentBySource] = await Promise.all([
     prisma.source.findMany({
@@ -50,7 +64,9 @@ export default async function ScrapersPage({ searchParams }: Props) {
     }),
     prisma.event.groupBy({
       by: ["sourceId"],
-      where: { startDate: { gte: now } },
+      // Only PUBLISHED events count as "upcoming" — matches what users see and
+      // the health classifier's dark-source detection.
+      where: { startDate: { gte: now }, status: "PUBLISHED" },
       _count: { id: true },
     }),
     prisma.event.groupBy({
@@ -65,6 +81,18 @@ export default async function ScrapersPage({ searchParams }: Props) {
 
   const enabledCount = sources.filter((s) => s.enabled).length;
 
+  // Classify each source's health from the data we already have.
+  const healthInputs: SourceHealthInput[] = sources.map((s) => ({
+    slug: s.slug,
+    name: s.name,
+    enabled: s.enabled,
+    scrapeType: s.scrapeType,
+    lastScrapedAt: s.lastScrapedAt,
+    upcomingCount: upcomingMap.get(s.id) ?? 0,
+  }));
+  const health = summarizeHealth(healthInputs, now);
+  const healthBySlug = new Map(health.results.map((r) => [r.slug, r]));
+
   return (
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
       {/* Header + nav */}
@@ -74,11 +102,12 @@ export default async function ScrapersPage({ searchParams }: Props) {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "total sources", value: sources.length },
-          { label: "enabled", value: enabledCount },
-          { label: "disabled", value: sources.length - enabledCount },
+          { label: "enabled sources", value: enabledCount },
+          { label: "healthy", value: health.healthy.length },
+          { label: "dark (0 upcoming)", value: health.dark.length },
+          { label: `stale (>${STALE_AFTER_DAYS}d)`, value: health.stale.length },
         ].map(({ label, value }) => (
           <div key={label} className="bg-surface-container rounded-2xl p-5">
             <p className="font-headline font-black text-3xl text-on-surface">{value}</p>
@@ -86,6 +115,49 @@ export default async function ScrapersPage({ searchParams }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Needs attention */}
+      {health.attention.length > 0 && (
+        <section>
+          <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-1">
+            needs attention
+          </h2>
+          <p className="font-body text-xs text-on-surface-variant mb-4">
+            Enabled scrapers that have gone dark (0 upcoming events) or stale (no
+            run in &gt;{STALE_AFTER_DAYS} days).
+          </p>
+          <div className="flex flex-col gap-2">
+            {health.attention.map((s) => (
+              <div
+                key={s.slug}
+                className="bg-surface-container rounded-xl px-4 py-3 flex items-center gap-3"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ background: HEALTH_DOT[s.status] }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-body font-semibold text-sm text-on-surface truncate">
+                    {s.name}
+                    <span className="ml-2 text-[0.65rem] text-on-surface-variant font-normal">
+                      {s.slug}
+                    </span>
+                  </p>
+                </div>
+                <span
+                  className="text-[0.65rem] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                  style={{
+                    background: `${HEALTH_DOT[s.status]}22`,
+                    color: HEALTH_DOT[s.status],
+                  }}
+                >
+                  {s.status} · {s.reason}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Sources table */}
       <section>
@@ -123,6 +195,7 @@ export default async function ScrapersPage({ searchParams }: Props) {
                 const total = source._count.events;
                 const typeStyle = SCRAPE_TYPE_STYLES[source.scrapeType] ?? SCRAPE_TYPE_STYLES.MANUAL;
                 const isLast = i === sources.length - 1;
+                const status = healthBySlug.get(source.slug)?.status ?? "ignored";
 
                 return (
                   <tr key={source.id} className={!isLast ? "border-b border-outline-variant" : ""}>
@@ -130,7 +203,8 @@ export default async function ScrapersPage({ searchParams }: Props) {
                       <div className="flex items-center gap-2">
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
-                          style={{ background: source.enabled ? "#4caf7d" : "#555" }}
+                          style={{ background: HEALTH_DOT[status] }}
+                          title={status}
                         />
                         <div>
                           <a

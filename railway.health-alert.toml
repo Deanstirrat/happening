@@ -1,0 +1,8 @@
+[build]
+dockerfilePath = "Dockerfile.scrape"
+
+[deploy]
+startCommand = "npm run health-alert"
+# Cron schedule: 0 6 * * * (6am UTC = 11pm PT — after scrape + auto-feature have run).
+# Set this in the Railway dashboard under the service's Settings → Cron Schedule.
+# Requires env: SCRAPER_ALERT_EMAIL (recipient), RESEND_API_KEY, RESEND_FROM_EMAIL.

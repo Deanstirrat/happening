@@ -2,6 +2,9 @@
 dockerfilePath = "Dockerfile.scrape"
 
 [deploy]
-startCommand = "npm run auto-feature"
+# Daily curation: pick the day's featured events, then enrich them (clean titles,
+# fill descriptions, resolve images via og: → web search, and un-feature any left
+# without a usable image). enrich runs only if auto-feature succeeds.
+startCommand = "npm run auto-feature && npm run enrich-featured"
 # Cron schedule: 0 5 * * * (5am UTC = 10pm PT — 1h after scrape's 4h hard limit)
 # Set this in the Railway dashboard under the service's Settings → Cron Schedule.

@@ -134,6 +134,13 @@ async function isImageAccessible(url: string): Promise<boolean> {
   return (await check("HEAD")) || (await check("GET"));
 }
 
+// A `/`-rooted path is a locally-bundled placeholder (e.g. "/sfrecpark-default.jpg"),
+// not a real per-event image. Real scraped images are always absolute http(s) URLs,
+// so we treat any non-absolute imageUrl as "needs a real image".
+function isDefaultImage(url: string | null): boolean {
+  return !!url && !/^https?:\/\//i.test(url);
+}
+
 // Unwrap Next.js image proxy URLs and strip resize params so we store the real URL.
 function resolveImageUrl(raw: string): string {
   const nextParam = raw.match(/[?&]url=([^&]+)/);
@@ -241,6 +248,93 @@ Reply with ONLY the final title text — no quotes, no labels, no explanation.`,
   }
 }
 
+// ─── Web image search ──────────────────────────────────────────────────────────
+
+// Pull http(s) URLs out of the model's free-text reply.
+function extractUrls(text: string): string[] {
+  const matches = text.match(/https?:\/\/[^\s)<>"']+/gi) ?? [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of matches) {
+    const url = m.replace(/[.,)]+$/, ""); // strip trailing punctuation
+    if (!seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out.slice(0, 3);
+}
+
+// Last resort when neither the stored image nor the source page's og:image works:
+// ask Claude (with web search) to find the event's real listing page elsewhere on
+// the web, then reuse our trusted og:image extraction on that page. Returns a
+// validated absolute image URL, or null if nothing confident was found.
+async function findImageViaWebSearch(event: {
+  title: string;
+  venueName: string | null;
+  city: string;
+  startDate: Date;
+  description: string | null;
+}): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const dateStr = event.startDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  try {
+    const msg = await client.messages.create(
+      {
+        model: "claude-haiku-4-5",
+        max_tokens: 1024,
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+        messages: [
+          {
+            role: "user",
+            content: `Find a promotional image for this specific event by locating its official listing page on the web.
+
+Event: ${event.title}
+Venue: ${event.venueName ?? "unknown"}
+City: ${event.city}
+Date: ${dateStr}
+${event.description ? `Details: ${event.description.slice(0, 300)}` : ""}
+
+Search the web and identify up to 3 pages that are unambiguously about THIS exact event — matching the title, venue, and date. Good sources: the venue's own event page, a ticketing page (Eventbrite, Dice, Resident Advisor, Bandsintown, Songkick), or the promoter's post. These pages carry a representative event image.
+
+Reply with ONLY the page URLs, one per line (max 3). Do NOT include search-result pages, homepages, or pages about a different event. If you cannot confidently find a page about this exact event, reply with exactly: NONE`,
+          },
+        ],
+      },
+      { timeout: 45_000 }
+    );
+
+    const text = msg.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n");
+    if (/\bNONE\b/.test(text) && !/https?:\/\//i.test(text)) return null;
+
+    for (const url of extractUrls(text)) {
+      // A direct image URL can be validated as-is.
+      if (/\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(url)) {
+        if (await isImageAccessible(url)) return url;
+        continue;
+      }
+      // Otherwise treat it as a page and extract its og:image.
+      const meta = await fetchPageMeta(url);
+      if (meta.ogImage) {
+        const candidate = resolveImageUrl(meta.ogImage);
+        if (await isImageAccessible(candidate)) return candidate;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error(`    [ai-image] error: ${(e as Error).message}`);
+    return null;
+  }
+}
+
 // ─── Per-event enrichment ─────────────────────────────────────────────────────
 
 interface EventRow {
@@ -250,6 +344,7 @@ interface EventRow {
   sourceUrl: string;
   imageUrl: string | null;
   venueName: string | null;
+  city: string;
   startDate: Date;
   source: { slug: string };
 }
@@ -260,6 +355,8 @@ interface EnrichResult {
   sourceOk: boolean;
   sourceStatus: number;
   imageFixed: boolean;
+  imageSource: "og" | "websearch" | null;
+  unfeatured: boolean;
   descriptionEnriched: boolean;
   descriptionSource: "og" | "ai" | null;
   titleRenamed: string | null;
@@ -273,6 +370,8 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
     sourceOk: true,
     sourceStatus: 200,
     imageFixed: false,
+    imageSource: null,
+    unfeatured: false,
     descriptionEnriched: false,
     descriptionSource: null,
     titleRenamed: null,
@@ -284,7 +383,7 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
   result.sourceOk = meta.ok;
   result.sourceStatus = meta.status;
 
-  const updates: Partial<{ description: string; imageUrl: string | null; title: string }> = {};
+  const updates: Partial<{ description: string; imageUrl: string | null; title: string; featured: boolean }> = {};
 
   // 2. Title: clean up wording/length/formatting via AI (preserves identity).
   //    Runs even when the source is blocked — a wordy title can be fixed without the page.
@@ -305,23 +404,45 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
     }
   }
 
-  // 3. Image: validate existing → if broken, try og:image from scraped page
-  let imageOk = false;
-  if (event.imageUrl) {
-    imageOk = await isImageAccessible(event.imageUrl);
-    if (!imageOk) {
-      // Existing image is broken — clear it and look for a replacement
+  // 3. Image cascade: keep a usable real image → og:image → web search → un-feature.
+  //    A `/`-rooted default (e.g. sfrecpark placeholder) counts as "no real image".
+  let haveUsableImage = false;
+  if (event.imageUrl && !isDefaultImage(event.imageUrl)) {
+    haveUsableImage = await isImageAccessible(event.imageUrl);
+    if (!haveUsableImage) {
+      // Existing real image is broken — clear it and look for a replacement.
       updates.imageUrl = null;
     }
   }
 
-  if (!imageOk && meta.ogImage) {
+  // 3a. og:image from the event's own source page.
+  if (!haveUsableImage && meta.ogImage) {
     const candidate = resolveImageUrl(meta.ogImage);
-    const candidateOk = await isImageAccessible(candidate);
-    if (candidateOk) {
+    if (await isImageAccessible(candidate)) {
       updates.imageUrl = candidate;
+      haveUsableImage = true;
       result.imageFixed = true;
+      result.imageSource = "og";
     }
+  }
+
+  // 3b. Web search: find the event's real listing page elsewhere → its og:image.
+  if (!haveUsableImage) {
+    const found = await findImageViaWebSearch(event);
+    if (found) {
+      updates.imageUrl = found;
+      haveUsableImage = true;
+      result.imageFixed = true;
+      result.imageSource = "websearch";
+    }
+  }
+
+  // 3c. Still nothing usable → a featured event with no image isn't worth featuring.
+  //     Leave a `/`-rooted default in place as a display placeholder; only drop it
+  //     from the featured rail.
+  if (!haveUsableImage) {
+    updates.featured = false;
+    result.unfeatured = true;
   }
 
   // 4. Description: enrich if missing or too short
@@ -367,6 +488,7 @@ async function main() {
       sourceUrl: true,
       imageUrl: true,
       venueName: true,
+      city: true,
       startDate: true,
       source: { select: { slug: true } },
     },
@@ -395,12 +517,16 @@ async function main() {
         const sourceLabel = r.sourceOk ? `${r.sourceStatus} OK` : `${r.sourceStatus || "ERR"} ⚠`;
         console.log(`  source:      ${event.sourceUrl.slice(0, 70)} → ${sourceLabel}`);
 
-        if (event.imageUrl) {
-          console.log(`  image:       ${event.imageUrl.slice(0, 70)} → ${r.imageFixed ? "replaced" : "OK"}`);
-        } else if (r.imageFixed) {
-          console.log(`  image:       null → found og:image ✓`);
+        if (r.imageFixed) {
+          const via = r.imageSource === "websearch" ? "web search" : "og:image";
+          const from = event.imageUrl ? `${event.imageUrl.slice(0, 50)} → ` : "none → ";
+          console.log(`  image:       ${from}found via ${via} ✓`);
+        } else if (r.unfeatured) {
+          console.log(`  image:       no usable image found → un-featured ⚑`);
+        } else if (event.imageUrl) {
+          console.log(`  image:       ${event.imageUrl.slice(0, 70)} → OK`);
         } else {
-          console.log(`  image:       null (no og:image found)`);
+          console.log(`  image:       null`);
         }
 
         const descLen = (event.description ?? "").length;
@@ -429,6 +555,8 @@ async function main() {
   // Summary
   const brokenSources = results.filter((r) => !r.sourceOk).length;
   const imagesFixed = results.filter((r) => r.imageFixed).length;
+  const imagesFromSearch = results.filter((r) => r.imageSource === "websearch").length;
+  const unfeatured = results.filter((r) => r.unfeatured).length;
   const descsEnriched = results.filter((r) => r.descriptionEnriched).length;
   const titlesRenamed = results.filter((r) => r.titleRenamed).length;
   const titleMismatches = results.filter((r) => r.titleMismatch).length;
@@ -436,7 +564,8 @@ async function main() {
   console.log("=== Summary ===");
   console.log(`  Events processed:    ${results.length}`);
   console.log(`  Broken source URLs:  ${brokenSources}`);
-  console.log(`  Images fixed:        ${imagesFixed}`);
+  console.log(`  Images fixed:        ${imagesFixed} (${imagesFromSearch} via web search)`);
+  console.log(`  Un-featured:         ${unfeatured} (no usable image)`);
   console.log(`  Descriptions added:  ${descsEnriched}`);
   console.log(`  Titles renamed:      ${titlesRenamed}`);
   console.log(`  Title mismatches:    ${titleMismatches} (review manually)`);
@@ -446,6 +575,13 @@ async function main() {
     results.filter((r) => r.titleRenamed).forEach((r) => {
       console.log(`    "${r.title}"`);
       console.log(`      → "${r.titleRenamed}"`);
+    });
+  }
+
+  if (unfeatured > 0) {
+    console.log("\n  Un-featured (no usable image):");
+    results.filter((r) => r.unfeatured).forEach((r) => {
+      console.log(`    "${r.title}"`);
     });
   }
 

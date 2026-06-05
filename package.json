@@ -17,6 +17,7 @@
     "db:recategorize": "tsx scripts/recategorize.ts",
     "db:populate-descriptions": "tsx scripts/populate-descriptions.ts",
     "db:backfill-venues": "tsx scripts/backfill-venues.ts",
+    "db:cleanup-far-events": "tsx scripts/cleanup-far-events.ts",
     "enrich-featured": "tsx scripts/enrich-featured.ts"
   },
   "prisma": {

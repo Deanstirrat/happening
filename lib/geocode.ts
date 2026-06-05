@@ -2,6 +2,7 @@ import pThrottle from "p-throttle";
 import type { ScrapedEvent } from "./types";
 import { detectNeighborhood } from "./neighborhoods";
 import { resolveVenue } from "./venues";
+import { isPlaceholderCoord } from "./geo";
 
 interface GeoResult {
   latitude: number | null;
@@ -26,8 +27,14 @@ export async function geocodeEvent(
   event: ScrapedEvent,
   sourceSlug?: string
 ): Promise<GeoResult> {
-  // If scraper already provided coordinates (Eventbrite, Meetup, RA), use them
-  if (event.latitude != null && event.longitude != null) {
+  // If scraper already provided coordinates (Eventbrite, Meetup, RA), use them —
+  // unless they're a known placeholder (e.g. RA's rounded 38,-122 fallback), in
+  // which case fall through to geocode from the venue name/address instead.
+  if (
+    event.latitude != null &&
+    event.longitude != null &&
+    !isPlaceholderCoord(Number(event.latitude), Number(event.longitude))
+  ) {
     const latitude = Number(event.latitude);
     const longitude = Number(event.longitude);
     return {

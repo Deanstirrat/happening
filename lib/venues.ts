@@ -74,6 +74,9 @@ export const KNOWN_VENUES: Record<string, KnownVenue> = {
   "roxie theater": { latitude: 37.76481, longitude: -122.42231, address: "3117 16th St, San Francisco, CA 94103" },
   "the castro theatre": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114" },
   "castro theater": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114" },
+  // F8 nightclub — some sources mis-parse "1192 Folsom St" as the city Folsom, CA (148 km away).
+  f8sf: { latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
+  f8: { latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
 };
 
 function normalize(s: string): string {

@@ -6,6 +6,7 @@ import { BaseScraper } from "./base";
 import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, isVenueFuzzyMatch, MIN_TOKENS } from "@/lib/fuzzy";
 import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
+import { isTooFarFromSf } from "@/lib/geo";
 
 // Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
 const GENERIC_SOURCE_URL_PATTERNS = [
@@ -522,6 +523,14 @@ export async function runScraper(
 
     // Geocode
     const geo = await geocodeEvent(event, slug);
+
+    // Skip events outside the SF service area (too far to be worth listing).
+    // Only filters when coordinates confidently place the event out of range —
+    // missing/placeholder coords are kept (see isTooFarFromSf).
+    if (isTooFarFromSf(geo.latitude, geo.longitude)) {
+      console.log(`[${slug}] Out of area (skipped): "${event.title}"`);
+      continue;
+    }
 
     // Categorize — use pre-assigned category if the scraper provided one
     const category = event.category

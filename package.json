@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
     "postbuild": "cp -r .next/static .next/standalone/.next/static && cp -rn public/. .next/standalone/public/",
-    "postinstall": "prisma generate && playwright install --with-deps chromium",
+    "postinstall": "prisma generate && ([ \"$SKIP_PLAYWRIGHT\" = \"1\" ] || playwright install --with-deps chromium)",
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",

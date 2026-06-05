@@ -6,6 +6,9 @@ interface EnrichResult {
   ok: boolean;
   processed: number;
   imagesFixed: number;
+  imagesFromSearch: number;
+  unfeatured: number;
+  unfeaturedDetails: { id: string; title: string }[];
   descriptionsAdded: number;
   brokenSources: number;
   titleMismatches: { id: string; stored: string; page: string }[];
@@ -44,7 +47,7 @@ export default function EnrichFeatured({ secret }: { secret: string }) {
           <div>
             <p className="font-body text-sm font-semibold text-on-surface">enrich featured</p>
             <p className="font-body text-xs text-on-surface-variant mt-0.5">
-              Fix broken images, fill missing descriptions via og: or AI
+              Fix images (og: → web search), fill descriptions; un-feature if no image found
             </p>
           </div>
           <button
@@ -89,6 +92,8 @@ export default function EnrichFeatured({ secret }: { secret: string }) {
           {[
             { label: "processed", value: result.processed },
             { label: "images fixed", value: result.imagesFixed },
+            { label: "via web search", value: result.imagesFromSearch },
+            { label: "un-featured", value: result.unfeatured },
             { label: "descriptions added", value: result.descriptionsAdded },
             { label: "broken sources", value: result.brokenSources },
           ].map(({ label, value }) => (
@@ -107,6 +112,16 @@ export default function EnrichFeatured({ secret }: { secret: string }) {
               <span className="text-on-surface">{m.stored}</span>
               <span className="mx-1">→</span>
               <span className="italic">{m.page}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {result && result.unfeatured > 0 && (
+        <div className="flex flex-col gap-1 mt-1">
+          <p className="font-body text-xs font-semibold text-on-surface-variant">un-featured — no usable image found</p>
+          {result.unfeaturedDetails.map((u) => (
+            <div key={u.id} className="font-body text-xs text-on-surface-variant">
+              <span className="text-on-surface">{u.title}</span>
             </div>
           ))}
         </div>

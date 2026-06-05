@@ -55,6 +55,11 @@ model Event {
   recurringType RecurringType?
   scrapedAt     DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  // Semantic-merge bookkeeping. When duplicates are merged, losers are ARCHIVED
+  // and point at the survivor via mergedIntoId (its /events/<id> URL 301s to the
+  // survivor). The survivor records mergeProvenance: which source(s) contributed.
+  mergedIntoId    String?
+  mergeProvenance Json?
   interactions EventInteraction[]
   interests    EventInterest[]
   reports      EventReport[]
@@ -66,6 +71,7 @@ model Event {
   @@index([startDate, neighborhood, category])
   @@index([status])
   @@index([status, featured, featuredAt])
+  @@index([mergedIntoId])
   @@map("events")
 }
 

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -112,6 +112,11 @@ export default async function EventDetailPage({
   const isEditor = !!sessionUser;
   const event = await getEvent(id);
   if (!event) notFound();
+
+  // This event was merged into a canonical duplicate — send visitors there.
+  if (event.status === "ARCHIVED" && event.mergedIntoId) {
+    permanentRedirect(`/events/${event.mergedIntoId}`);
+  }
 
   const similar = await getSimilarEvents(event);
 

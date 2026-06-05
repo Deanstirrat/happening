@@ -6,6 +6,7 @@ import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { CATEGORY_IMAGES } from "@/lib/categoryImages";
 import { CategoryImage } from "@/components/events/CategoryImage";
+import InterestButton from "@/components/events/InterestButton";
 
 
 function recurringLabel(event: EventSummary): string | null {
@@ -134,11 +135,16 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               {event.title}
             </h3>
 
-            {/* Date/time */}
-            <div className="flex items-center gap-4">
+            {/* Date/time + interest */}
+            <div className="flex items-center justify-between gap-4">
               <span className="text-white/70 text-xs font-body uppercase tracking-wide">
                 {carouselDate}
               </span>
+              <InterestButton
+                eventId={event.id}
+                initialCount={event.interestCount ?? 0}
+                variant="overlay"
+              />
             </div>
           </div>
         </div>
@@ -214,6 +220,13 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
                 {formatPrice(event.price)}
               </span>
             )}
+            <span className="ml-auto shrink-0">
+              <InterestButton
+                eventId={event.id}
+                initialCount={event.interestCount ?? 0}
+                variant="compact"
+              />
+            </span>
           </div>
         </div>
       </div>
@@ -295,6 +308,13 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
               <span className="truncate">{event.spotifyArtist}</span>
             </div>
           )}
+          <div className="absolute bottom-2 right-2">
+            <InterestButton
+              eventId={event.id}
+              initialCount={event.interestCount ?? 0}
+              variant="overlay"
+            />
+          </div>
         </div>
 
         {/* Info */}

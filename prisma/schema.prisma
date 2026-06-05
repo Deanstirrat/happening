@@ -56,6 +56,7 @@ model Event {
   scrapedAt     DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   interactions EventInteraction[]
+  interests    EventInterest[]
   reports      EventReport[]
 
   @@index([startDate])
@@ -85,6 +86,22 @@ model EventInteraction {
   @@index([eventId, type])
   @@index([createdAt])
   @@map("event_interactions")
+}
+
+/// Anonymous, per-session interest votes ("I'm interested") on any event.
+/// One row per (event, session); presence = an active vote. Unlike
+/// EventInteraction (append-only VIEW/CLICK, featured-only), this is a
+/// toggleable demand signal captured across ALL events to inform curation.
+model EventInterest {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessionId String
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, sessionId])
+  @@index([eventId])
+  @@map("event_interests")
 }
 
 model BugReport {

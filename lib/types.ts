@@ -27,6 +27,8 @@ export interface EventSummary {
     name: string;
   };
   spotifyArtist?: string;
+  /** Anonymous "I'm interested" vote count. */
+  interestCount?: number;
 }
 
 export interface EventDetail extends EventSummary {

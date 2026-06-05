@@ -21,15 +21,15 @@ const anthropic = new Anthropic();
 
 // Target featured event count per day-of-week (0=Sun … 6=Sat)
 const DAY_TARGETS: Record<number, number> = {
-  0: 3, // Sunday
+  0: 4, // Sunday
   1: 2, // Monday
   2: 2, // Tuesday
   3: 2, // Wednesday
   4: 2, // Thursday
-  5: 4, // Friday
-  6: 5, // Saturday
+  5: 5, // Friday
+  6: 7, // Saturday
 };
-const WEEKLY_MAX = 20;
+const WEEKLY_MAX = 24;
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 async function main() {
@@ -184,6 +184,7 @@ ${dayBudgetSummary}
 Calibrate your taste against these examples of events that belong on the list:
 - Community chaos: BYOBW Big Wheel race, St. Stupid's Day Parade, Hunky Jesus Contest, Hole Party (digging holes on Ocean Beach)
 - SF underground: EFUNK SF, Boofiversary, Endzeit x Northern Electronics, East Bay Mean Girls anniversary, Honey Soundsystem
+- Queer & cool nightlife: Hard French, Daytime Realness, Go Bang!, Pound Puppy, Club Chai, Oasis drag nights, Lights Down Low, As You Like It, Faded, Brouhaha
 - Hybrid formats: Fight Night (rave + live wrestling), Folk Punk Prom, SF Beer Mile, South Side Beer Ride
 - Community with personality: FART MARKET, Bay Bingo: Tenderloin Edition, Curiosity Guild: Fool's Errand
 - Civic moments: neighborhood protests, congressional debates, Carnaval dance competition
@@ -193,18 +194,22 @@ STRONGLY FAVOR:
 - Wild, weird, irreverent street events and absurdist community gatherings
 - Participatory events where you DO something: races, rides, dances, community builds
 - SF underground institutions and scene nights with a real identity
+- Queer, inclusive, and genuinely cool nightlife: warehouse parties, DIY raves, drag, ballroom, queer dance parties, and DJ collectives with a real scene
 - Hybrid or unexpected formats: sport + party, rave + spectacle, game night with a neighborhood twist
 - Civic and cultural moments that reflect SF's actual community life
 - Anything with "only in San Francisco" quality
 
+The aim is a BLEND: weird/participatory community events AND high-energy nightlife. The nightlife should skew queer, underground, and cool — not mainstream, not Marina/frat, not bottle service.
+
 INCLUDE IF genuinely notable:
-- Electronic/club nights: only rare SF appearances, international touring acts, or proven SF institutions
+- Electronic/club nights: rare SF appearances, international touring acts, proven SF institutions, OR queer/underground/DIY parties with a distinct scene and identity (a famous headliner is NOT required)
 - Talks/panels: only unusual subjects or genuine names
 - Venue shows: only rare, infrequently-touring, or otherwise special acts
 - Art/film: only experimental, boundary-pushing, or tied to notable names
 
 SKIP entirely:
-- Generic weekly club nights with no distinct identity
+- Generic mainstream club nights with no distinct scene or identity
+- Marina/frat/bottle-service nightlife, Top-40 bro bars, bar crawls, and anything aspiring to be a Vegas-style club
 - Tech meetups, startup networking, corporate events
 - Standard gallery openings, generic fitness/wellness, book readings from unknown authors
 - TECH category events

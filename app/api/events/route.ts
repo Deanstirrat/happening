@@ -111,14 +111,21 @@ export async function GET(req: NextRequest) {
         featured: true,
         featuredAt: true,
         source: { select: { slug: true, name: true } },
+        _count: { select: { interests: true } },
       },
     }),
     prisma.event.count({ where }),
   ]);
 
-  const events = timeOfDay
+  const filtered = timeOfDay
     ? rawEvents.filter((e) => matchesTimeOfDay(e.startDate, timeOfDay))
     : rawEvents;
+
+  // Flatten the interest vote count into a top-level field for the client.
+  const events = filtered.map(({ _count, ...e }) => ({
+    ...e,
+    interestCount: _count.interests,
+  }));
 
   return NextResponse.json({
     events,

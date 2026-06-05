@@ -12,6 +12,7 @@ import { ArrowLeft, Clock, MapPin, ExternalLink } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
+import InterestButton from "@/components/events/InterestButton";
 import EventFlyerContainer from "./EventFlyerContainer";
 import EventEditPanel from "./EventEditPanel";
 import { getSessionUser } from "@/lib/auth";
@@ -29,7 +30,10 @@ function extractLocationFromTitle(title: string): string | null {
 async function getEvent(id: string) {
   return prisma.event.findUnique({
     where: { id },
-    include: { source: { select: { slug: true, name: true, url: true } } },
+    include: {
+      source: { select: { slug: true, name: true, url: true } },
+      _count: { select: { interests: true } },
+    },
   });
 }
 
@@ -284,6 +288,11 @@ export default async function EventDetailPage({
               </a>
             )}
             <ShareButton title={event.title} large />
+            <InterestButton
+              eventId={event.id}
+              initialCount={event._count.interests}
+              variant="detail"
+            />
           </div>
 
           {/* Vibe / description */}

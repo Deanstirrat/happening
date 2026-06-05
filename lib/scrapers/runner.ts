@@ -521,7 +521,7 @@ export async function runScraper(
     }
 
     // Geocode
-    const geo = await geocodeEvent(event);
+    const geo = await geocodeEvent(event, slug);
 
     // Categorize — use pre-assigned category if the scraper provided one
     const category = event.category

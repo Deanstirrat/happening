@@ -45,17 +45,14 @@ export const STALE_AFTER_DAYS = 3;
 
 const MS_PER_DAY = 86_400_000;
 
-function daysBetween(from: Date, to: Date): number {
-  return Math.floor((to.getTime() - from.getTime()) / MS_PER_DAY);
-}
-
 export function computeSourceHealth(
   input: SourceHealthInput,
   now: Date,
   staleAfterDays: number = STALE_AFTER_DAYS
 ): SourceHealthResult {
-  const daysSinceScrape =
-    input.lastScrapedAt === null ? null : daysBetween(input.lastScrapedAt, now);
+  const elapsedMs =
+    input.lastScrapedAt === null ? null : now.getTime() - input.lastScrapedAt.getTime();
+  const daysSinceScrape = elapsedMs === null ? null : Math.floor(elapsedMs / MS_PER_DAY);
 
   // MANUAL sources (user submissions) and disabled sources are expected to be
   // quiet — never flag them.
@@ -64,8 +61,10 @@ export function computeSourceHealth(
   }
 
   // Diagnose staleness first: if the scraper hasn't run, that's the root cause,
-  // even if it would also read as "dark" (0 upcoming).
-  if (daysSinceScrape === null) {
+  // even if it would also read as "dark" (0 upcoming). Compare on elapsed time
+  // (not floored days) so the alert fires as soon as the threshold is actually
+  // exceeded, rather than up to a day late.
+  if (elapsedMs === null) {
     return {
       ...input,
       status: "stale",
@@ -73,7 +72,7 @@ export function computeSourceHealth(
       daysSinceScrape,
     };
   }
-  if (daysSinceScrape > staleAfterDays) {
+  if (elapsedMs > staleAfterDays * MS_PER_DAY) {
     return {
       ...input,
       status: "stale",

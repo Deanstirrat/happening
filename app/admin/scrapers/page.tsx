@@ -64,7 +64,9 @@ export default async function ScrapersPage({ searchParams }: Props) {
     }),
     prisma.event.groupBy({
       by: ["sourceId"],
-      where: { startDate: { gte: now } },
+      // Only PUBLISHED events count as "upcoming" — matches what users see and
+      // the health classifier's dark-source detection.
+      where: { startDate: { gte: now }, status: "PUBLISHED" },
       _count: { id: true },
     }),
     prisma.event.groupBy({

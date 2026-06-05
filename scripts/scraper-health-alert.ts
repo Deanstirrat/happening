@@ -34,7 +34,10 @@ async function loadHealthInputs(now: Date): Promise<SourceHealthInput[]> {
     prisma.source.findMany({ orderBy: { name: "asc" } }),
     prisma.event.groupBy({
       by: ["sourceId"],
-      where: { startDate: { gte: now } },
+      // Mirror the user-facing event queries: only PUBLISHED events count as
+      // "upcoming". A source left with only ARCHIVED/REJECTED future rows shows
+      // users 0 events and should read as dark.
+      where: { startDate: { gte: now }, status: "PUBLISHED" },
       _count: { id: true },
     }),
   ]);
@@ -136,14 +139,22 @@ async function main() {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
 
-  await resend.emails.send({
+  // Resend resolves with { data, error } and does NOT throw on API-level
+  // failures (unverified sender, invalid recipient, etc.). Since this cron is
+  // the only notification path for dark/stale scrapers, treat a returned error
+  // as a hard failure instead of falsely reporting success.
+  const { data, error } = await resend.emails.send({
     from: fromEmail,
     to: recipients,
     subject: `⚠️ ${health.attention.length} scraper(s) need attention`,
     html: buildEmailHtml(health.attention, health.healthy.length),
   });
 
-  console.log(`📧 Alert sent to ${recipients.join(", ")}\n`);
+  if (error) {
+    throw new Error(`Resend rejected the alert: ${error.name}: ${error.message}`);
+  }
+
+  console.log(`📧 Alert sent to ${recipients.join(", ")} (id: ${data?.id ?? "?"})\n`);
 }
 
 main()

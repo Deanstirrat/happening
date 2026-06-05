@@ -19,7 +19,8 @@
     "db:backfill-venues": "tsx scripts/backfill-venues.ts",
     "db:cleanup-far-events": "tsx scripts/cleanup-far-events.ts",
     "enrich-featured": "tsx scripts/enrich-featured.ts",
-    "health-alert": "tsx scripts/scraper-health-alert.ts"
+    "health-alert": "tsx scripts/scraper-health-alert.ts",
+    "merge-dups": "tsx scripts/merge-dups.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

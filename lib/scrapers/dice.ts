@@ -91,11 +91,13 @@ export class DiceScraper extends BaseScraper {
     if (typeof obj !== "object" || obj === null) return false;
     const o = obj as Record<string, unknown>;
     const hasName = typeof o.name === "string" || typeof o.title === "string";
+    const datesObj = o.dates as Record<string, unknown> | null | undefined;
     const hasDate =
       typeof o.date === "string" ||
       typeof o.start_date === "string" ||
       typeof o.startDate === "string" ||
-      typeof o.event_date === "string";
+      typeof o.event_date === "string" ||
+      (typeof datesObj === "object" && datesObj !== null && typeof datesObj.event_start_date === "string");
     return hasName && hasDate;
   }
 
@@ -107,21 +109,24 @@ export class DiceScraper extends BaseScraper {
     const title: string = e.name ?? e.title;
     if (typeof title !== "string" || !title.trim()) return null;
 
-    const dateStr: string = e.date ?? e.start_date ?? e.startDate ?? e.event_date;
+    // dates may be nested under e.dates (current Dice API) or flat
+    const datesObj = (typeof e.dates === "object" && e.dates !== null) ? e.dates as Record<string, unknown> : null;
+    const dateStr: string = datesObj?.event_start_date ?? e.date ?? e.start_date ?? e.startDate ?? e.event_date;
     if (!dateStr) return null;
     const startDate = new Date(dateStr);
     if (isNaN(startDate.getTime())) return null;
     if (startDate.getTime() < Date.now() - 86_400_000) return null;
 
     let endDate: Date | undefined;
-    const endStr: string = e.end_date ?? e.endDate;
+    const endStr: string = datesObj?.event_end_date ?? e.end_date ?? e.endDate;
     if (endStr) {
       const d = new Date(endStr);
       if (!isNaN(d.getTime())) endDate = d;
     }
 
-    // Venue — may be nested or flat
-    const venueObj = e.venue ?? e.location ?? {};
+    // Venue — may be an array (current) or a single object/flat fields
+    const venueArr: Record<string, unknown>[] = Array.isArray(e.venues) ? e.venues : [];
+    const venueObj = venueArr[0] ?? e.venue ?? e.location ?? {};
     const venueName: string | undefined =
       (typeof e.location_name === "string" ? e.location_name : undefined) ??
       (typeof venueObj.name === "string" ? venueObj.name : undefined) ??
@@ -131,25 +136,33 @@ export class DiceScraper extends BaseScraper {
       (typeof venueObj.address === "string" ? venueObj.address : undefined) ??
       (typeof venueObj.full_address === "string" ? venueObj.full_address : undefined) ??
       undefined;
+    const venueLocation = (typeof venueObj.location === "object" && venueObj.location !== null)
+      ? venueObj.location as Record<string, unknown> : venueObj;
     const latitude: number | undefined =
-      typeof venueObj.lat === "number" ? venueObj.lat :
-      typeof venueObj.latitude === "number" ? venueObj.latitude : undefined;
+      typeof venueLocation.lat === "number" ? venueLocation.lat :
+      typeof venueLocation.latitude === "number" ? venueLocation.latitude : undefined;
     const longitude: number | undefined =
-      typeof venueObj.lng === "number" ? venueObj.lng :
-      typeof venueObj.longitude === "number" ? venueObj.longitude : undefined;
+      typeof venueLocation.lng === "number" ? venueLocation.lng :
+      typeof venueLocation.longitude === "number" ? venueLocation.longitude : undefined;
 
-    // Source URL — Dice event paths are like /event/{slug}
+    // Source URL — prefer perm_name slug, then explicit url fields, then id
     let sourceUrl = BROWSE_URL;
     const rawUrl: string = e.url ?? e.event_url ?? e.permalink ?? "";
     if (rawUrl) {
       sourceUrl = rawUrl.startsWith("http") ? rawUrl : `https://dice.fm${rawUrl}`;
+    } else if (typeof e.perm_name === "string") {
+      sourceUrl = `https://dice.fm/event/${e.perm_name}`;
     } else if (e.id) {
       sourceUrl = `https://dice.fm/event/${e.id}`;
     }
 
-    // Image
+    // Image — current API returns an object {square, landscape, portrait}
     let imageUrl: string | undefined;
-    if (typeof e.image_url === "string") {
+    if (typeof e.images === "object" && e.images !== null && !Array.isArray(e.images)) {
+      const imgs = e.images as Record<string, unknown>;
+      imageUrl = (typeof imgs.landscape === "string" ? imgs.landscape : undefined) ??
+                 (typeof imgs.square === "string" ? imgs.square : undefined) ?? undefined;
+    } else if (typeof e.image_url === "string") {
       imageUrl = e.image_url;
     } else if (typeof e.banner === "string") {
       imageUrl = e.banner;
@@ -158,11 +171,20 @@ export class DiceScraper extends BaseScraper {
       imageUrl = typeof img === "string" ? img : (img.url ?? img.src ?? undefined);
     }
 
-    // Price — Dice stores prices in the smallest currency unit (pence/cents)
+    // Price — current API: e.price.amount_from in cents
     let price: string | undefined;
     let isFree = false;
+    const priceObj = (typeof e.price === "object" && e.price !== null) ? e.price as Record<string, unknown> : null;
+    const amountFrom: number | null = typeof priceObj?.amount_from === "number" ? priceObj.amount_from : null;
     const ticketTypes: Record<string, unknown>[] = e.ticket_types ?? e.ticketTypes ?? [];
-    if (ticketTypes.length > 0) {
+    if (amountFrom !== null) {
+      if (amountFrom === 0) {
+        isFree = true;
+        price = "Free";
+      } else {
+        price = `$${(amountFrom / 100).toFixed(2)}`;
+      }
+    } else if (ticketTypes.length > 0) {
       const amounts = ticketTypes
         .map((tt) => {
           const p = tt.price ?? tt.face_value ?? tt.total;
@@ -175,19 +197,25 @@ export class DiceScraper extends BaseScraper {
           isFree = true;
           price = "Free";
         } else {
-          // Heuristic: values > 1000 are likely in pence/cents
           const dollars = minAmount > 1000 ? minAmount / 100 : minAmount;
           price = `$${dollars.toFixed(2)}`;
         }
       }
     }
 
-    // Performers
+    // Performers — current API: summary_lineup.top_artists, or legacy artists/lineup
     const performers: string[] = [];
+    const topArtists = e.summary_lineup?.top_artists;
+    if (Array.isArray(topArtists)) {
+      for (const a of topArtists) {
+        const name = typeof a === "string" ? a : a?.name;
+        if (typeof name === "string") performers.push(name);
+      }
+    }
     if (Array.isArray(e.artists)) {
       for (const a of e.artists) {
         const name = typeof a === "string" ? a : a?.name;
-        if (typeof name === "string") performers.push(name);
+        if (typeof name === "string" && !performers.includes(name)) performers.push(name);
       }
     }
     if (Array.isArray(e.lineup)) {
@@ -197,9 +225,11 @@ export class DiceScraper extends BaseScraper {
       }
     }
 
-    // Description
+    // Description — current API: e.about is {description: string}
     let description: string | undefined;
-    const rawDesc = e.description ?? e.summary ?? e.about;
+    const aboutObj = (typeof e.about === "object" && e.about !== null) ? e.about as Record<string, unknown> : null;
+    const rawDesc = (typeof aboutObj?.description === "string" ? aboutObj.description : null)
+      ?? e.description ?? e.summary;
     if (typeof rawDesc === "string") {
       description = rawDesc.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 500) || undefined;
     }

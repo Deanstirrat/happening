@@ -4,24 +4,23 @@ import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { sfDateFromLocal } from "@/lib/sfDate";
 
-const MONTHS: Record<string, number> = {
-  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
-  July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
-};
-
-function parseDateText(text: string): Date | undefined {
-  const m = text.match(/(\w+)\s+(\d+),\s+(\d{4})\s+(\d+):(\d+)\s+(AM|PM)/i);
+function parseTimeText(timeText: string): { hour: number; minute: number } | undefined {
+  const m = timeText.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!m) return undefined;
-  const month = MONTHS[m[1]];
-  if (!month) return undefined;
-  const day = parseInt(m[2]);
-  const year = parseInt(m[3]);
-  let hour = parseInt(m[4]);
-  const minute = parseInt(m[5]);
-  const ampm = m[6].toUpperCase();
+  let hour = parseInt(m[1]);
+  const minute = parseInt(m[2]);
+  const ampm = m[3].toUpperCase();
   if (ampm === "PM" && hour !== 12) hour += 12;
   if (ampm === "AM" && hour === 12) hour = 0;
-  return sfDateFromLocal(year, month, day, hour, minute);
+  return { hour, minute };
+}
+
+function parseDatetime(isoDate: string, timeText: string): Date | undefined {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  const time = parseTimeText(timeText);
+  if (!time) return undefined;
+  return sfDateFromLocal(year, month, day, time.hour, time.minute);
 }
 
 export class ChurchOfClownScraper extends BaseScraper {
@@ -68,21 +67,38 @@ export class ChurchOfClownScraper extends BaseScraper {
         ? href
         : `https://www.churchofclown.org${href}`;
 
-      // Dates — Squarespace renders start/end as separate time elements
-      const timeEls = $el.find(".event-time-12hr, time, .eventlist-meta-date");
-      const startText = timeEls.first().text().trim();
-      const endText = timeEls.length > 1 ? timeEls.eq(1).text().trim() : "";
+      // Dates — Squarespace now renders date in `datetime` attr and time as text
+      // Pattern A (show with two dates): .event-date[datetime] + .event-time-localized
+      // Pattern B (class with start/end): .event-date[datetime] + .event-time-localized-start + .event-time-localized-end
+      const startDateEl = $el.find("time.event-date[datetime]").first();
+      const startIso = startDateEl.attr("datetime") ?? "";
 
-      const startDate = parseDateText(startText);
+      const startTimeText =
+        $el.find("time.event-time-localized-start").first().text().trim() ||
+        $el.find("time.event-time-localized").first().text().trim();
+
+      const startDate = startIso && startTimeText ? parseDatetime(startIso, startTimeText) : undefined;
       if (!startDate) {
-        console.warn(`[churchofclown] Could not parse date: "${startText}" — ${title}`);
+        console.warn(`[churchofclown] Could not parse date for "${title}" — iso="${startIso}" time="${startTimeText}"`);
         return;
       }
 
       // Skip events more than a day in the past
       if (startDate.getTime() < now - 86400000) return;
 
-      const endDate = endText ? parseDateText(endText) : undefined;
+      // End date: explicit end-time element, or second .event-date for multi-day
+      let endDate: Date | undefined;
+      const endTimeText = $el.find("time.event-time-localized-end").first().text().trim();
+      if (endTimeText) {
+        endDate = parseDatetime(startIso, endTimeText);
+      } else {
+        const dateEls = $el.find("time.event-date[datetime]");
+        if (dateEls.length >= 2) {
+          const endIso = dateEls.eq(1).attr("datetime") ?? "";
+          const endTText = $el.find("time.event-time-localized").eq(1).text().trim();
+          if (endIso && endTText) endDate = parseDatetime(endIso, endTText);
+        }
+      }
 
       // Image
       const imgEl = $el.find("img").first();
@@ -90,7 +106,7 @@ export class ChurchOfClownScraper extends BaseScraper {
         imgEl.attr("src") || imgEl.attr("data-src") || undefined;
 
       // Description
-      const description = $el.find(".eventlist-description p").first().text().trim() || undefined;
+      const description = $el.find(".eventlist-excerpt p, .eventlist-description p").first().text().trim() || undefined;
 
       events.push({
         title,

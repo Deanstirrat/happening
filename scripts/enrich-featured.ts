@@ -12,6 +12,44 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
+// ─── Text / title helpers ──────────────────────────────────────────────────────
+
+// Decode HTML entities (named + numeric + hex). Runs twice to unwrap
+// double-encoded sequences like "&amp;#039;" → "&#039;" → "'".
+function decodeEntities(input: string): string {
+  let s = input;
+  for (let pass = 0; pass < 2; pass++) {
+    s = s
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+      .replace(/&quot;/gi, '"')
+      .replace(/&apos;/gi, "'")
+      .replace(/&mdash;/gi, "—")
+      .replace(/&ndash;/gi, "–")
+      .replace(/&hellip;/gi, "…")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&amp;/gi, "&"); // last, so a second pass can decode unwrapped numeric entities
+  }
+  return s.replace(/\s+/g, " ").trim();
+}
+
+// Canonical form for comparing/deciding whether a title actually changed.
+// Ignores entity encoding, smart vs. straight quotes, dash style, and whitespace,
+// but preserves wording and capitalization so genuine cleanups still get written.
+function canonicalTitle(s: string): string {
+  return decodeEntities(s)
+    .replace(/[‘’‛]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Case-insensitive key for detecting a genuine event-identity mismatch.
+const compareKey = (s: string) => canonicalTitle(s).toLowerCase();
+
 // ─── Page scraping ────────────────────────────────────────────────────────────
 
 interface PageMeta {
@@ -29,7 +67,7 @@ function parseMeta(html: string): Pick<PageMeta, "ogTitle" | "ogDescription" | "
     const m =
       html.match(new RegExp(`<meta[^>]+${prop}=["'][^"']*og:${tag}["'][^>]+content=["']([^"']+)["']`, "i")) ??
       html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${prop}=["'][^"']*og:${tag}["']`, "i"));
-    return m?.[1]?.replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim() ?? null;
+    return m?.[1] ? decodeEntities(m[1]) : null;
   };
 
   const plainTitle =
@@ -52,7 +90,7 @@ function parseMeta(html: string): Pick<PageMeta, "ogTitle" | "ogDescription" | "
 
   return {
     ogTitle: attr("title", "property"),
-    ogDescription: attr("description", "property") ?? plainTitle?.replace(/&amp;/g, "&").replace(/&#39;/g, "'").trim() ?? null,
+    ogDescription: attr("description", "property") ?? (plainTitle ? decodeEntities(plainTitle) : null),
     ogImage: attr("image", "property"),
     bodyText,
   };
@@ -151,6 +189,58 @@ Reply with only the description text. No quotes, no label prefix.`,
   }
 }
 
+// ─── AI title cleanup ──────────────────────────────────────────────────────────
+
+// Produce a cleaner, more concise title. Conservative: preserves the event's
+// identity and only fixes wording/length/formatting. Returns null on failure or
+// if the model declines to improve it (caller compares against the original).
+async function generateCleanTitle(
+  currentTitle: string,
+  ogTitle: string | null,
+  venueName: string | null,
+  pageText: string
+): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  try {
+    const msg = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 60,
+      temperature: 0, // deterministic → stable across runs, no title churn
+      messages: [
+        {
+          role: "user",
+          content: `You clean up event titles for a San Francisco events listing. Return the clearest, most concise title for this event.
+
+Guidelines:
+- Keep it short and scannable — aim for under 60 characters.
+- Lead with the core identity: the artist, DJ, party, or event name.
+- Remove website/brand suffixes (e.g. "| Eventbrite", "— Ruth's Table"), redundant location tags like "(SF)", trailing year/date parentheticals like "(June 2026)", and marketing filler.
+- Strip verbose date/time tails (e.g. ", June 5th, from 9pm").
+- Fix capitalization, spacing, and punctuation. Use straight quotes (').
+- PRESERVE the event's identity and its essential qualifier. Do NOT invent details, do NOT change which event this is, and do NOT add information that isn't already implied by the current title.
+- If the current title is already clean and concise, return it unchanged.
+
+Current title: ${currentTitle}
+Page title (hint only — may include site name or noise): ${ogTitle ?? "n/a"}
+Venue: ${venueName ?? "unknown"}
+Page content (context only):
+${pageText.slice(0, 600)}
+
+Reply with ONLY the final title text — no quotes, no labels, no explanation.`,
+        },
+      ],
+    });
+    let text = ((msg.content[0] as Anthropic.TextBlock).text ?? "").trim();
+    text = text.replace(/^["'“”]+|["'“”]+$/g, "").trim(); // strip wrapping quotes the model may add
+    // Reject obvious garbage: empty, multi-line (not a title), or runaway length.
+    if (!text || text.length < 3 || text.length > 90 || /[\r\n]/.test(text)) return null;
+    return text;
+  } catch (e) {
+    console.error(`    [ai-title] error: ${(e as Error).message}`);
+    return null;
+  }
+}
+
 // ─── Per-event enrichment ─────────────────────────────────────────────────────
 
 interface EventRow {
@@ -172,6 +262,7 @@ interface EnrichResult {
   imageFixed: boolean;
   descriptionEnriched: boolean;
   descriptionSource: "og" | "ai" | null;
+  titleRenamed: string | null;
   titleMismatch: string | null;
 }
 
@@ -184,6 +275,7 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
     imageFixed: false,
     descriptionEnriched: false,
     descriptionSource: null,
+    titleRenamed: null,
     titleMismatch: null,
   };
 
@@ -192,16 +284,26 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
   result.sourceOk = meta.ok;
   result.sourceStatus = meta.status;
 
-  // 2. Title mismatch check (advisory only — don't auto-update)
-  if (meta.ogTitle && meta.ogTitle.toLowerCase() !== event.title.toLowerCase()) {
-    const ogNorm = meta.ogTitle.replace(/\s+/g, " ").slice(0, 80);
-    const evNorm = event.title.replace(/\s+/g, " ").slice(0, 80);
-    if (!ogNorm.includes(evNorm) && !evNorm.includes(ogNorm)) {
+  const updates: Partial<{ description: string; imageUrl: string | null; title: string }> = {};
+
+  // 2. Title: clean up wording/length/formatting via AI (preserves identity).
+  //    Runs even when the source is blocked — a wordy title can be fixed without the page.
+  const cleanTitle = await generateCleanTitle(event.title, meta.ogTitle, event.venueName, meta.bodyText);
+  if (cleanTitle && canonicalTitle(cleanTitle) !== canonicalTitle(event.title)) {
+    updates.title = cleanTitle;
+    result.titleRenamed = cleanTitle;
+  }
+
+  // 2b. Advisory mismatch: only when we did NOT rename and the page describes a
+  //     genuinely different event (after decoding/normalizing — no more entity
+  //     false positives). Identity changes stay manual; we don't auto-adopt these.
+  if (!result.titleRenamed && meta.ogTitle) {
+    const og = compareKey(meta.ogTitle);
+    const ev = compareKey(event.title);
+    if (og !== ev && !og.includes(ev) && !ev.includes(og)) {
       result.titleMismatch = meta.ogTitle;
     }
   }
-
-  const updates: Partial<{ description: string; imageUrl: string | null }> = {};
 
   // 3. Image: validate existing → if broken, try og:image from scraped page
   let imageOk = false;
@@ -310,8 +412,11 @@ async function main() {
           console.log(`  description: ${descLen} chars OK`);
         }
 
-        if (r.titleMismatch) {
-          console.log(`  title check: ⚠ page says "${r.titleMismatch.slice(0, 60)}"`);
+        if (r.titleRenamed) {
+          console.log(`  title:       "${event.title.slice(0, 55)}"`);
+          console.log(`               → "${r.titleRenamed.slice(0, 55)}" ✓`);
+        } else if (r.titleMismatch) {
+          console.log(`  title check: ⚠ page says "${r.titleMismatch.slice(0, 60)}" (review manually)`);
         }
 
         console.log();
@@ -325,6 +430,7 @@ async function main() {
   const brokenSources = results.filter((r) => !r.sourceOk).length;
   const imagesFixed = results.filter((r) => r.imageFixed).length;
   const descsEnriched = results.filter((r) => r.descriptionEnriched).length;
+  const titlesRenamed = results.filter((r) => r.titleRenamed).length;
   const titleMismatches = results.filter((r) => r.titleMismatch).length;
 
   console.log("=== Summary ===");
@@ -332,7 +438,16 @@ async function main() {
   console.log(`  Broken source URLs:  ${brokenSources}`);
   console.log(`  Images fixed:        ${imagesFixed}`);
   console.log(`  Descriptions added:  ${descsEnriched}`);
+  console.log(`  Titles renamed:      ${titlesRenamed}`);
   console.log(`  Title mismatches:    ${titleMismatches} (review manually)`);
+
+  if (titlesRenamed > 0) {
+    console.log("\n  Titles renamed:");
+    results.filter((r) => r.titleRenamed).forEach((r) => {
+      console.log(`    "${r.title}"`);
+      console.log(`      → "${r.titleRenamed}"`);
+    });
+  }
 
   if (brokenSources > 0) {
     console.log("\n  Broken sources:");

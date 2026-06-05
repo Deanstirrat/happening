@@ -40,9 +40,16 @@ const MERGE_CONFIDENCE = Number(process.env.MERGE_CONFIDENCE ?? "0.75");
 const MERGE_MAX_PAIRS = Number(process.env.MERGE_MAX_PAIRS ?? "2000");
 const WINDOW_DAYS = Number(process.env.MERGE_WINDOW_DAYS ?? "1");
 
-// Haiku rate limiting — match the categorizer: 5 concurrent / 6s = 50 req/min.
-const BATCH = 5;
-const DELAY_MS = 6000;
+// Haiku throughput. Defaults are conservative (5 concurrent / 50 req/min) for
+// nightly runs; raise both via env for a one-off backlog backfill if your
+// Anthropic tier allows (e.g. MERGE_CONCURRENCY=20 MERGE_RPM=1000).
+//   MERGE_CONCURRENCY — how many calls run at once
+//   MERGE_RPM         — ceiling on calls per minute
+const CONCURRENCY = Math.max(1, Number(process.env.MERGE_CONCURRENCY ?? "5"));
+const RPM = Math.max(1, Number(process.env.MERGE_RPM ?? "50"));
+// Delay between batches so we stay at/under RPM (a floor — actual pace is also
+// bounded by API latency, which only makes us slower/safer).
+const BATCH_DELAY_MS = Math.ceil((CONCURRENCY / RPM) * 60000);
 
 type LoadedEvent = MergeableEvent & BlockEvent & { sourceId: string };
 
@@ -93,12 +100,12 @@ async function rateLimitedMap<I, O>(
   fn: (item: I, index: number) => Promise<O>
 ): Promise<O[]> {
   const out: O[] = [];
-  for (let i = 0; i < items.length; i += BATCH) {
-    const batch = items.slice(i, i + BATCH);
+  for (let i = 0; i < items.length; i += CONCURRENCY) {
+    const batch = items.slice(i, i + CONCURRENCY);
     const results = await Promise.all(batch.map((item, k) => fn(item, i + k)));
     out.push(...results);
-    if (i + BATCH < items.length) {
-      await new Promise((r) => setTimeout(r, DELAY_MS));
+    if (i + CONCURRENCY < items.length) {
+      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     }
   }
   return out;
@@ -107,7 +114,10 @@ async function rateLimitedMap<I, O>(
 async function main() {
   console.log(`Mode: ${DRY_RUN ? "DRY RUN (no writes)" : "LIVE"}`);
   console.log(
-    `Confidence ≥ ${MERGE_CONFIDENCE}, max pairs ${MERGE_MAX_PAIRS}, window ${WINDOW_DAYS}d\n`
+    `Confidence ≥ ${MERGE_CONFIDENCE}, max pairs ${MERGE_MAX_PAIRS}, window ${WINDOW_DAYS}d`
+  );
+  console.log(
+    `Throughput: ${CONCURRENCY} concurrent, ≤${RPM} req/min (~${BATCH_DELAY_MS}ms/batch)\n`
   );
 
   const events = await loadEvents();
@@ -167,11 +177,11 @@ async function main() {
   const dupClusters = [...clusters.values()].filter((g) => g.length > 1);
   console.log(`Found ${dupClusters.length} duplicate clusters\n`);
 
-  let mergedCount = 0;
-  let archivedCount = 0;
-
-  // 5. Merge each cluster.
-  for (const cluster of dupClusters) {
+  // 5. Merge each cluster. Clusters are disjoint sets of event ids (union-find
+  // partitions), so their writes never touch the same rows — safe to run with
+  // the same bounded concurrency as adjudication. The RPM ceiling applies here
+  // too, since each cluster makes one synthesis call.
+  const mergeResults = await rateLimitedMap(dupClusters, async (cluster) => {
     const survivor = pickSurvivor(cluster);
     const losers = cluster.filter((e) => e.id !== survivor.id);
     const merged = mergeFields(cluster, survivor);
@@ -188,18 +198,15 @@ async function main() {
     const finalDescription = synth?.description ?? merged.description;
     const titleSource = synth ? "llm" : "fallback";
 
-    console.log(`Cluster → keep ${survivor.id}`);
-    console.log(`  title: "${finalTitle}" [${titleSource}]`);
-    for (const e of cluster) {
-      const tag = e.id === survivor.id ? "KEEP " : "merge";
-      console.log(`    ${tag} "${e.title}" [${hostOf(e.sourceUrl)}]`);
-    }
-    console.log("");
+    const memberLines = cluster
+      .map((e) => `    ${e.id === survivor.id ? "KEEP " : "merge"} "${e.title}" [${hostOf(e.sourceUrl)}]`)
+      .join("\n");
+    console.log(
+      `Cluster → keep ${survivor.id}\n  title: "${finalTitle}" [${titleSource}]\n${memberLines}\n`
+    );
 
     if (DRY_RUN) {
-      mergedCount++;
-      archivedCount += losers.length;
-      continue;
+      return losers.length;
     }
 
     const provenance = {
@@ -262,9 +269,11 @@ async function main() {
       });
     });
 
-    mergedCount++;
-    archivedCount += losers.length;
-  }
+    return losers.length;
+  });
+
+  const mergedCount = mergeResults.length;
+  const archivedCount = mergeResults.reduce((sum, n) => sum + n, 0);
 
   console.log("Summary:");
   console.log(`  ${mergedCount} clusters ${DRY_RUN ? "would be" : ""} merged`);

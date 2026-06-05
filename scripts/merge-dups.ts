@@ -36,8 +36,17 @@ import {
 import { adjudicatePair, synthesizeCluster } from "../lib/merge/adjudicate";
 
 const DRY_RUN = process.argv.includes("--dry-run");
+// By default a run only judges candidate pairs that involve an event scraped in
+// the last NEW_SINCE_HOURS — pairs between two older events were already judged
+// in a prior run, so re-judging them every night is wasted spend. `--all` (or
+// MERGE_ALL=1) reprocesses every pair, for the one-time backlog backfill.
+const REPROCESS_ALL = process.argv.includes("--all") || process.env.MERGE_ALL === "1";
+const NEW_SINCE_HOURS = Number(process.env.MERGE_NEW_SINCE_HOURS ?? "26");
 const MERGE_CONFIDENCE = Number(process.env.MERGE_CONFIDENCE ?? "0.75");
 const MERGE_MAX_PAIRS = Number(process.env.MERGE_MAX_PAIRS ?? "2000");
+// Lower bound on which events form the comparison universe (default: from
+// yesterday into the future). Keep small — a large window drags in past events
+// we don't care about deduping.
 const WINDOW_DAYS = Number(process.env.MERGE_WINDOW_DAYS ?? "1");
 
 // Haiku throughput. Defaults are conservative (5 concurrent / 50 req/min) for
@@ -94,17 +103,38 @@ async function loadEvents(): Promise<LoadedEvent[]> {
   }));
 }
 
-/** Run async work over items with bounded concurrency + rate-limit delay. */
+/**
+ * Run async work over items with bounded concurrency + rate-limit delay.
+ * When `label` is set, emits a throttled progress heartbeat (≤ every 2s) so a
+ * long phase visibly advances instead of going silent.
+ */
 async function rateLimitedMap<I, O>(
   items: I[],
-  fn: (item: I, index: number) => Promise<O>
+  fn: (item: I, index: number) => Promise<O>,
+  label?: string
 ): Promise<O[]> {
   const out: O[] = [];
-  for (let i = 0; i < items.length; i += CONCURRENCY) {
+  const total = items.length;
+  const startedAt = Date.now();
+  let lastLog = 0;
+  for (let i = 0; i < total; i += CONCURRENCY) {
     const batch = items.slice(i, i + CONCURRENCY);
     const results = await Promise.all(batch.map((item, k) => fn(item, i + k)));
     out.push(...results);
-    if (i + CONCURRENCY < items.length) {
+
+    const done = out.length;
+    const now = Date.now();
+    if (label && (now - lastLog >= 2000 || done === total)) {
+      const secs = (now - startedAt) / 1000;
+      const rate = done / Math.max(secs, 0.001);
+      const etaSecs = rate > 0 ? Math.round((total - done) / rate) : 0;
+      console.log(
+        `[${label}] ${done}/${total} (${Math.round((done / total) * 100)}%) · ${Math.round(secs)}s elapsed · ${rate.toFixed(1)}/s · eta ${etaSecs}s`
+      );
+      lastLog = now;
+    }
+
+    if (i + CONCURRENCY < total) {
       await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     }
   }
@@ -131,22 +161,63 @@ async function main() {
     );
   }
 
+  // Incremental gate: skip pairs where both events predate the last run.
   let candidatePairs = pairs;
+  if (REPROCESS_ALL) {
+    console.log(`Reprocessing ALL ${candidatePairs.length} candidate pairs (--all)`);
+  } else {
+    const cutoff = Date.now() - NEW_SINCE_HOURS * 3600_000;
+    const before = candidatePairs.length;
+    candidatePairs = candidatePairs.filter(
+      (p) => p.a.scrapedAt.getTime() >= cutoff || p.b.scrapedAt.getTime() >= cutoff
+    );
+    console.log(
+      `Incremental: ${candidatePairs.length} pairs involve an event scraped in the last ${NEW_SINCE_HOURS}h (skipped ${before - candidatePairs.length} already-judged pairs; use --all to reprocess everything)`
+    );
+  }
+
   if (candidatePairs.length > MERGE_MAX_PAIRS) {
-    candidatePairs = [...pairs]
+    candidatePairs = [...candidatePairs]
       .sort((a, b) => b.score - a.score)
       .slice(0, MERGE_MAX_PAIRS);
     console.warn(
-      `⚠️  ${pairs.length} candidate pairs exceeds MERGE_MAX_PAIRS=${MERGE_MAX_PAIRS}; adjudicating top ${MERGE_MAX_PAIRS} by score`
+      `⚠️  candidate pairs exceed MERGE_MAX_PAIRS=${MERGE_MAX_PAIRS}; adjudicating top ${MERGE_MAX_PAIRS} by score`
     );
   }
   console.log(`Adjudicating ${candidatePairs.length} candidate pairs...\n`);
 
-  // 3. Adjudicate each pair with Haiku.
-  const verdicts = await rateLimitedMap(candidatePairs, async (pair) => {
-    const result = await adjudicatePair(pair.a, pair.b);
-    return { pair, result };
-  });
+  // 3. Adjudicate each pair with Haiku. Log the first few confirmed duplicates
+  // inline as qualitative proof the matching is working early in the run.
+  const SAMPLE_LIMIT = 12;
+  let sampleLogged = 0;
+  const verdicts = await rateLimitedMap(
+    candidatePairs,
+    async (pair) => {
+      const result = await adjudicatePair(pair.a, pair.b);
+      if (
+        result.same &&
+        result.confidence >= MERGE_CONFIDENCE &&
+        sampleLogged < SAMPLE_LIMIT
+      ) {
+        sampleLogged++;
+        console.log(
+          `  ✓ dup (${result.confidence.toFixed(2)}): "${pair.a.title}" ≈ "${pair.b.title}"`
+        );
+      }
+      return { pair, result };
+    },
+    "adjudicate"
+  );
+
+  // Surface API failures loudly — otherwise a bad key / rate-limit looks like
+  // "no duplicates found" (every failed call returns same:false).
+  const ERROR_REASONS = new Set(["no API key", "unparseable response", "api error"]);
+  const errored = verdicts.filter((v) => ERROR_REASONS.has(v.result.reason)).length;
+  if (errored > 0) {
+    console.warn(
+      `⚠️  ${errored}/${verdicts.length} adjudications FAILED — check ANTHROPIC_API_KEY / rate limits before trusting results`
+    );
+  }
 
   const confirmed = verdicts.filter(
     (v) => v.result.same && v.result.confidence >= MERGE_CONFIDENCE
@@ -270,7 +341,7 @@ async function main() {
     });
 
     return losers.length;
-  });
+  }, "merge");
 
   const mergedCount = mergeResults.length;
   const archivedCount = mergeResults.reduce((sum, n) => sum + n, 0);

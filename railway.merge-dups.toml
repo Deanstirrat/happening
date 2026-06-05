@@ -7,15 +7,18 @@ startCommand = "npm run merge-dups"
 # have populated the day's events). Set this in the Railway dashboard under the
 # service's Settings → Cron Schedule.
 # Requires env: DATABASE_URL, ANTHROPIC_API_KEY.
-# Optional env: MERGE_CONFIDENCE, MERGE_MAX_PAIRS, MERGE_WINDOW_DAYS,
-#   MERGE_CONCURRENCY, MERGE_RPM.
+# Optional env: MERGE_CONFIDENCE, MERGE_MAX_PAIRS, MERGE_CONCURRENCY, MERGE_RPM,
+#   MERGE_NEW_SINCE_HOURS, MERGE_WINDOW_DAYS, MERGE_ALL.
 #
-# Nightly defaults (conservative): MERGE_WINDOW_DAYS=1, MERGE_MAX_PAIRS=2000,
-#   MERGE_CONCURRENCY=5, MERGE_RPM=50.
+# NIGHTLY (this startCommand): incremental by default — only judges candidate
+# pairs that involve an event scraped in the last ~26h, so it stays cheap
+# (cents/day). No extra env needed beyond the two required keys.
 #
-# One-off backlog backfill (run once over all future events, then revert to the
-# defaults above) — set on the service before triggering:
-#   MERGE_WINDOW_DAYS=400   # cover the whole future window
-#   MERGE_MAX_PAIRS=50000   # don't cap below the real candidate count
+# ONE-OFF BACKLOG BACKFILL (run once over the whole future catalog, then let the
+# nightly schedule take over): temporarily change the startCommand to add --all
+# and raise throughput on the service:
+#   startCommand = "npm run merge-dups -- --all"
+#   MERGE_MAX_PAIRS=50000   # don't cap below the real candidate count (~16k)
 #   MERGE_CONCURRENCY=20    # raise to your Anthropic tier's headroom
 #   MERGE_RPM=1000          # tier 2 = 1000 rpm; tier 1 stays at 50
+# Do a --dry-run pass first: startCommand = "npm run merge-dups -- --all --dry-run"

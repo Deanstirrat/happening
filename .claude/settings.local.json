@@ -94,7 +94,8 @@
       "WebFetch(domain:www.theuctheatre.org)",
       "WebFetch(domain:www.greatstartheater.org)",
       "Read(//Users/deanstirrat/.nvm/versions/node/**)",
-      "Bash(volta --version)"
+      "Bash(volta --version)",
+      "Bash(find /Users/deanstirrat/code/happening -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) | grep -iE \"\\(featured|carousel|slider|embla|interested\\)\" | head -20)"
     ]
   }
 }

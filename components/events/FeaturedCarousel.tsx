@@ -76,7 +76,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
             <button
               onClick={prev}
               aria-label="Previous event"
-              className="absolute left-0 top-0 h-full w-16 flex items-center justify-start pl-3 opacity-0 hover:opacity-100 transition-opacity duration-300 group"
+              className="hidden sm:flex absolute left-0 top-0 h-full w-16 items-center justify-start pl-3 opacity-0 hover:opacity-100 transition-opacity duration-300 group"
               style={{ background: "linear-gradient(to right, rgba(0,0,0,0.35) 0%, transparent 100%)" }}
             >
               <svg
@@ -90,7 +90,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
             <button
               onClick={next}
               aria-label="Next event"
-              className="absolute right-0 top-0 h-full w-16 flex items-center justify-end pr-3 opacity-0 hover:opacity-100 transition-opacity duration-300 group"
+              className="hidden sm:flex absolute right-0 top-0 h-full w-16 items-center justify-end pr-3 opacity-0 hover:opacity-100 transition-opacity duration-300 group"
               style={{ background: "linear-gradient(to left, rgba(0,0,0,0.35) 0%, transparent 100%)" }}
             >
               <svg

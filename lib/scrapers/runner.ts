@@ -72,6 +72,31 @@ export function isVirtualEvent(event: Pick<ScrapedEvent, "title" | "description"
   return false;
 }
 
+// Library audience filter — babies/toddlers and seniors/older-adults programming.
+// These recurring library programs (storytime, lapsit, senior tech help, etc.) are
+// off-vibe for the app. SFPL tags each event with audience labels (e.g.
+// "babies & toddlers", "older adults") plus a "library"/"sfpl" marker; we match those
+// first and fall back to title cues. Scope is intentionally babies + seniors only —
+// school-age kids', teen, and general all-ages library events are left alone.
+const LIBRARY_SIGNAL_RE = /\b(librar(?:y|ies)|sfpl)\b/i;
+const BABY_AUDIENCE_RE = /\b(babies|baby|toddlers?|infants?|lapsit|preschool(?:ers)?|pre-school|tiny\s+tots|mother\s+goose|wee\s+ones|story\s?time)\b/i;
+const SENIOR_AUDIENCE_RE = /\b(seniors?|older\s+adults?|elder(?:s|ly)?|55\+|60\+|65\+)\b/i;
+
+export function isBabyOrSeniorLibraryEvent(
+  event: Pick<ScrapedEvent, "title" | "venueName" | "sourceUrl"> & { tags?: string[] },
+): boolean {
+  const tagText = (event.tags ?? []).join(" ");
+
+  const isLibrary =
+    LIBRARY_SIGNAL_RE.test(tagText) ||
+    (event.venueName ? /\blibrar(?:y|ies)\b/i.test(event.venueName) : false) ||
+    (event.sourceUrl ? /sfpl\.org/i.test(event.sourceUrl) : false);
+  if (!isLibrary) return false;
+
+  const haystack = `${event.title} ${tagText}`;
+  return BABY_AUDIENCE_RE.test(haystack) || SENIOR_AUDIENCE_RE.test(haystack);
+}
+
 // Import all scrapers
 import { FoopeeScraper } from "./foopee";
 import { NineteenHzScraper } from "./19hz";
@@ -335,6 +360,12 @@ export async function runScraper(
     // Skip virtual/online-only events
     if (isVirtualEvent(event)) {
       console.log(`[${slug}] Virtual (skipped): "${event.title}"`);
+      continue;
+    }
+
+    // Skip library programming aimed at babies/toddlers or seniors
+    if (isBabyOrSeniorLibraryEvent(event)) {
+      console.log(`[${slug}] Library baby/senior (skipped): "${event.title}"`);
       continue;
     }
 

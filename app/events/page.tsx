@@ -105,7 +105,11 @@ async function getWeeklyFeaturedEvents(
       ...(params.hideRecurring === "true" && { NOT: { tags: { has: "recurring" } } }),
     },
     orderBy: [{ startDate: "asc" }],
-    take: 15,
+    // Show the full week of featured events. The weekly curation budget is 24
+    // (see auto-feature route), so a low LIMIT here would silently drop picks —
+    // and with start-time ties + no tiebreaker, *which* ones got dropped varied
+    // between requests, making the featured set look random on each visit.
+    take: 50,
     select: {
       id: true,
       title: true,

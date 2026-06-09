@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/adminAuth";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
+import { normalizeTitle } from "@/lib/dedupeHash";
 import { addDays } from "date-fns";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -43,7 +44,7 @@ async function runAutoFeature() {
       featured: true,
       startDate: { gte: windowStart, lte: windowEnd },
     },
-    select: { startDate: true },
+    select: { startDate: true, title: true },
   });
 
   const featuredPerDay = new Map<string, number>();
@@ -51,6 +52,11 @@ async function runAutoFeature() {
     const key = sfDayKey(e.startDate);
     featuredPerDay.set(key, (featuredPerDay.get(key) ?? 0) + 1);
   }
+
+  // Titles already featured this week — used to avoid featuring the same event
+  // twice (e.g. two showings of one show on the same night, stored as separate
+  // rows). normalizeTitle ignores punctuation/case so near-identical titles match.
+  const featuredTitles = new Set(alreadyFeatured.map((e) => normalizeTitle(e.title)));
 
   const totalAlreadyFeatured = alreadyFeatured.length;
   const remainingWeeklyBudget = Math.max(0, WEEKLY_MAX - totalAlreadyFeatured);
@@ -245,9 +251,17 @@ ${eventList}`,
   const toBlock = (picks.block ?? []).filter((b) => candidateIds.has(b.id));
   const blockIds = new Set(toBlock.map((b) => b.id));
 
-  // Feature picks: valid IDs, not being blocked, within weekly budget
+  // Feature picks: valid IDs, not being blocked, not a duplicate of an
+  // already-featured or just-picked title, within weekly budget.
+  const pickedTitles = new Set(featuredTitles);
   const toFeature = (picks.feature ?? [])
     .filter((f) => candidateIds.has(f.id) && !blockIds.has(f.id))
+    .filter((f) => {
+      const title = normalizeTitle(candidateMap.get(f.id)!.title);
+      if (pickedTitles.has(title)) return false; // same event already featured/picked
+      pickedTitles.add(title);
+      return true;
+    })
     .slice(0, remainingWeeklyBudget);
 
   // Block events

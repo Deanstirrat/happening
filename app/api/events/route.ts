@@ -111,6 +111,7 @@ export async function GET(req: NextRequest) {
         featured: true,
         featuredAt: true,
         source: { select: { slug: true, name: true } },
+        externalInterest: true,
         _count: { select: { interests: true } },
       },
     }),
@@ -121,10 +122,12 @@ export async function GET(req: NextRequest) {
     ? rawEvents.filter((e) => matchesTimeOfDay(e.startDate, timeOfDay))
     : rawEvents;
 
-  // Flatten the interest vote count into a top-level field for the client.
-  const events = filtered.map(({ _count, ...e }) => ({
+  // Flatten the interest count into a top-level field for the client. The
+  // displayed heart count blends in-app votes with the source's external
+  // interest signal (e.g. RA's "interested" count).
+  const events = filtered.map(({ _count, externalInterest, ...e }) => ({
     ...e,
-    interestCount: _count.interests,
+    interestCount: _count.interests + externalInterest,
   }));
 
   return NextResponse.json({

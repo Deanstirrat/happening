@@ -60,6 +60,8 @@ export interface ScrapedEvent {
   latitude?: number;
   longitude?: number;
   category?: string;
+  /** Reliable popularity signal from the source (e.g. RA "interested" count). */
+  externalInterest?: number;
 }
 
 export const SF_NEIGHBORHOODS = [

@@ -64,7 +64,7 @@ const RPM = Math.max(1, Number(process.env.MERGE_RPM ?? "50"));
 // bounded by API latency, which only makes us slower/safer).
 const BATCH_DELAY_MS = Math.ceil((CONCURRENCY / RPM) * 60000);
 
-type LoadedEvent = MergeableEvent & BlockEvent & { sourceId: string };
+type LoadedEvent = MergeableEvent & BlockEvent & { sourceId: string; externalInterest: number };
 
 async function loadEvents(): Promise<LoadedEvent[]> {
   const since = new Date(Date.now() - WINDOW_DAYS * 86400000);
@@ -97,6 +97,7 @@ async function loadEvents(): Promise<LoadedEvent[]> {
       featuredAt: true,
       recurringType: true,
       scrapedAt: true,
+      externalInterest: true,
       _count: { select: { interactions: true } },
     },
   });
@@ -333,6 +334,9 @@ async function main() {
           featured: merged.featured,
           featuredAt: merged.featuredAt,
           recurringType: merged.recurringType,
+          // Keep the strongest external interest signal in the cluster (e.g. an
+          // RA event merged into a survivor from another source).
+          externalInterest: Math.max(...cluster.map((e) => e.externalInterest)),
           mergeProvenance: provenance,
         },
       });

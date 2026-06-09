@@ -354,6 +354,12 @@ export async function runScraper(
       if (!existingDescription && event.description) {
         enrichments.description = event.description;
       }
+      // Refresh the external popularity signal (e.g. RA "interested" count).
+      // Only sources that provide it set event.externalInterest, so this never
+      // clobbers an existing signal with 0 from a source that doesn't track it.
+      if (event.externalInterest != null && event.externalInterest > 0) {
+        enrichments.externalInterest = event.externalInterest;
+      }
       const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) => existingSourceUrl.includes(d));
       const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) => event.sourceUrl.includes(d));
       if (existingIsLowQuality && incomingIsHighQuality) {
@@ -560,6 +566,7 @@ export async function runScraper(
           sourceUrl: event.sourceUrl,
           tags: event.tags ?? [],
           performers: event.performers ?? [],
+          externalInterest: event.externalInterest ?? 0,
           geocoded: geo.latitude != null,
           categorized: true,
           sourceId: source.id,

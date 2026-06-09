@@ -109,6 +109,7 @@ async function main() {
       price: true,
       dedupeHash: true,
       sourceUrl: true,
+      externalInterest: true,
     },
   });
 
@@ -146,6 +147,7 @@ async function main() {
         cat ? `Category: ${cat}` : null,
         price ? `Price: ${price}` : null,
         e.tags.length ? `Tags: ${e.tags.map(clean).join(", ")}` : null,
+        e.externalInterest > 0 ? `Interest: ${e.externalInterest} people interested on source` : null,
         desc ? `Desc: ${desc}` : null,
         budget ? `DaySlots: ${budget.remaining} slots remaining for this day` : null,
       ]

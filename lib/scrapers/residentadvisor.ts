@@ -38,6 +38,7 @@ const EVENT_LISTINGS_QUERY = `
           contentUrl
           cost
           content
+          interestedCount
           images { filename }
           venue {
             name
@@ -125,6 +126,12 @@ export class ResidentAdvisorScraper extends BaseScraper {
 
         const costStr: string | undefined = ev.cost || undefined;
 
+        // RA's public "interested" count — a reliable demand signal.
+        const interestedCount =
+          typeof ev.interestedCount === "number" && ev.interestedCount > 0
+            ? ev.interestedCount
+            : undefined;
+
         const rawContent: string | undefined = ev.content || undefined;
         const description = rawContent
           ? rawContent
@@ -168,6 +175,7 @@ export class ResidentAdvisorScraper extends BaseScraper {
             : "https://ra.co/events/us/sanfrancisco",
           tags: ["electronic", "club", ...artists.slice(0, 3)],
           performers: artists,
+          externalInterest: interestedCount,
         });
       }
 

@@ -295,7 +295,7 @@ export default async function EventDetailPage({
             <ShareButton title={event.title} large />
             <InterestButton
               eventId={event.id}
-              initialCount={event._count.interests}
+              initialCount={event._count.interests + event.externalInterest}
               variant="detail"
             />
           </div>

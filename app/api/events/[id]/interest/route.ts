@@ -27,7 +27,7 @@ export async function POST(
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, externalInterest: true },
     });
     if (!event || event.status !== "PUBLISHED") {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -47,7 +47,9 @@ export async function POST(
       });
     }
 
-    const count = await prisma.eventInterest.count({ where: { eventId: id } });
+    const votes = await prisma.eventInterest.count({ where: { eventId: id } });
+    // Match the displayed heart count: in-app votes + source's external signal.
+    const count = votes + event.externalInterest;
 
     return NextResponse.json({ ok: true, interested, count });
   } catch {

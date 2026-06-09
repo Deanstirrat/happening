@@ -53,6 +53,10 @@ model Event {
   featured      Boolean        @default(false)
   featuredAt    DateTime?
   recurringType RecurringType?
+  // Reliable popularity signal pulled from the source (e.g. Resident Advisor's
+  // "interested" count). Distinct from EventInterest (anonymous in-app votes);
+  // folded into the displayed heart count and used as a curation signal.
+  externalInterest Int          @default(0)
   scrapedAt     DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   // Semantic-merge bookkeeping. When duplicates are merged, losers are ARCHIVED

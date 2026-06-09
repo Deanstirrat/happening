@@ -130,18 +130,19 @@ async function getWeeklyFeaturedEvents(
       featured: true,
       featuredAt: true,
       source: { select: { slug: true, name: true } },
+      externalInterest: true,
       _count: { select: { interests: true } },
     },
   });
   const filtered = params.timeOfDay
     ? events.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
     : events;
-  return filtered.map(({ _count, ...e }) => ({
+  return filtered.map(({ _count, externalInterest, ...e }) => ({
     ...e,
     startDate: e.startDate.toISOString(),
     endDate: e.endDate?.toISOString() ?? null,
     featuredAt: e.featuredAt?.toISOString() ?? null,
-    interestCount: _count.interests,
+    interestCount: _count.interests + externalInterest,
   })) as EventSummary[];
 }
 
@@ -282,6 +283,7 @@ async function getEvents(
       featured: true,
       featuredAt: true,
       source: { select: { slug: true, name: true } },
+      externalInterest: true,
       _count: { select: { interests: true } },
     },
   });
@@ -296,7 +298,7 @@ async function getEvents(
     : timeFiltered;
 
   const allGrouped: Record<string, EventSummary[]> = {};
-  for (const { _count, ...event } of filteredEvents) {
+  for (const { _count, externalInterest, ...event } of filteredEvents) {
     const dk = sfDayKey(event.startDate);
     if (!allGrouped[dk]) allGrouped[dk] = [];
     const spotifyArtist = artistSet ? matchesArtists(event, artistSet) : null;
@@ -305,7 +307,7 @@ async function getEvents(
       startDate: event.startDate.toISOString(),
       endDate: event.endDate?.toISOString() ?? null,
       featuredAt: event.featuredAt?.toISOString() ?? null,
-      interestCount: _count.interests,
+      interestCount: _count.interests + externalInterest,
       ...(spotifyArtist && { spotifyArtist }),
     } as EventSummary);
   }

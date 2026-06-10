@@ -115,7 +115,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
                 className="rounded-full transition-all duration-300 pointer-events-auto"
                 style={
                   i === index
-                    ? { width: "1rem", height: "0.375rem", background: "linear-gradient(135deg, #ffb3b5, #ff727c)" }
+                    ? { width: "1rem", height: "0.375rem", background: "linear-gradient(135deg, #ff3b30, #ff0000)" }
                     : { width: "0.375rem", height: "0.375rem", background: "rgba(255,255,255,0.3)" }
                 }
               />

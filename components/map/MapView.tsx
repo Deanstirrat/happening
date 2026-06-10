@@ -53,10 +53,10 @@ export default function MapView({ events }: { events: EventSummary[] }) {
         .then((r) => r.json())
         .then((geojson) => {
           const neighborhoodColors = [
-            "#3891fe33",
-            "#ff727c33",
-            "#adc7ff33",
-            "#a8c8ff33",
+            "#ff000022",
+            "#e9e5d822",
+            "#ff5a5222",
+            "#b3aea022",
           ];
           let colorIdx = 0;
           const neighborhoodSet = new Set<string>();
@@ -94,7 +94,7 @@ export default function MapView({ events }: { events: EventSummary[] }) {
       eventsWithCoords.forEach((event) => {
         const color = event.category
           ? CATEGORY_COLORS[event.category]
-          : "#ffb3b5";
+          : "#ff0000";
 
         // Custom marker HTML
         const icon = L.divIcon({
@@ -102,7 +102,7 @@ export default function MapView({ events }: { events: EventSummary[] }) {
             width:28px;height:28px;
             border-radius:50%;
             background:${color};
-            border:2px solid #131313;
+            border:2px solid #121212;
             box-shadow:0 4px 12px rgba(0,0,0,0.4);
             display:flex;align-items:center;justify-content:center;
             font-size:10px;

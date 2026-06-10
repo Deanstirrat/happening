@@ -115,12 +115,12 @@ export default function VisitorLineChart({ data, xLabelStep = 6, mode = "hourly"
       >
         <defs>
           <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#ffb3b5" />
-            <stop offset="100%" stopColor="#ff727c" />
+            <stop offset="0%" stopColor="#ff3b30" />
+            <stop offset="100%" stopColor="#ff0000" />
           </linearGradient>
           <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ff727c" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#ff727c" stopOpacity="0.01" />
+            <stop offset="0%" stopColor="#ff0000" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#ff0000" stopOpacity="0.01" />
           </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="2.5" result="blur" />
@@ -136,7 +136,7 @@ export default function VisitorLineChart({ data, xLabelStep = 6, mode = "hourly"
             <line
               x1={PAD.left} x2={PAD.left + W}
               y1={toY(v)} y2={toY(v)}
-              stroke="#353534" strokeWidth="1" strokeDasharray="4 4"
+              stroke="#2a2a2a" strokeWidth="1" strokeDasharray="4 4"
             />
             <text
               x={PAD.left - 6} y={toY(v)}
@@ -174,15 +174,15 @@ export default function VisitorLineChart({ data, xLabelStep = 6, mode = "hourly"
           <line
             x1={tooltip.x} x2={tooltip.x}
             y1={PAD.top} y2={PAD.top + H}
-            stroke="#ff727c" strokeWidth="1"
+            stroke="#ff0000" strokeWidth="1"
             strokeOpacity="0.4" strokeDasharray="3 3"
           />
         )}
 
         {tooltip && (
           <>
-            <circle cx={tooltip.x} cy={tooltip.y} r="6" fill="#1c1b1b" stroke="#ff727c" strokeWidth="2" />
-            <circle cx={tooltip.x} cy={tooltip.y} r="3" fill="#ff727c" />
+            <circle cx={tooltip.x} cy={tooltip.y} r="6" fill="#1c1c1c" stroke="#ff0000" strokeWidth="2" />
+            <circle cx={tooltip.x} cy={tooltip.y} r="3" fill="#ff0000" />
           </>
         )}
       </svg>

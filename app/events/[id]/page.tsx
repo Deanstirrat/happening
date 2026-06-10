@@ -121,7 +121,7 @@ export default async function EventDetailPage({
   const similar = await getSimilarEvents(event);
 
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
-  const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#3a3a3a";
   const fallbackImage = resolveFallbackImage({
     venueName: event.venueName,
     sourceSlug: event.source.slug,
@@ -373,7 +373,7 @@ export default async function EventDetailPage({
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {similar.map((e: typeof similar[number]) => {
-              const cat = e.category ? CATEGORY_COLORS[e.category] : "#574142";
+              const cat = e.category ? CATEGORY_COLORS[e.category] : "#3a3a3a";
               return (
                 <Link
                   key={e.id}

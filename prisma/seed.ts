@@ -330,7 +330,48 @@ const sources = [
     category: SourceCategory.AGGREGATOR,
     enabled: true,
   },
+  // ── Thin-category venue sources (film, food & drink, galleries) ──────────
+  {
+    slug: "roxie",
+    name: "Roxie Theater",
+    url: "https://roxie.com/calendar/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "alamosf",
+    name: "Alamo Drafthouse New Mission",
+    url: "https://drafthouse.com/sf",
+    scrapeType: ScrapeType.API,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "ferrybuilding",
+    name: "Ferry Building Marketplace",
+    url: "https://www.ferrybuildingmarketplace.com/events/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
+    slug: "minnesotastreet",
+    name: "Minnesota Street Project",
+    url: "https://minnesotastreetproject.com/",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
   // ── Institutional ────────────────────────────────────────────────────────
+  {
+    slug: "parksconservancy",
+    name: "Golden Gate National Parks Conservancy",
+    url: "https://www.parksconservancy.org/events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.INSTITUTIONAL,
+    enabled: true,
+  },
   {
     slug: "usfca",
     name: "USF Community Events",

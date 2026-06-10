@@ -79,9 +79,11 @@ export default async function MetricsPage({ searchParams }: Props) {
     submissionsCount,
     bugReportsCount,
     eventReportsCount,
+    interestVotes,
+    topInterestByEvent,
   ] = await Promise.all([
     prisma.event.findMany({
-      where: { status: "PUBLISHED", featured: true },
+      where: { status: "PUBLISHED", featured: true, startDate: { gte: todayStart } },
       orderBy: { featuredAt: "desc" },
       select: {
         id: true, title: true, startDate: true, venueName: true,
@@ -124,6 +126,17 @@ export default async function MetricsPage({ searchParams }: Props) {
     prisma.submission.count({ where: { createdAt: { gte: weekAgo } } }),
     prisma.bugReport.count({ where: { createdAt: { gte: weekAgo } } }),
     prisma.eventReport.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.eventInterest.findMany({
+      where: since ? { createdAt: { gte: since } } : {},
+      select: { sessionId: true },
+    }),
+    prisma.eventInterest.groupBy({
+      by: ["eventId"],
+      where: since ? { createdAt: { gte: since } } : {},
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 10,
+    }),
   ]);
 
   // Top event details (sequential — needs IDs from above)
@@ -231,6 +244,24 @@ export default async function MetricsPage({ searchParams }: Props) {
   const totalViews = rows.reduce((s, r) => s + r.views, 0);
   const totalClicks = rows.reduce((s, r) => s + r.clicks, 0);
   const overallCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : "—";
+
+  // ── In-app interest ────────────────────────────────────────────────────────
+  const totalInterestVotes = interestVotes.length;
+  const uniqueInterested = new Set(interestVotes.map((v) => v.sessionId)).size;
+  const eventsWithInterest = topInterestByEvent.length;
+  const interestEventIds = topInterestByEvent.map((r) => r.eventId);
+  const interestEventDetails = interestEventIds.length > 0
+    ? await prisma.event.findMany({
+        where: { id: { in: interestEventIds } },
+        select: { id: true, title: true, startDate: true, venueName: true, externalInterest: true },
+      })
+    : [];
+  const topInterestEvents = topInterestByEvent
+    .map((r) => ({
+      ...interestEventDetails.find((e) => e.id === r.eventId),
+      votes: r._count.id,
+    }))
+    .filter((e): e is typeof e & { id: string; title: string; startDate: Date } => !!e.id);
 
   const base = `/admin/metrics?secret=${secret}`;
   const winTabs = [
@@ -495,6 +526,59 @@ export default async function MetricsPage({ searchParams }: Props) {
                     <td className="text-right px-4 py-4 text-on-surface tabular-nums">{row.clicks.toLocaleString()}</td>
                     <td className="text-right px-4 py-4 text-on-surface-variant tabular-nums">{row.ctr === "—" ? "—" : `${row.ctr}%`}</td>
                     <td className="text-right px-5 py-4 text-on-surface-variant tabular-nums hidden lg:table-cell">{row.uniqueSessions.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* ── Interest ─────────────────────────────────────────────────────────── */}
+      <section>
+        <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-4">
+          interest · {windowLabel(win)}
+        </h2>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "interested clicks", value: totalInterestVotes.toLocaleString() },
+            { label: "unique people", value: uniqueInterested.toLocaleString() },
+            { label: "events with interest", value: eventsWithInterest.toLocaleString() },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-surface-container rounded-2xl p-5">
+              <p className="font-headline font-black text-3xl text-on-surface">{value}</p>
+              <p className="font-body text-xs text-on-surface-variant mt-1">{label}</p>
+            </div>
+          ))}
+        </div>
+        {topInterestEvents.length === 0 ? (
+          <p className="font-body text-on-surface-variant text-sm">No in-app interest yet.</p>
+        ) : (
+          <div className="bg-surface-container rounded-2xl overflow-hidden">
+            <table className="w-full font-body text-sm">
+              <thead>
+                <tr className="border-b border-outline-variant">
+                  <th className="text-left px-5 py-3 text-on-surface-variant font-medium text-xs uppercase tracking-wide">event</th>
+                  <th className="text-right px-4 py-3 text-on-surface-variant font-medium text-xs uppercase tracking-wide">interested</th>
+                  <th className="text-right px-5 py-3 text-on-surface-variant font-medium text-xs uppercase tracking-wide hidden lg:table-cell">external</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topInterestEvents.map((ev, i) => (
+                  <tr key={ev.id} className={i < topInterestEvents.length - 1 ? "border-b border-outline-variant" : ""}>
+                    <td className="px-5 py-4">
+                      <Link href={`/events/${ev.id}`} className="font-semibold text-on-surface hover:text-primary transition-colors line-clamp-1">
+                        {ev.title}
+                      </Link>
+                      <p className="text-xs text-on-surface-variant mt-0.5">
+                        {format(ev.startDate, "EEE, MMM d")}
+                        {ev.venueName && ` · ${ev.venueName}`}
+                      </p>
+                    </td>
+                    <td className="text-right px-4 py-4 text-on-surface tabular-nums font-semibold">{ev.votes.toLocaleString()}</td>
+                    <td className="text-right px-5 py-4 text-on-surface-variant tabular-nums hidden lg:table-cell">
+                      {(ev.externalInterest ?? 0).toLocaleString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>

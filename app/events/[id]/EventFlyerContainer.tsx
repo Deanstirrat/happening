@@ -5,7 +5,8 @@ import Image from "next/image";
 
 interface Props {
   proxiedImageUrl: string | null | undefined;
-  categoryImage: string | null;
+  /** Image shown below the flyer: venue photo if known, else category tile. */
+  fallbackImage: string | null;
   categoryColor: string;
   title: string;
   categoryLabel: string | null;
@@ -14,12 +15,12 @@ interface Props {
 
 export default function EventFlyerContainer({
   proxiedImageUrl,
-  categoryImage,
+  fallbackImage,
   categoryColor,
   title,
   tags,
 }: Props) {
-  const [imgSrc, setImgSrc] = useState(proxiedImageUrl ?? categoryImage);
+  const [imgSrc, setImgSrc] = useState(proxiedImageUrl ?? fallbackImage);
   const [ratio, setRatio] = useState<number | null>(null);
 
   return (
@@ -40,8 +41,8 @@ export default function EventFlyerContainer({
             setRatio(img.naturalWidth / img.naturalHeight);
           }}
           onError={() => {
-            if (imgSrc === proxiedImageUrl && categoryImage) {
-              setImgSrc(categoryImage);
+            if (imgSrc === proxiedImageUrl && fallbackImage) {
+              setImgSrc(fallbackImage);
             } else {
               setImgSrc(null);
             }

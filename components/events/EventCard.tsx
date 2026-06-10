@@ -4,7 +4,7 @@ import { Repeat2, Star } from "lucide-react";
 import { formatCarouselDateSF, formatCarouselDateOnlySF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
-import { CATEGORY_IMAGES } from "@/lib/categoryImages";
+import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { CategoryImage } from "@/components/events/CategoryImage";
 import InterestButton from "@/components/events/InterestButton";
 
@@ -40,15 +40,16 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   const time = event.allDay ? null : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
-  const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
+  const fallbackImage = resolveFallbackImage({
+    venueName: event.venueName,
+    sourceSlug: event.source.slug,
+    category: event.category,
+  });
   const neighborhood = event.neighborhood
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
-  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
-  const imageUrl = rawImageUrl?.startsWith("http")
-    ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
-    : rawImageUrl;
+  const imageUrl = proxiedImage(event.imageUrl);
 
   if (featured) {
     return (
@@ -72,9 +73,9 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
                 sizes="(max-width: 768px) 100vw, 60vw"
               />
             </>
-          ) : categoryImage ? (
+          ) : fallbackImage ? (
             <CategoryImage
-              src={categoryImage}
+              src={fallbackImage}
               alt={categoryLabel ?? event.title}
               sizes="(max-width: 768px) 100vw, 60vw"
               gradient={`linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`}
@@ -166,9 +167,9 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               className="object-cover"
               sizes="64px"
             />
-          ) : categoryImage ? (
+          ) : fallbackImage ? (
             <CategoryImage
-              src={categoryImage}
+              src={fallbackImage}
               alt={categoryLabel ?? event.title}
               sizes="64px"
               gradient={`linear-gradient(135deg, ${categoryColor}33, ${categoryColor}11)`}
@@ -239,15 +240,16 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
   const time = event.allDay ? null : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
-  const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
+  const fallbackImage = resolveFallbackImage({
+    venueName: event.venueName,
+    sourceSlug: event.source.slug,
+    category: event.category,
+  });
   const neighborhood = event.neighborhood
     ? (NEIGHBORHOOD_DISPLAY[event.neighborhood] ?? event.neighborhood)
     : null;
   const recLabel = recurringLabel(event);
-  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
-  const imageUrl = rawImageUrl?.startsWith("http")
-    ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
-    : rawImageUrl;
+  const imageUrl = proxiedImage(event.imageUrl);
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
@@ -272,9 +274,9 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
             </>
-          ) : categoryImage ? (
+          ) : fallbackImage ? (
             <CategoryImage
-              src={categoryImage}
+              src={fallbackImage}
               alt={categoryLabel ?? event.title}
               sizes="(max-width: 768px) 50vw, 25vw"
               gradient={`linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`}

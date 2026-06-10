@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
-import { CATEGORY_IMAGES } from "@/lib/categoryImages";
+import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate";
 import { ArrowLeft, Clock, MapPin, ExternalLink } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
@@ -122,11 +122,12 @@ export default async function EventDetailPage({
 
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
-  const categoryImage = event.category ? (CATEGORY_IMAGES[event.category] ?? null) : null;
-  const rawImageUrl = event.imageUrl?.startsWith("//") ? `https:${event.imageUrl}` : event.imageUrl;
-  const proxiedImageUrl = rawImageUrl?.startsWith("http")
-    ? `/api/image-proxy?url=${encodeURIComponent(rawImageUrl)}`
-    : rawImageUrl;
+  const fallbackImage = resolveFallbackImage({
+    venueName: event.venueName,
+    sourceSlug: event.source.slug,
+    category: event.category,
+  });
+  const proxiedImageUrl = proxiedImage(event.imageUrl);
   const dateLabel = formatDateLongSF(event.startDate);
   const timeLabel = event.allDay ? null : formatTimeSF(event.startDate);
   const endTimeLabel = !event.allDay && event.endDate ? formatTimeSF(event.endDate) : null;
@@ -219,7 +220,7 @@ export default async function EventDetailPage({
         {/* Flyer */}
         <EventFlyerContainer
           proxiedImageUrl={proxiedImageUrl}
-          categoryImage={categoryImage}
+          fallbackImage={fallbackImage}
           categoryColor={categoryColor}
           title={event.title}
           categoryLabel={categoryLabel}

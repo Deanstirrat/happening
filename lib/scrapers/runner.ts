@@ -152,6 +152,11 @@ import { GreenAppleBooksScraper } from "./greenapplebooks";
 import { DiceScraper } from "./dice";
 import { SfDesignWeekScraper } from "./sfdesignweek";
 import { FolkYeahScraper } from "./folkyeah";
+import { RoxieScraper } from "./roxie";
+import { AlamoSfScraper } from "./alamosf";
+import { FerryBuildingScraper } from "./ferrybuilding";
+import { ParksConservancyScraper } from "./parksconservancy";
+import { MinnesotaStreetScraper } from "./minnesotastreet";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -199,6 +204,12 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   spotlightcomedy: new SpotlightComedyScraper(),
   bestmedicinecomedy: new BestMedicineComedyScraper(),
   folkyeah: new FolkYeahScraper(),
+  // ── Thin-category venue sources (film, food & drink, galleries, outdoor) ──
+  roxie: new RoxieScraper(),
+  alamosf: new AlamoSfScraper(),
+  ferrybuilding: new FerryBuildingScraper(),
+  parksconservancy: new ParksConservancyScraper(),
+  minnesotastreet: new MinnesotaStreetScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

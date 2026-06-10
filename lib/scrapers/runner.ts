@@ -19,6 +19,17 @@ const GENERIC_SOURCE_URL_PATTERNS = [
 const isSpecificSourceUrl = (url: string) =>
   !GENERIC_SOURCE_URL_PATTERNS.some((p) => url.includes(p));
 
+// True when an event has no reliable start time. Either it's flagged allDay, or
+// its time is exactly the noon-SF placeholder that several scrapers assign when a
+// source provides only a date (see lib/createEvent.ts, instagram.ts). Such a time
+// is meaningless for matching, so dedup must not treat it as a real start time.
+// The noon-sentinel check also covers events stored before allDay was set.
+const isTimeUnknown = (startDate: Date, allDay: boolean): boolean => {
+  if (allDay) return true;
+  const noonSf = sfDayStart(sfDayKey(startDate)).getTime() + 12 * 60 * 60 * 1000;
+  return startDate.getTime() === noonSf;
+};
+
 const GENERIC_VENUE_NAMES = new Set([
   "locationprovidedafterbooking",
   "locationtobeprovided",
@@ -319,6 +330,7 @@ export async function runScraper(
     venueName: string | null;
     description: string | null;
     startDate: Date;
+    allDay: boolean;
   };
 
   // Pre-build per-SF-day cache to avoid O(n²) DB queries in the dedup loop.
@@ -333,7 +345,7 @@ export async function runScraper(
     const dayEnd = new Date(dayStart.getTime() + 86400000);
     const rows = await prisma.event.findMany({
       where: { startDate: { gte: dayStart, lt: dayEnd } },
-      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true, startDate: true },
+      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true, startDate: true, allDay: true },
     });
     dayEventsCache.set(key, rows);
   }
@@ -468,9 +480,15 @@ export async function runScraper(
       if (event.venueName && !isGenericVenue(event.venueName)) {
         const incomingTime = event.startDate.getTime();
         const TIME_WINDOW_MS = 15 * 60 * 1000; // ±15 minutes
+        // When a source has no real start time it gets a placeholder (noon SF),
+        // which is 9+ hours off any real time and would block this match. If
+        // either side's time is unknown, drop the time window and lean on the
+        // venue + title containment guards alone.
+        const incomingTimeUnknown = isTimeUnknown(event.startDate, event.allDay ?? false);
         const sameTimeVenueMatch = dayEvents.find((e) => {
           if (!e.venueName || isGenericVenue(e.venueName)) return false;
-          if (Math.abs(e.startDate.getTime() - incomingTime) > TIME_WINDOW_MS) return false;
+          const timeUnknown = incomingTimeUnknown || isTimeUnknown(e.startDate, e.allDay);
+          if (!timeUnknown && Math.abs(e.startDate.getTime() - incomingTime) > TIME_WINDOW_MS) return false;
           if (!isVenueFuzzyMatch(event.venueName!, e.venueName)) return false;
           const existingTokens = tokenize(e.title);
           const minSize = Math.min(incomingTokens.size, existingTokens.size);
@@ -615,6 +633,7 @@ export async function runScraper(
           venueName: event.venueName ?? null,
           description: event.description ?? null,
           startDate: event.startDate,
+          allDay: event.allDay ?? false,
         });
       }
     } catch (err: any) {

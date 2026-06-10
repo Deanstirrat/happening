@@ -242,8 +242,10 @@ export class InstagramScraper extends BaseScraper {
 
       // Noon-SF fallback for events without an explicit time — mirrors the
       // same pattern in lib/createEvent.ts to avoid UTC-midnight landing on
-      // the wrong SF calendar day.
-      if (!extracted.timeRaw?.trim()) {
+      // the wrong SF calendar day. Flag these as allDay so dedup knows the
+      // time is a placeholder, not a real start time (see runner.ts).
+      const noTimeProvided = !extracted.timeRaw?.trim();
+      if (noTimeProvided) {
         const dateKey = startDate.toISOString().slice(0, 10); // YYYY-MM-DD
         const sfMidnight = sfDayStart(dateKey);
         startDate = new Date(sfMidnight.getTime() + 12 * 60 * 60 * 1000);
@@ -261,6 +263,7 @@ export class InstagramScraper extends BaseScraper {
         title: extracted.title,
         description: extracted.description ?? undefined,
         startDate,
+        allDay: noTimeProvided || undefined,
         venueName: extracted.venueName ?? account.venueName,
         venueAddress: extracted.venueAddress ?? undefined,
         sourceUrl,

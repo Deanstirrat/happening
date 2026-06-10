@@ -34,7 +34,7 @@ Return ONLY a valid JSON object with exactly these keys:
 Guidelines:
 - title: The event name (not the venue or artist name if they differ)
 - dateRaw: Date as written, e.g. "Saturday March 29" or "3/29/2026" — do not convert to ISO
-- timeRaw: Time as written, e.g. "9pm" or "9:00 PM - 2:00 AM"
+- timeRaw: Start time as written, e.g. "9pm" or "9:00 PM - 2:00 AM". Null if no time is shown — do NOT guess or default to midnight/"12:00 AM".
 - venueName: Name of the venue or location
 - venueAddress: Street address if present
 - price: Ticket price as written, e.g. "$15", "$10-20 sliding scale". Null if not mentioned.

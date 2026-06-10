@@ -20,6 +20,18 @@ export interface KnownVenue {
   longitude: number;
   /** Canonical full address, used to backfill venueAddress when missing. */
   address: string;
+  /**
+   * Optional venue photo, shown as the card/flyer image for events at this venue
+   * that have no flyer of their own (see resolveVenuePhoto). Lifts the perceived
+   * quality of the imageless ~37% over a generic category tile.
+   *
+   * These are stable Wikimedia Commons URLs (Special:FilePath redirects to the
+   * current file, width-capped to keep payloads small) and were each verified to
+   * return an image once before being baked in. Not every venue has one; those
+   * without simply keep falling back to the category tile. They are served via
+   * /api/image-proxy like every other external image.
+   */
+  photoUrl?: string;
 }
 
 /**
@@ -28,7 +40,7 @@ export interface KnownVenue {
  * branches; "Bookmobiles / MOS" is intentionally omitted (mobile, no fixed point).
  */
 export const SFPL_BRANCHES: Record<string, KnownVenue> = {
-  Main: { latitude: 37.77919, longitude: -122.41578, address: "100 Larkin St, San Francisco, CA 94102" },
+  Main: { latitude: 37.77919, longitude: -122.41578, address: "100 Larkin St, San Francisco, CA 94102", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/SFPL_Main_Library_Full_Exterior.jpg?width=1200" },
   Anza: { latitude: 37.77852, longitude: -122.49718, address: "550 37th Ave, San Francisco, CA 94121" },
   Bayview: { latitude: 37.73255, longitude: -122.39114, address: "5075 3rd St, San Francisco, CA 94124" },
   "Bernal Heights": { latitude: 37.73885, longitude: -122.41615, address: "500 Cortland Ave, San Francisco, CA 94110" },
@@ -64,16 +76,16 @@ export const SFPL_BRANCHES: Record<string, KnownVenue> = {
  * geocode. Aliases for the same venue point at the same coordinates.
  */
 export const KNOWN_VENUES: Record<string, KnownVenue> = {
-  "green apple books on the park": { latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122" },
-  "books on the park on 9th avenue": { latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122" },
-  exploratorium: { latitude: 37.80162, longitude: -122.39737, address: "Pier 15, Embarcadero, San Francisco, CA 94111" },
-  "city lights booksellers & publishers": { latitude: 37.79765, longitude: -122.40662, address: "261 Columbus Ave, San Francisco, CA 94133" },
+  "green apple books on the park": { latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Greenapplebooks.jpg?width=1200" },
+  "books on the park on 9th avenue": { latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Greenapplebooks.jpg?width=1200" },
+  exploratorium: { latitude: 37.80162, longitude: -122.39737, address: "Pier 15, Embarcadero, San Francisco, CA 94111", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Main_Entrance_to_the_Exploratorium_at_Pier_15.jpg?width=1200" },
+  "city lights booksellers & publishers": { latitude: 37.79765, longitude: -122.40662, address: "261 Columbus Ave, San Francisco, CA 94133", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/City_Lights_Booksellers.jpg?width=1200" },
   "sf spca": { latitude: 37.76723, longitude: -122.41243, address: "201 Alabama St, San Francisco, CA 94103" },
-  "sydney goldstein theater": { latitude: 37.77689, longitude: -122.42096, address: "275 Hayes St, San Francisco, CA 94102" },
-  audium: { latitude: 37.78843, longitude: -122.42404, address: "1616 Bush St, San Francisco, CA 94109" },
-  "roxie theater": { latitude: 37.76481, longitude: -122.42231, address: "3117 16th St, San Francisco, CA 94103" },
-  "the castro theatre": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114" },
-  "castro theater": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114" },
+  "sydney goldstein theater": { latitude: 37.77689, longitude: -122.42096, address: "275 Hayes St, San Francisco, CA 94102", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Nourse_Theater.jpeg?width=1200" },
+  audium: { latitude: 37.78843, longitude: -122.42404, address: "1616 Bush St, San Francisco, CA 94109", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Audium_door_sign.jpg?width=1200" },
+  "roxie theater": { latitude: 37.76481, longitude: -122.42231, address: "3117 16th St, San Francisco, CA 94103", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/RoxieSF.jpg?width=1200" },
+  "the castro theatre": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
+  "castro theater": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
   // F8 nightclub — some sources mis-parse "1192 Folsom St" as the city Folsom, CA (148 km away).
   f8sf: { latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
   f8: { latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
@@ -98,4 +110,16 @@ export function resolveVenue(
     if (branch) return branch;
   }
   return KNOWN_VENUES[normalize(venueName)] ?? null;
+}
+
+/**
+ * Resolve a venue name to its photo URL, or null if the venue is unknown or has
+ * no photo. Used as the image fallback for events lacking their own flyer,
+ * sitting between the event flyer and the generic category tile.
+ */
+export function resolveVenuePhoto(
+  venueName: string | null | undefined,
+  sourceSlug?: string
+): string | null {
+  return resolveVenue(venueName, sourceSlug)?.photoUrl ?? null;
 }

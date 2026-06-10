@@ -4,6 +4,7 @@ import { addDays, endOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
+import { QUALITY_ORDER_BY } from "@/lib/ranking";
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
   const hideMusic = p.get("hideMusic") === "true";
   const hideRecurring = p.get("hideRecurring") === "true";
   const timeOfDay = p.get("timeOfDay") ?? "";
+  const sort = p.get("sort") ?? "";
   const view = p.get("view") ?? "list";
   const page = Math.max(1, parseInt(p.get("page") ?? "1"));
   const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
@@ -90,7 +92,14 @@ export async function GET(req: NextRequest) {
       where,
       skip: (page - 1) * limit,
       take: limit,
-      orderBy: [{ featured: "desc" }, { featuredAt: "desc" }, { startDate: "asc" }],
+      // Default feed favors higher-signal events (flyer, geocoded venue,
+      // non-recurring) so recurring filler pages out behind "show more".
+      // ?sort=time restores pure chronological order. Featured events still
+      // lead either way. See lib/ranking.ts.
+      orderBy:
+        sort === "time"
+          ? [{ featured: "desc" }, { featuredAt: "desc" }, { startDate: "asc" }]
+          : [{ featured: "desc" }, { featuredAt: "desc" }, ...QUALITY_ORDER_BY],
       select: {
         id: true,
         title: true,

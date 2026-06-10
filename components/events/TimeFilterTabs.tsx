@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Music, Repeat } from "lucide-react";
+import { Music, Repeat, Clock } from "lucide-react";
 
 const WEEKDAY_SHORT: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
@@ -44,6 +44,7 @@ export default function TimeFilterTabs() {
   const currentEnd = searchParams.get("endDate");
   const hideMusic = searchParams.get("hideMusic") === "true";
   const hideRecurring = searchParams.get("hideRecurring") === "true";
+  const sortByTime = searchParams.get("sort") === "time";
 
   const isTonightActive = currentStart === todayKey && currentEnd === todayKey;
   const isWeekendActive = currentStart === satKey && currentEnd === sunKey;
@@ -80,6 +81,18 @@ export default function TimeFilterTabs() {
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  // Default ordering surfaces higher-signal events first; this opts back into
+  // pure chronological order.
+  function toggleSortByTime() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (sortByTime) {
+      params.delete("sort");
+    } else {
+      params.set("sort", "time");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   return (
     <div className="flex gap-2 flex-wrap">
       <button
@@ -107,6 +120,13 @@ export default function TimeFilterTabs() {
       >
         <Repeat size={11} />
         Hide Recurring
+      </button>
+      <button
+        onClick={toggleSortByTime}
+        className={`chip text-[0.7rem] uppercase tracking-wider font-semibold flex items-center gap-1${sortByTime ? " active" : ""}`}
+      >
+        <Clock size={11} />
+        Chronological
       </button>
     </div>
   );

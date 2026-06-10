@@ -14,6 +14,7 @@ import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
 import InterestButton from "@/components/events/InterestButton";
 import EventFlyerContainer from "./EventFlyerContainer";
+import VenueMiniMapWrapper from "@/components/map/VenueMiniMapWrapper";
 import EventEditPanel from "./EventEditPanel";
 import { getSessionUser } from "@/lib/auth";
 
@@ -351,13 +352,12 @@ export default async function EventDetailPage({
               )}
             </div>
 
-            {/* Mini map placeholder — if lat/lon exists, shows map pin */}
+            {/* Mini map — dark Leaflet map matching the rest of the app */}
             {event.venueAddress && event.latitude && event.longitude && (
               <div className="relative rounded-lg overflow-hidden bg-surface-container h-40">
-                <iframe
-                  title="venue map"
-                  className="absolute inset-0 w-full h-full opacity-70"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${event.longitude - 0.005}%2C${event.latitude - 0.005}%2C${event.longitude + 0.005}%2C${event.latitude + 0.005}&layer=mapnik&marker=${event.latitude}%2C${event.longitude}`}
+                <VenueMiniMapWrapper
+                  latitude={event.latitude}
+                  longitude={event.longitude}
                 />
               </div>
             )}

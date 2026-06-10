@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   }
 
   const sessionToken = await createSession(email);
-  const response = NextResponse.redirect(siteUrl("/events"));
+  const response = NextResponse.redirect(siteUrl("/"));
   response.cookies.set(sessionCookieOptions(sessionToken));
   return response;
 }

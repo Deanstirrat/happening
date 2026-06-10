@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(/:$/, "");
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
   const base = `${proto}://${host}`;
-  const eventsUrl = new URL("/events", base);
+  const eventsUrl = new URL("/", base);
 
   if (error || !code) {
     console.error("[spotify/callback] OAuth error:", error);

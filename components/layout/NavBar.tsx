@@ -27,7 +27,7 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
     } else {
       params.delete("search");
     }
-    router.push(`/events?${params.toString()}`);
+    router.push(`/?${params.toString()}`);
   }
 
   return (
@@ -35,7 +35,7 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
       <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-6">
         {/* Logo */}
         <Link
-          href="/events"
+          href="/"
           className="font-headline font-bold text-xl text-on-surface tracking-tight shrink-0"
         >
           happening
@@ -43,7 +43,7 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
 
         {/* Nav links — hidden on mobile when search is focused */}
         <div className={`flex items-center shrink-0 transition-all duration-200 ${searchFocused ? "hidden sm:flex" : "flex"}`}>
-          <NavLink href="/events" active={isActive("/events") && !isActive("/map") && !isActive("/submit")}>
+          <NavLink href="/" active={pathname === "/" || pathname.startsWith("/events")}>
             explore
           </NavLink>
           <NavLink href="/map" active={isActive("/map")}>

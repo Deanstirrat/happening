@@ -11,6 +11,7 @@ import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
 import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
+import { compareByQualityThenTime } from "@/lib/ranking";
 import { Prisma } from "@prisma/client";
 
 interface SearchParams {
@@ -28,6 +29,7 @@ interface SearchParams {
   hideRecurring?: string;
   timeOfDay?: string;
   forYou?: string;
+  sort?: string;
 }
 
 function escapeRegExp(s: string) {
@@ -312,6 +314,17 @@ async function getEvents(
     } as EventSummary);
   }
 
+  // Default ordering favors higher-signal events (flyer, geocoded venue,
+  // non-recurring) within each day, so the visible slice surfaces the best
+  // events and recurring filler sinks behind the per-day "show more". Power
+  // users can opt back into pure chronological order with ?sort=time. forYou is
+  // already a curated subset, so it stays in time order.
+  if (params.sort !== "time" && !forYou) {
+    for (const dk of Object.keys(allGrouped)) {
+      allGrouped[dk].sort(compareByQualityThenTime);
+    }
+  }
+
   const allDays = Object.keys(allGrouped).sort();
   const visibleDays = allDays.slice(0, MAX_DAYS);
 
@@ -367,7 +380,7 @@ export default async function EventsPage({
     params.startDate || params.endDate || params.category ||
     params.neighborhood || params.source || params.isFree ||
     params.search || params.hideMusic || params.hideRecurring ||
-    params.timeOfDay || params.forYou
+    params.timeOfDay || params.forYou || params.sort
   );
 
   return (

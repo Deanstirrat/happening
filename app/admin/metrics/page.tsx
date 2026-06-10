@@ -31,9 +31,9 @@ function normalizePath(path: string): string {
 
 function pathLabel(path: string): string {
   const labels: Record<string, string> = {
-    "/": "/ · home",
+    "/": "/ · events list (home)",
     "/events/:id": "/events/:id · event detail",
-    "/events": "/events · events list",
+    "/events": "/events · events list (legacy → /)",
     "/map": "/map · map",
     "/submit": "/submit · submit",
     "/login": "/login · login",

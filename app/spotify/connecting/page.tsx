@@ -72,7 +72,7 @@ export default function SpotifyConnectingPage() {
 
   useEffect(() => {
     if (syncStatus !== "complete") return;
-    const t = setTimeout(() => router.push("/events?forYou=true"), 2200);
+    const t = setTimeout(() => router.push("/?forYou=true"), 2200);
     return () => clearTimeout(t);
   }, [syncStatus, router]);
 
@@ -145,7 +145,7 @@ export default function SpotifyConnectingPage() {
 
         {syncStatus === "error" && (
           <a
-            href="/events?forYou=true"
+            href="/?forYou=true"
             className="mb-8 text-sm font-body underline"
             style={{ color: "#1DB954" }}
           >

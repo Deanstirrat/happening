@@ -16,8 +16,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const staticRoutes: MetadataRoute.Sitemap = [
+    // The events listing now lives at the root; `/events` permanently redirects
+    // to `/`, so it's intentionally omitted here to avoid listing a redirect.
     { url: base, lastModified: new Date(), changeFrequency: "hourly", priority: 1 },
-    { url: `${base}/events`, lastModified: new Date(), changeFrequency: "hourly", priority: 0.9 },
     { url: `${base}/map`, lastModified: new Date(), changeFrequency: "daily", priority: 0.6 },
     { url: `${base}/submit`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
   ];

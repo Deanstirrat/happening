@@ -165,7 +165,7 @@ export default function FeatureRequestForm() {
             {results.map((event) => {
               const time = formatTimeSF(new Date(event.startDate));
               const catLabel = event.category ? CATEGORY_LABELS[event.category] : null;
-              const catColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+              const catColor = event.category ? CATEGORY_COLORS[event.category] : "#3a3a3a";
               return (
                 <button
                   key={event.id}

@@ -35,7 +35,7 @@ export default function FeaturedToggle({
       disabled={loading}
       className={`font-body text-sm font-semibold px-4 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
         featured
-          ? "bg-[#ffb3b5]/20 text-[#ffb3b5] hover:bg-[#ffb3b5]/30"
+          ? "bg-primary/20 text-primary hover:bg-primary/30"
           : "bg-surface-container-low text-on-surface-variant hover:text-on-surface"
       }`}
     >

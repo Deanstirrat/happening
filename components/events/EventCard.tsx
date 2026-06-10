@@ -39,7 +39,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     : formatCarouselDateSF(new Date(event.startDate));
   const time = event.allDay ? null : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
-  const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#3a3a3a";
   const fallbackImage = resolveFallbackImage({
     venueName: event.venueName,
     sourceSlug: event.source.slug,
@@ -239,7 +239,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
 export function EventCardGrid({ event }: { event: EventSummary }) {
   const time = event.allDay ? null : formatTimeSF(new Date(event.startDate));
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
-  const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#574142";
+  const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#3a3a3a";
   const fallbackImage = resolveFallbackImage({
     venueName: event.venueName,
     sourceSlug: event.source.slug,

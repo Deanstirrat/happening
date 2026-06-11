@@ -43,6 +43,14 @@ export interface SourceHealthResult extends SourceHealthInput {
  */
 export const STALE_AFTER_DAYS = 3;
 
+/**
+ * How many ScrapeRun rows to retain per source (issue #101). Bounds the run-log
+ * table while keeping enough history to spot a recurring failure. Lives here
+ * (with the other scraper-monitoring constants) rather than in the runner so the
+ * admin panel can read it without importing the heavy scraper dependency graph.
+ */
+export const SCRAPE_RUN_HISTORY = 20;
+
 const MS_PER_DAY = 86_400_000;
 
 export function computeSourceHealth(

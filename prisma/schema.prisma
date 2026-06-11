@@ -16,9 +16,29 @@ model Source {
   lastScrapedAt DateTime?
   enabled       Boolean        @default(true)
   events        Event[]
+  runs          ScrapeRun[]
   createdAt     DateTime       @default(now())
 
   @@map("sources")
+}
+
+// Per-run scraper outcome log (issue #101). One row per source per
+// runScraper() call — success or failure, with the error message when it
+// failed — so the admin scrapers panel can show *why* a source went dark
+// without needing shell access. Pruned to the most recent SCRAPE_RUN_HISTORY
+// rows per source on write (see lib/scrapers/runner.ts) to bound growth.
+model ScrapeRun {
+  id        String   @id @default(cuid())
+  sourceId  String
+  source    Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  ok        Boolean
+  scraped   Int      @default(0)
+  inserted  Int      @default(0)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([sourceId, createdAt])
+  @@map("scrape_runs")
 }
 
 model Event {

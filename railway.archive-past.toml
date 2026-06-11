@@ -1,0 +1,14 @@
+[build]
+dockerfilePath = "Dockerfile.scrape"
+
+[deploy]
+startCommand = "npm run archive-past-events"
+# Auto-archive past events (issue #88): soft-archives PUBLISHED events whose
+# effective end (endDate ?? startDate) is more than ~30 days past, so stale rows
+# stop polluting search and slowing queries. Reversible from the admin UI.
+#
+# Cron schedule: 0 9 * * * (9am UTC = 2am PT — after the nightly scrape + dedup +
+# merge-dups have run). Set this in the Railway dashboard under the service's
+# Settings → Cron Schedule.
+# Requires env: DATABASE_URL.
+# Optional env: ARCHIVE_AFTER_DAYS (days past the effective end; default 30).

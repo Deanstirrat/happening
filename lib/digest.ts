@@ -1,5 +1,5 @@
 /**
- * Weekly "this weekend in SF" email digest (issue #97).
+ * Weekly "this week in SF" email digest (issue #97).
  *
  * Pure selection + rendering helpers shared by the cron sender
  * (scripts/send-weekly-digest.ts). Everything here is side-effect free: the
@@ -7,9 +7,9 @@
  * stays easy to reason about and unit-test.
  *
  * The digest has two parts, mirroring the home page:
- *   1. Featured picks — the auto-feature editorial set for the weekend (falls
- *      back to the highest-interest weekend events when nothing is featured).
- *   2. Picked for you — weekend events matching the categories/neighbourhoods
+ *   1. Featured picks — the auto-feature editorial set for the week (falls
+ *      back to the highest-interest events of the week when nothing is featured).
+ *   2. Picked for you — week events matching the categories/neighbourhoods
  *      the reader has hearted (issue #96 attributes hearts to accounts). Empty
  *      for readers with no history, who still get the featured picks.
  */
@@ -72,16 +72,19 @@ function pad(n: number): string {
 }
 
 /**
- * The Friday→Sunday window for "this weekend" in SF, as UTC instants.
+ * The Monday→Sunday window for "this week" in SF, as UTC instants.
  *
- * Run Mon–Fri it points at the coming Fri/Sat/Sun; run on the weekend itself it
- * stays on the current weekend (Friday is in the past). Calendar arithmetic runs
- * on UTC date parts — same trick as sfDate.isTomorrowSF — then sfDayStart/End
- * recompute the SF offset per date, so the window is correct across DST.
+ * The cron fires Monday morning SF time, so this anchors to the Monday of the
+ * current SF week and runs through the following Sunday — the full week ahead.
+ * Sunday is treated as the tail of the week that just began (daysToMonday = -6),
+ * so a stray weekend run still resolves to a sensible 7-day span. Calendar
+ * arithmetic runs on UTC date parts — same trick as sfDate.isTomorrowSF — then
+ * sfDayStart/End recompute the SF offset per date, so the window is correct
+ * across DST.
  */
-export function weekendWindow(now: Date): { start: Date; end: Date; label: string } {
+export function weekWindow(now: Date): { start: Date; end: Date; label: string } {
   const wd = sfWeekday(now);
-  const daysToFriday = wd === 0 ? -2 : wd === 6 ? -1 : 5 - wd; // Sun/Sat already in-weekend
+  const daysToMonday = wd === 0 ? -6 : 1 - wd; // Sunday belongs to the week that just started
 
   const [y, m, d] = sfDayKey(now).split("-").map(Number);
   const base = new Date(Date.UTC(y, m - 1, d));
@@ -91,8 +94,8 @@ export function weekendWindow(now: Date): { start: Date; end: Date; label: strin
     return `${x.getUTCFullYear()}-${pad(x.getUTCMonth() + 1)}-${pad(x.getUTCDate())}`;
   };
 
-  const start = sfDayStart(keyAt(daysToFriday));
-  const end = sfDayEnd(keyAt(daysToFriday + 2));
+  const start = sfDayStart(keyAt(daysToMonday));
+  const end = sfDayEnd(keyAt(daysToMonday + 6));
   const label = `${formatDateShortSF(start)} – ${formatDateShortSF(end)}`;
   return { start, end, label };
 }
@@ -111,32 +114,32 @@ export function readerPrefs(
 }
 
 /**
- * The weekend's editorial picks: the auto-feature set, newest-first by start.
- * Falls back to the highest-interest weekend events when nothing is featured, so
- * the digest is never empty as long as there are events.
+ * The week's editorial picks: the auto-feature set, newest-first by start.
+ * Falls back to the highest-interest events of the week when nothing is featured,
+ * so the digest is never empty as long as there are events.
  */
-export function featuredPicks(weekend: DigestEvent[], limit = 6): DigestEvent[] {
-  const featured = weekend
+export function featuredPicks(week: DigestEvent[], limit = 6): DigestEvent[] {
+  const featured = week
     .filter((e) => e.featured)
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
   if (featured.length) return featured.slice(0, limit);
-  return [...weekend].sort((a, b) => interestOf(b) - interestOf(a)).slice(0, limit);
+  return [...week].sort((a, b) => interestOf(b) - interestOf(a)).slice(0, limit);
 }
 
 /**
- * Weekend events matching the reader's hearted categories/neighbourhoods,
+ * Week events matching the reader's hearted categories/neighbourhoods,
  * excluding anything already shown in `exclude` (the featured picks). Ranked by
  * interest, then soonest. Empty when the reader has no history or no matches.
  */
 export function personalizedPicks(
-  weekend: DigestEvent[],
+  week: DigestEvent[],
   prefs: ReaderPrefs,
   exclude: DigestEvent[],
   limit = 6
 ): DigestEvent[] {
   if (!prefs.categories.size && !prefs.neighborhoods.size) return [];
   const excluded = new Set(exclude.map((e) => e.id));
-  return weekend
+  return week
     .filter((e) => !excluded.has(e.id))
     .filter(
       (e) =>
@@ -226,8 +229,8 @@ function section(title: string, events: DigestEvent[], baseUrl: string): string 
 }
 
 export interface RenderArgs {
-  weekendLabel: string;
-  weekendCount: number;
+  weekLabel: string;
+  weekCount: number;
   picks: DigestEvent[];
   personalized: DigestEvent[];
   curatorNote: string | null;
@@ -235,30 +238,30 @@ export interface RenderArgs {
   unsubscribeToken: string;
 }
 
-export function digestSubject(args: Pick<RenderArgs, "picks" | "weekendLabel">): string {
+export function digestSubject(args: Pick<RenderArgs, "picks" | "weekLabel">): string {
   const top = args.picks[0];
-  if (!top) return `This weekend in SF · ${args.weekendLabel}`;
+  if (!top) return `This week in SF · ${args.weekLabel}`;
   const rest = args.picks.length - 1;
   return rest > 0
-    ? `This weekend in SF: ${top.title} + ${rest} more`
-    : `This weekend in SF: ${top.title}`;
+    ? `This week in SF: ${top.title} + ${rest} more`
+    : `This week in SF: ${top.title}`;
 }
 
 export function renderDigestEmail(args: RenderArgs): string {
-  const { weekendLabel, weekendCount, picks, personalized, curatorNote, baseUrl, unsubscribeToken } = args;
+  const { weekLabel, weekCount, picks, personalized, curatorNote, baseUrl, unsubscribeToken } = args;
   const unsubscribeUrl = `${baseUrl}/api/unsubscribe?token=${unsubscribeToken}`;
   const [lead, ...rest] = picks;
   const countLine =
-    weekendCount > 0
-      ? `${weekendCount} event${weekendCount === 1 ? "" : "s"} this weekend · ${esc(weekendLabel)}`
-      : `This weekend in SF · ${esc(weekendLabel)}`;
+    weekCount > 0
+      ? `${weekCount} event${weekCount === 1 ? "" : "s"} this week · ${esc(weekLabel)}`
+      : `This week in SF · ${esc(weekLabel)}`;
   return `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
       <h2 style="font-size:24px;font-weight:900;margin:0 0 4px">happening</h2>
       <p style="color:#888;font-size:13px;margin:0 0 20px">${countLine}</p>
       ${curatorNote ? `<p style="font-size:15px;line-height:1.55;color:#333;margin:0 0 4px">${esc(curatorNote)}</p>` : ""}
       ${lead ? heroRow(lead, baseUrl) : ""}
-      ${section(rest.length ? "More featured this weekend" : "Featured this weekend", rest, baseUrl)}
+      ${section(rest.length ? "More featured this week" : "Featured this week", rest, baseUrl)}
       ${section("Picked for you", personalized, baseUrl)}
       <p style="font-size:14px;margin:36px 0 0;text-align:center">
         <a href="${baseUrl}" style="display:inline-block;background:#000;color:#fff;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px">See everything on happening →</a>

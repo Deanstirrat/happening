@@ -5,7 +5,7 @@ import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import {
   DIGEST_EVENT_SELECT,
-  weekendWindow,
+  weekWindow,
   readerPrefs,
   featuredPicks,
   personalizedPicks,
@@ -15,16 +15,16 @@ import {
 } from "@/lib/digest";
 
 /**
- * Weekly "this weekend in SF" email digest (issue #97).
+ * Weekly "this week in SF" email digest (issue #97).
  *
- * Sends every opted-in account a personalized weekend roundup: the auto-feature
+ * Sends every opted-in account a personalized week-ahead roundup: the auto-feature
  * editorial picks plus events matching the categories/neighbourhoods they've
  * hearted (issue #96 attributes hearts to accounts). The strongest return-visit
  * mechanic we have — Resend is already wired up for magic links.
  *
  * Intended to run on a Railway cron (see railway.email-digest.toml), same
- * pattern as the scrape / archive-past / merge-dups jobs. Best fired Thursday or
- * Friday morning SF time so the weekend window is the coming Fri–Sun.
+ * pattern as the scrape / archive-past / merge-dups jobs. Fired Monday morning
+ * SF time so the window is the full Mon–Sun week ahead.
  *
  * Usage:
  *   npm run send-digest             # send
@@ -51,11 +51,11 @@ function unsubscribeToken(): string {
 async function main() {
   const dryRun = process.argv.includes("--dry");
 
-  const { start, end, label } = weekendWindow(new Date());
-  console.log(`${dryRun ? "[DRY RUN] " : ""}Weekend digest for ${label} (${start.toISOString()} → ${end.toISOString()})`);
+  const { start, end, label } = weekWindow(new Date());
+  console.log(`${dryRun ? "[DRY RUN] " : ""}Weekly digest for ${label} (${start.toISOString()} → ${end.toISOString()})`);
 
-  // One query for the whole weekend; sliced per reader in memory.
-  const weekend = (await prisma.event.findMany({
+  // One query for the whole week; sliced per reader in memory.
+  const week = (await prisma.event.findMany({
     where: {
       status: "PUBLISHED",
       startDate: { gte: start, lte: end },
@@ -63,12 +63,12 @@ async function main() {
     select: DIGEST_EVENT_SELECT,
   })) as DigestEvent[];
 
-  if (!weekend.length) {
-    console.log("No published events this weekend — nothing to send.");
+  if (!week.length) {
+    console.log("No published events this week — nothing to send.");
     return;
   }
-  const picks = featuredPicks(weekend);
-  console.log(`${weekend.length} weekend events, ${picks.length} featured picks.`);
+  const picks = featuredPicks(week);
+  console.log(`${week.length} events this week, ${picks.length} featured picks.`);
 
   // Latest editorial note seeds the intro blurb when present.
   const latestInsight = await prisma.curationInsight.findFirst({ orderBy: { weekOf: "desc" } });
@@ -91,10 +91,10 @@ async function main() {
 
   for (const user of recipients) {
     const prefs = readerPrefs(user.interests);
-    const personalized = personalizedPicks(weekend, prefs, picks);
+    const personalized = personalizedPicks(week, prefs, picks);
 
     // Featured picks are global, so a digest is empty only when there were no
-    // weekend events at all — already handled above. Guard anyway.
+    // events this week at all — already handled above. Guard anyway.
     if (!picks.length && !personalized.length) {
       skipped++;
       continue;
@@ -102,15 +102,15 @@ async function main() {
 
     const token = user.unsubscribeToken ?? unsubscribeToken();
     const html = renderDigestEmail({
-      weekendLabel: label,
-      weekendCount: weekend.length,
+      weekLabel: label,
+      weekCount: week.length,
       picks,
       personalized,
       curatorNote,
       baseUrl: BASE_URL,
       unsubscribeToken: token,
     });
-    const subject = digestSubject({ picks, weekendLabel: label });
+    const subject = digestSubject({ picks, weekLabel: label });
 
     if (dryRun) {
       console.log(`  [dry] ${user.email} — "${subject}" (${personalized.length} personalized)`);

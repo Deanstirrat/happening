@@ -97,7 +97,8 @@
       "Bash(volta --version)",
       "Bash(find /Users/deanstirrat/code/happening -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) | grep -iE \"\\(featured|carousel|slider|embla|interested\\)\" | head -20)",
       "Bash(find /Users/deanstirrat/code/happening -type f -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.jsx\" | grep -E \"\\(schema|prisma|drizzle\\)\" | head -20)",
-      "Bash(grep -r \"interested\\\\|EventInterest\\\\|heart\" /Users/deanstirrat/code/happening/app --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/worktrees/*\")"
+      "Bash(grep -r \"interested\\\\|EventInterest\\\\|heart\" /Users/deanstirrat/code/happening/app --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/worktrees/*\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
     ]
   }
 }

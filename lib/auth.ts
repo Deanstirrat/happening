@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -6,6 +7,12 @@ import { Resend } from "resend";
 const SESSION_COOKIE = "editor_session";
 const SESSION_DURATION_DAYS = 30;
 const MAGIC_LINK_EXPIRY_MINUTES = 15;
+
+// Bearer credentials must be cryptographically unpredictable. cuid embeds a
+// timestamp + counter, so generate these tokens with a CSPRNG instead.
+function generateToken(): string {
+  return randomBytes(32).toString("base64url");
+}
 
 // ── Session ──────────────────────────────────────────────────────────────────
 
@@ -17,7 +24,7 @@ export async function createSession(email: string): Promise<string> {
   expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
 
   const session = await prisma.userSession.create({
-    data: { userId: user.id, expiresAt },
+    data: { userId: user.id, token: generateToken(), expiresAt },
   });
   return session.token;
 }
@@ -84,7 +91,7 @@ export async function createMagicLinkToken(email: string): Promise<string> {
   expiresAt.setMinutes(expiresAt.getMinutes() + MAGIC_LINK_EXPIRY_MINUTES);
 
   const record = await prisma.magicLinkToken.create({
-    data: { email, expiresAt },
+    data: { email, token: generateToken(), expiresAt },
   });
   return record.token;
 }

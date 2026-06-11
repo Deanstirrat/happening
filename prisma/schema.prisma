@@ -147,6 +147,8 @@ model EventInteraction {
   @@index([eventId])
   @@index([eventId, type])
   @@index([createdAt])
+  // Per-session preference vectors (#99) read history by sessionId.
+  @@index([sessionId])
   @@map("event_interactions")
 }
 
@@ -169,6 +171,9 @@ model EventInterest {
   @@unique([eventId, sessionId])
   @@index([eventId])
   @@index([userId])
+  // Per-session preference vectors (#99) read history by sessionId; the
+  // [eventId, sessionId] unique index can't serve a sessionId-only lookup.
+  @@index([sessionId])
   @@map("event_interests")
 }
 

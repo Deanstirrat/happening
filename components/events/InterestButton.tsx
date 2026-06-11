@@ -3,17 +3,7 @@
 import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
 import { isEventSaved, setEventSaved } from "@/lib/savedEvents";
-
-const SESSION_KEY = "happeningSessionId";
-
-function getSessionId(): string {
-  let id = localStorage.getItem(SESSION_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(SESSION_KEY, id);
-  }
-  return id;
-}
+import { getSessionId } from "@/lib/sessionId";
 
 type Variant = "detail" | "overlay" | "compact";
 

@@ -2,16 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-
-function getSessionId(): string {
-  const key = "happeningSessionId";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
+import { getSessionId } from "@/lib/sessionId";
 
 export default function PageTracker() {
   const pathname = usePathname();

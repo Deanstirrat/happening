@@ -15,7 +15,8 @@ import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
 import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
-import { compareByQualityThenTime } from "@/lib/ranking";
+import { makeFeedComparator, type PreferenceVector } from "@/lib/ranking";
+import { buildSessionPreferences } from "@/lib/preferences";
 import { Prisma } from "@prisma/client";
 
 interface SearchParams {
@@ -175,7 +176,8 @@ const MIN_TRENDING_EVENTS = 3;
 
 async function getEvents(
   params: SearchParams,
-  artistSet: Set<string> | null
+  artistSet: Set<string> | null,
+  preferences: PreferenceVector | null
 ): Promise<{
   grouped: Record<string, EventSummary[]>;
   hasMorePerDay: Record<string, boolean>;
@@ -344,12 +346,15 @@ async function getEvents(
 
   // Default ordering favors higher-signal events (flyer, geocoded venue,
   // non-recurring) within each day, so the visible slice surfaces the best
-  // events and recurring filler sinks behind the per-day "show more". Power
-  // users can opt back into pure chronological order with ?sort=time. forYou is
-  // already a curated subset, so it stays in time order.
+  // events and recurring filler sinks behind the per-day "show more". On top of
+  // that, the session's learned tastes (category/neighborhood affinities + any
+  // Spotify artist match) boost matching events without filtering anything out
+  // (#99). Power users can opt back into pure chronological order with
+  // ?sort=time. forYou is already a curated subset, so it stays in time order.
   if (params.sort !== "time" && !forYou) {
+    const comparator = makeFeedComparator(preferences);
     for (const dk of Object.keys(allGrouped)) {
-      allGrouped[dk].sort(compareByQualityThenTime);
+      allGrouped[dk].sort(comparator);
     }
   }
 
@@ -407,13 +412,20 @@ export default async function Home({
   // Load Spotify session if present
   const cookieStore = await cookies();
   const sid = cookieStore.get("spotify_sid")?.value;
-  const artistSet = sid ? await getSpotifyArtists(sid) : null;
+  // Anonymous session id, mirrored from localStorage to a cookie client-side so
+  // it's readable here (see lib/sessionId.ts). Drives session-level ranking (#99).
+  const localSid = cookieStore.get("happeningSessionId")?.value;
+
+  const [artistSet, preferences] = await Promise.all([
+    sid ? getSpotifyArtists(sid) : Promise.resolve(null),
+    buildSessionPreferences(localSid),
+  ]);
   const spotifyConnected = artistSet !== null;
   const spotifyArtistCount = artistSet?.size ?? 0;
 
   const [sources, { grouped, hasMorePerDay, totalPerDay, total, trending }, weeklyFeatured] = await Promise.all([
     getSources(),
-    getEvents(params, artistSet),
+    getEvents(params, artistSet, preferences),
     getWeeklyFeaturedEvents(params),
   ]);
 

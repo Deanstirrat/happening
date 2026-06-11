@@ -51,3 +51,15 @@ export async function GET(req: NextRequest) {
     "Resubscribe"
   );
 }
+
+// RFC 8058 one-click unsubscribe. Gmail/Yahoo POST here (body
+// `List-Unsubscribe=One-Click`) straight from the inbox UI, so this must opt the
+// reader out with no confirmation step and return 200 regardless. Unknown tokens
+// still succeed silently — we never reveal which tokens are valid.
+export async function POST(req: NextRequest) {
+  const token = req.nextUrl.searchParams.get("token");
+  if (token) {
+    await prisma.user.updateMany({ where: { unsubscribeToken: token }, data: { digestOptIn: false } });
+  }
+  return new NextResponse(null, { status: 200 });
+}

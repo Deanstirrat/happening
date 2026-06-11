@@ -14,7 +14,7 @@
  *      for readers with no history, who still get the featured picks.
  */
 import { CATEGORY_LABELS } from "@/lib/types";
-import { formatDateTimeSF, formatDateShortSF, sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
+import { formatTimeSF, formatDateShortSF, sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 
 const SF_TZ = "America/Los_Angeles";
 
@@ -26,6 +26,7 @@ export const DIGEST_EVENT_SELECT = {
   startDate: true,
   endDate: true,
   allDay: true,
+  imageUrl: true,
   venueName: true,
   neighborhood: true,
   category: true,
@@ -42,6 +43,7 @@ export interface DigestEvent {
   startDate: Date;
   endDate: Date | null;
   allDay: boolean;
+  imageUrl: string | null;
   venueName: string | null;
   neighborhood: string | null;
   category: string | null;
@@ -155,33 +157,77 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function eventRow(e: DigestEvent, baseUrl: string): string {
-  const when = e.allDay ? formatDateShortSF(e.startDate) : formatDateTimeSF(e.startDate);
-  const meta = [
-    e.category ? CATEGORY_LABELS[e.category] ?? null : null,
-    e.neighborhood,
-    e.isFree ? "Free" : e.price,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+/** "Fri, Jun 12 · 5:00 PM" — weekday helps readers slot the event into a plan. */
+function whenLabel(e: DigestEvent): string {
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: SF_TZ,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(e.startDate);
+  return e.allDay ? day : `${day} · ${formatTimeSF(e.startDate)}`;
+}
+
+/** Inline category pill + neighbourhood + price, all optional. */
+function metaLine(e: DigestEvent): string {
+  const label = e.category ? CATEGORY_LABELS[e.category] ?? null : null;
+  const pill = label
+    ? `<span style="display:inline-block;background:#f1f1f1;color:#444;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">${esc(label)}</span>`
+    : "";
+  const rest = [e.neighborhood, e.isFree ? "Free" : e.price].filter(Boolean).join(" · ");
+  if (!pill && !rest) return "";
+  const restSpan = rest
+    ? `<span style="font-size:12px;color:#999">${pill ? "&nbsp;&nbsp;" : ""}${esc(rest)}</span>`
+    : "";
+  return `<div style="margin-top:6px">${pill}${restSpan}</div>`;
+}
+
+const thumb = (url: string, size: number) =>
+  `<img src="${esc(url)}" width="${size}" height="${size}" alt="" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:8px;display:block;background:#f2f2f2">`;
+
+/** Big lead card for the single top pick — full-width image, then title + meta. */
+function heroRow(e: DigestEvent, baseUrl: string): string {
   const venue = e.venueName ? ` · ${esc(e.venueName)}` : "";
+  const image = e.imageUrl
+    ? `<img src="${esc(e.imageUrl)}" width="520" alt="" style="width:100%;max-width:520px;height:auto;border-radius:12px;display:block;background:#f2f2f2;margin:0 0 12px">`
+    : "";
+  return `
+    <a href="${baseUrl}/events/${e.id}" style="display:block;text-decoration:none;color:inherit;margin:16px 0 8px">
+      ${image}
+      <div style="font-size:21px;font-weight:800;color:#000;line-height:1.25;margin:0 0 4px">${esc(e.title)}</div>
+      <div style="font-size:14px;color:#666">${esc(whenLabel(e))}${venue}</div>
+      ${metaLine(e)}
+    </a>`;
+}
+
+function eventRow(e: DigestEvent, baseUrl: string): string {
+  const venue = e.venueName ? ` · ${esc(e.venueName)}` : "";
+  const text = `
+    <div style="font-size:16px;font-weight:700;color:#000;line-height:1.3;margin:0 0 3px">${esc(e.title)}</div>
+    <div style="font-size:13px;color:#666">${esc(whenLabel(e))}${venue}</div>
+    ${metaLine(e)}`;
+  const body = e.imageUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+        <td width="86" valign="top" style="padding-right:14px">${thumb(e.imageUrl, 72)}</td>
+        <td valign="top">${text}</td>
+      </tr></table>`
+    : text;
   return `
     <a href="${baseUrl}/events/${e.id}" style="display:block;text-decoration:none;color:inherit;padding:16px 0;border-bottom:1px solid #eee">
-      <div style="font-size:16px;font-weight:700;color:#000;margin:0 0 4px">${esc(e.title)}</div>
-      <div style="font-size:13px;color:#888">${esc(when)}${venue}</div>
-      ${meta ? `<div style="font-size:12px;color:#aaa;margin-top:2px">${esc(meta)}</div>` : ""}
+      ${body}
     </a>`;
 }
 
 function section(title: string, events: DigestEvent[], baseUrl: string): string {
   if (!events.length) return "";
   return `
-    <h3 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#888;margin:32px 0 0">${esc(title)}</h3>
+    <h3 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#888;margin:36px 0 4px">${esc(title)}</h3>
     ${events.map((e) => eventRow(e, baseUrl)).join("")}`;
 }
 
 export interface RenderArgs {
   weekendLabel: string;
+  weekendCount: number;
   picks: DigestEvent[];
   personalized: DigestEvent[];
   curatorNote: string | null;
@@ -199,17 +245,23 @@ export function digestSubject(args: Pick<RenderArgs, "picks" | "weekendLabel">):
 }
 
 export function renderDigestEmail(args: RenderArgs): string {
-  const { weekendLabel, picks, personalized, curatorNote, baseUrl, unsubscribeToken } = args;
+  const { weekendLabel, weekendCount, picks, personalized, curatorNote, baseUrl, unsubscribeToken } = args;
   const unsubscribeUrl = `${baseUrl}/api/unsubscribe?token=${unsubscribeToken}`;
+  const [lead, ...rest] = picks;
+  const countLine =
+    weekendCount > 0
+      ? `${weekendCount} event${weekendCount === 1 ? "" : "s"} this weekend · ${esc(weekendLabel)}`
+      : `This weekend in SF · ${esc(weekendLabel)}`;
   return `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
       <h2 style="font-size:24px;font-weight:900;margin:0 0 4px">happening</h2>
-      <p style="color:#888;font-size:13px;margin:0 0 24px">This weekend in SF · ${esc(weekendLabel)}</p>
-      ${curatorNote ? `<p style="font-size:15px;line-height:1.5;color:#333;margin:0 0 8px">${esc(curatorNote)}</p>` : ""}
-      ${section("Featured this weekend", picks, baseUrl)}
+      <p style="color:#888;font-size:13px;margin:0 0 20px">${countLine}</p>
+      ${curatorNote ? `<p style="font-size:15px;line-height:1.55;color:#333;margin:0 0 4px">${esc(curatorNote)}</p>` : ""}
+      ${lead ? heroRow(lead, baseUrl) : ""}
+      ${section(rest.length ? "More featured this weekend" : "Featured this weekend", rest, baseUrl)}
       ${section("Picked for you", personalized, baseUrl)}
-      <p style="font-size:13px;margin:32px 0 0">
-        <a href="${baseUrl}" style="color:#000;font-weight:700;text-decoration:none">See everything on happening →</a>
+      <p style="font-size:14px;margin:36px 0 0;text-align:center">
+        <a href="${baseUrl}" style="display:inline-block;background:#000;color:#fff;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px">See everything on happening →</a>
       </p>
       <p style="font-size:11px;color:#aaa;margin:32px 0 0;line-height:1.5">
         You're getting this because you have a happening account.

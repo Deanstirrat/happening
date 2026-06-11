@@ -275,7 +275,7 @@ model UserSession {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token     String   @unique @default(cuid())
+  token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -286,7 +286,7 @@ model UserSession {
 model MagicLinkToken {
   id        String   @id @default(cuid())
   email     String
-  token     String   @unique @default(cuid())
+  token     String   @unique
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())

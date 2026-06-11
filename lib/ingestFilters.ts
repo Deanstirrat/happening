@@ -52,6 +52,32 @@ export function isVirtualEvent(event: {
   return false;
 }
 
+// Cancellation filter — some sources keep listing events after they're called off,
+// announcing it in the title ("Event CANCELLED: ...", "[CANCELLED] ...") or, less
+// often, in the description ("This event has been cancelled"). We weed these out at
+// ingestion so they never reach the public listing.
+//
+// Matching is deliberately narrow to avoid false positives:
+//  - We require the past-tense "cancelled"/"canceled" (one or two L's) or "postponed",
+//    NOT the bare verb "cancel" — so talks like "Cancel Culture" or "How to Cancel
+//    Your Subscription" are left alone.
+//  - Title matching is a plain whole-word check (the -ed form in a title is a strong
+//    signal). Description matching requires an explicit "this event/it has been
+//    cancelled"-style phrase, since descriptions often mention cancellation policies
+//    ("no refunds if cancelled") without the event itself being off.
+const CANCELED_TITLE_RE = /\b(cancell?ed|postponed)\b/i;
+const CANCELED_DESC_RE =
+  /\b(?:this\s+)?(?:event|show|performance|class|session|workshop|it)\s+(?:has\s+been|is|was|will\s+be)\s+(?:cancell?ed|postponed)\b/i;
+
+export function isCanceledEvent(event: {
+  title: string;
+  description?: string | null;
+}): boolean {
+  if (CANCELED_TITLE_RE.test(event.title)) return true;
+  if (event.description && CANCELED_DESC_RE.test(event.description)) return true;
+  return false;
+}
+
 // Library audience filter — babies/toddlers and seniors/older-adults programming.
 // These recurring library programs (storytime, lapsit, senior tech help, etc.) are
 // off-vibe for the app. SFPL tags each event with audience labels (e.g.

@@ -6,7 +6,7 @@ import { resolveVenueId } from "@/lib/venueLink";
 import { categorizeEvent } from "@/lib/categorize";
 import { sfDayStart, sfDateFromLocal } from "@/lib/sfDate";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
-import { isVirtualEvent, isBabyOrSeniorLibraryEvent } from "@/lib/ingestFilters";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent } from "@/lib/ingestFilters";
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -107,7 +107,7 @@ export interface EventFields {
   recurringType?: string | null;
 }
 
-export type RejectionReason = "virtual" | "baby-senior";
+export type RejectionReason = "virtual" | "baby-senior" | "canceled";
 
 export type CreateEventResult =
   | { success: true; eventId: string; title: string }
@@ -121,6 +121,8 @@ export function rejectionMessage(reason: RejectionReason): string {
       return "This looks like a virtual or online-only event. Happening only lists in-person events in San Francisco.";
     case "baby-senior":
       return "This looks like library programming for babies/toddlers or seniors, which Happening doesn't list.";
+    case "canceled":
+      return "This event appears to be cancelled or postponed, so Happening won't list it.";
   }
 }
 
@@ -156,6 +158,9 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
   }
   if (isBabyOrSeniorLibraryEvent(filterEvent)) {
     return { rejected: true, reason: "baby-senior" };
+  }
+  if (isCanceledEvent(filterEvent)) {
+    return { rejected: true, reason: "canceled" };
   }
 
   const startDate = parseDate(dateRaw, timeRaw);

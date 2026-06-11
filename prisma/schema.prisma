@@ -139,10 +139,16 @@ model EventInterest {
   eventId   String
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   sessionId String
+  // Set when an anonymous session's votes are claimed by an account on first
+  // login (issue #96). Null = still anonymous. Nullable on user delete so the
+  // anonymous demand signal survives account deletion.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   @@unique([eventId, sessionId])
   @@index([eventId])
+  @@index([userId])
   @@map("event_interests")
 }
 
@@ -312,17 +318,21 @@ enum CostService {
 enum UserRole {
   ADMIN
   EDITOR
+  USER
 }
 
 model User {
   id        String          @id @default(cuid())
   email     String          @unique
   name      String?
-  role      UserRole        @default(EDITOR)
+  // Self-serve magic-link signups default to USER (issue #96). EDITOR/ADMIN are
+  // granted explicitly by an admin via the users admin page.
+  role      UserRole        @default(USER)
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   sessions  UserSession[]
   auditLogs AdminAuditLog[]
+  interests EventInterest[]
 
   @@map("users")
 }

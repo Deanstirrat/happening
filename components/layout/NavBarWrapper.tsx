@@ -3,5 +3,5 @@ import NavBar from "./NavBar";
 
 export default async function NavBarWrapper() {
   const user = await getSessionUser();
-  return <NavBar isEditor={!!user} />;
+  return <NavBar isSignedIn={!!user} />;
 }

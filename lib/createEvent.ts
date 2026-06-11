@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
 import { sfDayStart, sfDateFromLocal } from "@/lib/sfDate";
+import { decodeHtmlEntities } from "@/lib/decodeEntities";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent } from "@/lib/ingestFilters";
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -104,14 +106,26 @@ export interface EventFields {
   recurringType?: string | null;
 }
 
+export type RejectionReason = "virtual" | "baby-senior";
+
 export type CreateEventResult =
   | { success: true; eventId: string; title: string }
   | { duplicate: true; eventId: string }
-  | { parseError: true; message: string };
+  | { parseError: true; message: string }
+  | { rejected: true; reason: RejectionReason };
+
+export function rejectionMessage(reason: RejectionReason): string {
+  switch (reason) {
+    case "virtual":
+      return "This looks like a virtual or online-only event. Happening only lists in-person events in San Francisco.";
+    case "baby-senior":
+      return "This looks like library programming for babies/toddlers or seniors, which Happening doesn't list.";
+  }
+}
 
 export async function createEvent(fields: EventFields): Promise<CreateEventResult> {
   const {
-    title,
+    title: titleRaw,
     dateRaw,
     timeRaw,
     allDay: allDayField,
@@ -119,7 +133,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     venueAddress,
     price,
     isFree,
-    description,
+    description: descriptionRaw,
     tags,
     sourceUrl,
     submitterNote,
@@ -127,6 +141,21 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     categoryOverride,
     recurringType,
   } = fields;
+
+  // Apply the same ingestion hygiene the scraper runner does, so every path —
+  // scrape, quick submit, URL extract, admin create — gets identical treatment.
+  // 1. Decode HTML entity artifacts (e.g. `&#x27;`, `&amp;`) in title/description.
+  const title = decodeHtmlEntities(titleRaw);
+  const description = descriptionRaw != null ? decodeHtmlEntities(descriptionRaw) : descriptionRaw;
+
+  // 2. Reject virtual/online-only events and off-vibe baby/senior library programming.
+  const filterEvent = { title, description: description ?? null, venueName: venueName ?? null, sourceUrl: sourceUrl ?? null, tags: tags ?? [] };
+  if (isVirtualEvent(filterEvent)) {
+    return { rejected: true, reason: "virtual" };
+  }
+  if (isBabyOrSeniorLibraryEvent(filterEvent)) {
+    return { rejected: true, reason: "baby-senior" };
+  }
 
   const startDate = parseDate(dateRaw, timeRaw);
   if (!startDate) {

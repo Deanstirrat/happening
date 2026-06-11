@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractEventFromImage } from "@/lib/extract";
-import { createEvent } from "@/lib/createEvent";
+import { createEvent, rejectionMessage } from "@/lib/createEvent";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
 
     if ("parseError" in result) {
       return NextResponse.json({ error: result.message }, { status: 422 });
+    }
+
+    if ("rejected" in result) {
+      return NextResponse.json({ error: rejectionMessage(result.reason) }, { status: 422 });
     }
 
     if ("duplicate" in result) {

@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
 import { prisma } from "@/lib/prisma";
-import { isBabyOrSeniorLibraryEvent } from "@/lib/scrapers/runner";
+import { isBabyOrSeniorLibraryEvent } from "@/lib/ingestFilters";
 
 /**
  * Rejects existing library events aimed at babies/toddlers or seniors —

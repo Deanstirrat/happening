@@ -8,6 +8,7 @@ import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
+import { SCRAPE_RUN_HISTORY } from "./health";
 import { isVirtualEvent, isBabyOrSeniorLibraryEvent } from "@/lib/ingestFilters";
 
 // Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
@@ -227,6 +228,39 @@ async function fetchMetaFromSourceUrl(url: string): Promise<{ imageUrl?: string;
   }
 }
 
+// Persist a scrape outcome, then prune older rows so each source keeps at most
+// SCRAPE_RUN_HISTORY runs. Best-effort: logging must never break a scrape, so a
+// failure here is swallowed after being surfaced to the server console.
+async function recordScrapeRun(
+  sourceId: string,
+  run: { ok: boolean; scraped?: number; inserted?: number; error?: string }
+) {
+  try {
+    await prisma.scrapeRun.create({
+      data: {
+        sourceId,
+        ok: run.ok,
+        scraped: run.scraped ?? 0,
+        inserted: run.inserted ?? 0,
+        error: run.error ?? null,
+      },
+    });
+    const stale = await prisma.scrapeRun.findMany({
+      where: { sourceId },
+      orderBy: { createdAt: "desc" },
+      skip: SCRAPE_RUN_HISTORY,
+      select: { id: true },
+    });
+    if (stale.length > 0) {
+      await prisma.scrapeRun.deleteMany({
+        where: { id: { in: stale.map((r) => r.id) } },
+      });
+    }
+  } catch (err) {
+    console.error(`[${sourceId}] Failed to record scrape run`, err);
+  }
+}
+
 export async function runScraper(
   slug: string
 ): Promise<{ scraped: number; inserted: number }> {
@@ -236,12 +270,31 @@ export async function runScraper(
   // Get source record
   const source = await prisma.source.findUnique({ where: { slug } });
   if (!source) throw new Error(`Source not found in DB: ${slug}`);
-  const sourceId = source.id;
   if (!source.enabled) {
     console.log(`[${slug}] Skipping disabled source`);
     return { scraped: 0, inserted: 0 };
   }
 
+  // Record the outcome (success or failure) as a ScrapeRun so the admin panel
+  // can surface *why* a source went dark instead of needing shell access (#101).
+  try {
+    const result = await scrapeSource(slug, source.id, scraper);
+    await recordScrapeRun(source.id, { ok: true, ...result });
+    return result;
+  } catch (err) {
+    await recordScrapeRun(source.id, {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+}
+
+async function scrapeSource(
+  slug: string,
+  sourceId: string,
+  scraper: BaseScraper
+): Promise<{ scraped: number; inserted: number }> {
   console.log(`[${slug}] Scraping...`);
   const events = await scraper.scrape();
   console.log(`[${slug}] Got ${events.length} events`);
@@ -576,7 +629,7 @@ export async function runScraper(
           geocoded: geo.latitude != null,
           status: geocodeFailed ? "PENDING" : "PUBLISHED",
           categorized: true,
-          sourceId: source.id,
+          sourceId,
         },
       });
       inserted++;

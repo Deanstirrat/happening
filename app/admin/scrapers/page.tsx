@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma";
 import {
   summarizeHealth,
   STALE_AFTER_DAYS,
+  SCRAPE_RUN_HISTORY,
   type SourceHealthInput,
   type SourceHealthStatus,
 } from "@/lib/scrapers/health";
 import AdminNav from "../_components/AdminNav";
+import SourceToggle from "./SourceToggle";
 import { getAdminUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -45,7 +47,7 @@ export default async function ScrapersPage() {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400_000);
 
-  const [sources, upcomingBySource, recentBySource] = await Promise.all([
+  const [sources, upcomingBySource, recentBySource, failedRuns] = await Promise.all([
     prisma.source.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -64,10 +66,26 @@ export default async function ScrapersPage() {
       where: { scrapedAt: { gte: thirtyDaysAgo } },
       _count: { id: true },
     }),
+    // Recent scraper failures (issue #101). Ordered newest-first so the first
+    // row seen per source is its latest error.
+    prisma.scrapeRun.findMany({
+      where: { ok: false },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      select: { sourceId: true, error: true, createdAt: true },
+    }),
   ]);
 
   const upcomingMap = new Map(upcomingBySource.map((r) => [r.sourceId, r._count.id]));
   const recentMap = new Map(recentBySource.map((r) => [r.sourceId, r._count.id]));
+
+  // Most recent failed run per source (newest-first input → keep first seen).
+  const lastErrorBySource = new Map<string, { error: string | null; createdAt: Date }>();
+  for (const run of failedRuns) {
+    if (!lastErrorBySource.has(run.sourceId)) {
+      lastErrorBySource.set(run.sourceId, { error: run.error, createdAt: run.createdAt });
+    }
+  }
 
   const enabledCount = sources.filter((s) => s.enabled).length;
 
@@ -82,6 +100,13 @@ export default async function ScrapersPage() {
   }));
   const health = summarizeHealth(healthInputs, now);
   const healthBySlug = new Map(health.results.map((r) => [r.slug, r]));
+
+  // Sources with a recorded failure, newest error first — surfaced so a dead
+  // scraper can be diagnosed from the panel instead of shell access (#101).
+  const erroredSources = sources
+    .map((s) => ({ source: s, lastError: lastErrorBySource.get(s.id) }))
+    .filter((e): e is { source: (typeof sources)[number]; lastError: { error: string | null; createdAt: Date } } => Boolean(e.lastError))
+    .sort((a, b) => b.lastError.createdAt.getTime() - a.lastError.createdAt.getTime());
 
   return (
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
@@ -149,6 +174,43 @@ export default async function ScrapersPage() {
         </section>
       )}
 
+      {/* Recent errors */}
+      {erroredSources.length > 0 && (
+        <section>
+          <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-1">
+            recent errors
+          </h2>
+          <p className="font-body text-xs text-on-surface-variant mb-4">
+            Most recent failure per source, newest first. Each scraper keeps its
+            last {SCRAPE_RUN_HISTORY} runs.
+          </p>
+          <div className="flex flex-col gap-2">
+            {erroredSources.map(({ source, lastError }) => (
+              <div
+                key={source.id}
+                className="bg-surface-container rounded-xl px-4 py-3 flex flex-col gap-1"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#e85d5d" }} />
+                  <p className="font-body font-semibold text-sm text-on-surface truncate flex-1 min-w-0">
+                    {source.name}
+                    <span className="ml-2 text-[0.65rem] text-on-surface-variant font-normal">
+                      {source.slug}
+                    </span>
+                  </p>
+                  <span className="text-[0.65rem] text-on-surface-variant tabular-nums shrink-0">
+                    {relativeTime(lastError.createdAt)}
+                  </span>
+                </div>
+                <pre className="font-mono text-[0.7rem] text-[#e88] whitespace-pre-wrap break-words pl-4">
+                  {lastError.error ?? "(no message)"}
+                </pre>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Sources table */}
       <section>
         <h2 className="font-headline font-bold text-xl text-on-surface lowercase mb-4">
@@ -205,12 +267,10 @@ export default async function ScrapersPage() {
                           >
                             {source.name}
                           </a>
-                          <p className="text-[0.65rem] text-on-surface-variant mt-0.5">
-                            {source.slug}
-                            {!source.enabled && (
-                              <span className="ml-2 text-on-surface-variant opacity-60">disabled</span>
-                            )}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[0.65rem] text-on-surface-variant">{source.slug}</span>
+                            <SourceToggle id={source.id} enabled={source.enabled} />
+                          </div>
                         </div>
                       </div>
                     </td>

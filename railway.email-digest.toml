@@ -3,13 +3,13 @@ dockerfilePath = "Dockerfile.scrape"
 
 [deploy]
 startCommand = "npm run send-digest"
-# Weekly "this weekend in SF" email digest (issue #97): emails every opted-in
-# account the weekend's featured picks plus events matching the categories /
+# Weekly "this week in SF" email digest (issue #97): emails every opted-in
+# account the week's featured picks plus events matching the categories /
 # neighbourhoods they've hearted. The strongest return-visit mechanic we have;
 # Resend is already wired up for magic links.
 #
-# Cron schedule: 0 16 * * 4 (4pm UTC Thursday = 9am PT) — fires once a week,
-# Thursday morning SF time, so the weekend window is the coming Fri–Sun and the
+# Cron schedule: 0 16 * * 1 (4pm UTC Monday = 9am PT) — fires once a week,
+# Monday morning SF time, so the window is the full Mon–Sun week ahead and the
 # email lands while people are planning. Set this in the Railway dashboard under
 # the service's Settings → Cron Schedule.
 #

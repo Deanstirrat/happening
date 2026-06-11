@@ -40,13 +40,13 @@ export async function GET(req: NextRequest) {
 
   if (resubscribe) {
     await prisma.user.update({ where: { id: user.id }, data: { digestOptIn: true } });
-    return page("You're back in", "You'll get the weekly “this weekend in SF” digest again.", `${base}/api/unsubscribe?token=${token}`, "Unsubscribe");
+    return page("You're back in", "You'll get the weekly “this week in SF” digest again.", `${base}/api/unsubscribe?token=${token}`, "Unsubscribe");
   }
 
   await prisma.user.update({ where: { id: user.id }, data: { digestOptIn: false } });
   return page(
     "You're unsubscribed",
-    "You won't receive the weekly “this weekend in SF” digest anymore. Changed your mind?",
+    "You won't receive the weekly “this week in SF” digest anymore. Changed your mind?",
     `${base}/api/unsubscribe?token=${token}&action=resubscribe`,
     "Resubscribe"
   );

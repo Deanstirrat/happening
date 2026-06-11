@@ -1,0 +1,10 @@
+[build]
+dockerfilePath = "Dockerfile.scrape"
+
+[deploy]
+# One-off backfill: re-decode HTML entity artifacts (e.g. `&#x27;`, `&amp;#x27;`,
+# `&#8217;`) left in scraped event titles/descriptions before the decoder was
+# hardened. Idempotent — safe to re-run; clean rows are untouched.
+# Run once (manually trigger the service), then this service can be removed.
+# Requires env: DATABASE_URL.
+startCommand = "npm run db:backfill-decode-entities"

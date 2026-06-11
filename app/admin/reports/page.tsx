@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import AdminNav from "../_components/AdminNav";
 import FeatureRequestActions from "../feature-requests/FeatureRequestActions";
+import ReportList, { type ReportItem } from "./ReportList";
 
 interface Props {
   searchParams: Promise<{ secret?: string; tab?: string }>;
@@ -31,6 +32,8 @@ const REQUEST_STATUS_COLORS = {
   CLOSED: "text-on-surface-variant",
 };
 
+const fmtDate = (d: Date) => format(d, "MMM d yyyy, h:mma");
+
 export default async function ReportsPage({ searchParams }: Props) {
   const { secret, tab } = await searchParams;
 
@@ -47,19 +50,21 @@ export default async function ReportsPage({ searchParams }: Props) {
       ? tab
       : "feature-requests";
 
+  // Unresolved = NEW or IN_PROGRESS (and NEW for feature requests). Badges reflect
+  // only unresolved items; the active tab loads full rows, inactive tabs just count.
   const [featureRequests, eventReports, bugReports] = await Promise.all([
     activeTab === "feature-requests"
       ? prisma.featuredRequest.findMany({ orderBy: { createdAt: "desc" } })
       : prisma.featuredRequest.count({ where: { status: "NEW" } }),
     activeTab === "event-reports"
       ? prisma.eventReport.findMany({
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
           include: { event: { select: { id: true, title: true } } },
         })
-      : prisma.eventReport.count(),
+      : prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),
     activeTab === "bug-reports"
-      ? prisma.bugReport.findMany({ orderBy: { createdAt: "desc" } })
-      : prisma.bugReport.count(),
+      ? prisma.bugReport.findMany({ orderBy: [{ status: "asc" }, { createdAt: "desc" }] })
+      : prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
   ]);
 
   const featureRequestsCount =
@@ -70,11 +75,15 @@ export default async function ReportsPage({ searchParams }: Props) {
       : (featureRequests as number);
   const eventReportsCount =
     activeTab === "event-reports"
-      ? (eventReports as Awaited<ReturnType<typeof prisma.eventReport.findMany>>).length
+      ? (eventReports as Awaited<ReturnType<typeof prisma.eventReport.findMany>>).filter(
+          (r) => r.status !== "RESOLVED"
+        ).length
       : (eventReports as number);
   const bugReportsCount =
     activeTab === "bug-reports"
-      ? (bugReports as Awaited<ReturnType<typeof prisma.bugReport.findMany>>).length
+      ? (bugReports as Awaited<ReturnType<typeof prisma.bugReport.findMany>>).filter(
+          (r) => r.status !== "RESOLVED"
+        ).length
       : (bugReports as number);
 
   const tabBadges: Record<Tab, number> = {
@@ -168,7 +177,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                     )}
                     <div className="flex items-center gap-3">
                       <span className="font-body text-xs text-on-surface-variant">
-                        {format(req.createdAt, "MMM d yyyy, h:mma")}
+                        {fmtDate(req.createdAt)}
                       </span>
                       <div className="ml-auto">
                         <Suspense>
@@ -186,56 +195,24 @@ export default async function ReportsPage({ searchParams }: Props) {
 
       {/* Event Reports */}
       {activeTab === "event-reports" && (() => {
-        const reports = eventReports as Awaited<ReturnType<typeof prisma.eventReport.findMany<{ include: { event: { select: { id: true; title: true } } } }>>>;
+        const reports = eventReports as Awaited<
+          ReturnType<typeof prisma.eventReport.findMany<{ include: { event: { select: { id: true; title: true } } } }>>
+        >;
+        const items: ReportItem[] = reports.map((r) => ({
+          id: r.id,
+          status: r.status,
+          createdAtLabel: fmtDate(r.createdAt),
+          eventId: r.event.id,
+          eventTitle: r.event.title,
+          comment: r.comment,
+          email: r.email,
+        }));
         return (
           <div className="flex flex-col gap-4">
             <p className="font-body text-on-surface-variant text-sm">
-              {reports.length} report{reports.length !== 1 ? "s" : ""}
+              {reports.length} report{reports.length !== 1 ? "s" : ""} · {eventReportsCount} unresolved
             </p>
-            {reports.length === 0 ? (
-              <p className="font-body text-on-surface-variant">No event reports yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {reports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="bg-surface-container rounded-2xl p-5 flex flex-col gap-2"
-                  >
-                    <Link
-                      href={`/events/${report.event.id}`}
-                      target="_blank"
-                      className="font-body font-semibold text-sm text-on-surface hover:text-primary transition-colors"
-                    >
-                      {report.event.title}
-                    </Link>
-                    {report.comment ? (
-                      <p className="font-body text-sm text-on-surface">{report.comment}</p>
-                    ) : (
-                      <p className="font-body text-xs text-on-surface-variant italic">
-                        no comment provided
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-3 text-xs font-body text-on-surface-variant">
-                      <span>{format(report.createdAt, "MMM d yyyy, h:mma")}</span>
-                      {report.email && (
-                        <a
-                          href={`mailto:${report.email}`}
-                          className="hover:text-on-surface transition-colors"
-                        >
-                          {report.email}
-                        </a>
-                      )}
-                      <Link
-                        href={`/admin/events/${report.event.id}/edit?secret=${secret}`}
-                        className="hover:text-on-surface transition-colors underline"
-                      >
-                        edit event
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <ReportList kind="event" items={items} secret={secret} />
           </div>
         );
       })()}
@@ -243,43 +220,21 @@ export default async function ReportsPage({ searchParams }: Props) {
       {/* Bug Reports */}
       {activeTab === "bug-reports" && (() => {
         const reports = bugReports as Awaited<ReturnType<typeof prisma.bugReport.findMany>>;
+        const items: ReportItem[] = reports.map((r) => ({
+          id: r.id,
+          status: r.status,
+          createdAtLabel: fmtDate(r.createdAt),
+          description: r.description,
+          pageUrl: r.pageUrl,
+          userAgent: r.userAgent,
+        }));
         return (
           <div className="flex flex-col gap-4">
             <p className="font-body text-on-surface-variant text-sm">
-              {reports.length} report{reports.length !== 1 ? "s" : ""} submitted
+              {reports.length} report{reports.length !== 1 ? "s" : ""} submitted · {bugReportsCount}{" "}
+              unresolved
             </p>
-            {reports.length === 0 ? (
-              <p className="font-body text-on-surface-variant">No bug reports yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {reports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="bg-surface-container rounded-2xl p-5 flex flex-col gap-2"
-                  >
-                    <p className="font-body text-sm text-on-surface">{report.description}</p>
-                    <div className="flex flex-wrap gap-3 text-xs font-body text-on-surface-variant">
-                      <span>{format(report.createdAt, "MMM d yyyy, h:mma")}</span>
-                      {report.pageUrl && (
-                        <a
-                          href={report.pageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-on-surface underline truncate max-w-xs"
-                        >
-                          {report.pageUrl}
-                        </a>
-                      )}
-                    </div>
-                    {report.userAgent && (
-                      <p className="font-body text-xs text-on-surface-variant truncate">
-                        {report.userAgent}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <ReportList kind="bug" items={items} secret={secret} />
           </div>
         );
       })()}

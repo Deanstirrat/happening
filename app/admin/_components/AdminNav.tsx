@@ -11,6 +11,7 @@ const navItems = [
   { key: "submissions", label: "submissions", href: "/admin/submissions" },
   { key: "curation", label: "curation", href: "/admin/curation" },
   { key: "events", label: "events", href: "/admin/events" },
+  { key: "duplicates", label: "duplicates", href: "/admin/duplicates" },
   { key: "blocklist", label: "blocklist", href: "/admin/blocklist" },
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "reports", label: "reports", href: "/admin/reports" },
@@ -25,8 +26,9 @@ export default async function AdminNav({ current }: Props) {
   const [pendingCount, newRequestCount, eventReportCount, bugReportCount] = await Promise.all([
     prisma.event.count({ where: { status: "PENDING" } }),
     prisma.featuredRequest.count({ where: { status: "NEW" } }),
-    prisma.eventReport.count(),
-    prisma.bugReport.count(),
+    // Badges count only unresolved reports (issue #104).
+    prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),
+    prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
   ]);
 
   const badges: Record<string, number> = {

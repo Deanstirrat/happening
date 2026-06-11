@@ -109,12 +109,19 @@ export async function createMagicLinkToken(email: string): Promise<string> {
 }
 
 export async function verifyMagicLinkToken(token: string): Promise<string | null> {
+  // Atomic single-use redemption. A findUnique-then-update pair lets two
+  // concurrent requests with the same token both pass the `used` check and both
+  // mint a session. Instead, claim the token in one guarded write: the WHERE
+  // matches only an unused, unexpired row, so exactly one racer gets count === 1
+  // and the rest see count === 0 (already used / expired / unknown → invalid).
+  const claimed = await prisma.magicLinkToken.updateMany({
+    where: { token, used: false, expiresAt: { gt: new Date() } },
+    data: { used: true },
+  });
+  if (claimed.count === 0) return null;
+
   const record = await prisma.magicLinkToken.findUnique({ where: { token } });
-
-  if (!record || record.used || record.expiresAt < new Date()) return null;
-
-  await prisma.magicLinkToken.update({ where: { token }, data: { used: true } });
-  return record.email;
+  return record?.email ?? null;
 }
 
 // ── Email ────────────────────────────────────────────────────────────────────

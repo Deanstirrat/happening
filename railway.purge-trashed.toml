@@ -1,0 +1,13 @@
+[build]
+dockerfilePath = "Dockerfile.scrape"
+
+[deploy]
+startCommand = "npm run purge-trashed"
+# Periodic purge of soft-deleted events (issue #103): hard-deletes events that
+# have sat in the trash (status = TRASHED) longer than ~30 days. Admin deletes are
+# soft (recoverable from the trash UI) until this job runs.
+#
+# Cron schedule: 30 9 * * * (9:30am UTC = 2:30am PT — after archive-past-events).
+# Set this in the Railway dashboard under the service's Settings → Cron Schedule.
+# Requires env: DATABASE_URL.
+# Optional env: PURGE_AFTER_DAYS (days in trash before purge; default 30).

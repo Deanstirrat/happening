@@ -45,7 +45,7 @@ export function rateLimit(
 }
 
 /**
- * Best-effort client IP from the proxy headers Vercel sets. `NextRequest.ip`
+ * Best-effort client IP from the proxy headers the host sets. `NextRequest.ip`
  * was removed in Next 15, so we read `x-forwarded-for` directly.
  */
 export function clientIp(req: NextRequest): string {

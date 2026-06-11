@@ -32,6 +32,11 @@ model Event {
   allDay           Boolean            @default(false)
   venueName        String?
   venueAddress     String?
+  // Nullable FK to the normalized Venue table. Resolved at ingest (after
+  // geocoding) when venueName matches a known venue (lib/venues.ts); free-text
+  // venueName remains the source of truth for everything else. See Venue.
+  venueId          String?
+  venue            Venue?             @relation(fields: [venueId], references: [id])
   city             String             @default("San Francisco")
   neighborhood     String?
   latitude         Float?
@@ -63,6 +68,11 @@ model Event {
   // survivor). The survivor records mergeProvenance: which source(s) contributed.
   mergedIntoId     String?
   mergeProvenance  Json?
+  // Soft delete (issue #103). Admin "delete" sets status → TRASHED and stamps
+  // deletedAt instead of removing the row, so a mis-click is recoverable from the
+  // trash UI. A periodic purge (scripts/purge-trashed-events.ts) hard-deletes
+  // rows trashed more than the retention window ago.
+  deletedAt        DateTime?
   interactions     EventInteraction[]
   interests        EventInterest[]
   reports          EventReport[]
@@ -76,7 +86,29 @@ model Event {
   @@index([status, startDate, featured])
   @@index([status, featured, featuredAt])
   @@index([mergedIntoId])
+  @@index([status, deletedAt])
+  @@index([venueId])
   @@map("events")
+}
+
+// Normalized venue, seeded from the static known-venue table (lib/venues.ts).
+// Collapses the many free-text spellings of a venue ("Exploratorium" / "The
+// Exploratorium" / "Exploratorium SF") onto one row so grouping, venue stats,
+// mini-maps, and venue-follow can key off a stable id instead of a name. `slug`
+// is the deterministic natural key (slugifyVenue(name)) used to upsert idempotently.
+model Venue {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  address   String?
+  latitude  Float?
+  longitude Float?
+  photoUrl  String?
+  events    Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("venues")
 }
 
 enum InteractionType {
@@ -114,26 +146,49 @@ model EventInterest {
   @@map("event_interests")
 }
 
+/// Triage status shared by bug reports and event reports (issue #104).
+/// Unresolved = NEW or IN_PROGRESS; these drive the admin nav badge counts.
+enum ReportStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+/// Records duplicate candidate pairs an admin marked "not a duplicate" (issue
+/// #102), so the dedup review UI stops re-surfacing them. Keyed by the two event
+/// ids sorted lexicographically (`${minId}:${maxId}`) so order doesn't matter.
+model DuplicatePairDismissal {
+  id        String   @id @default(cuid())
+  pairKey   String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("duplicate_pair_dismissals")
+}
+
 model BugReport {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   description String
   email       String?
   pageUrl     String?
   userAgent   String?
-  createdAt   DateTime @default(now())
+  status      ReportStatus @default(NEW)
+  createdAt   DateTime     @default(now())
 
+  @@index([status])
   @@map("bug_reports")
 }
 
 model EventReport {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   comment   String?
   email     String?
-  createdAt DateTime @default(now())
+  status    ReportStatus @default(NEW)
+  createdAt DateTime     @default(now())
 
   @@index([eventId])
+  @@index([status])
   @@map("event_reports")
 }
 
@@ -334,6 +389,9 @@ enum EventStatus {
   PUBLISHED
   REJECTED
   ARCHIVED
+  // Soft-deleted by an admin (issue #103). Excluded from all public queries
+  // (which filter status = PUBLISHED); restorable from the trash UI until purged.
+  TRASHED
 }
 
 enum RecurringType {

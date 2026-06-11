@@ -18,8 +18,10 @@
     "db:populate-descriptions": "tsx scripts/populate-descriptions.ts",
     "db:backfill-decode-entities": "tsx scripts/backfill-decode-entities.ts",
     "db:backfill-venues": "tsx scripts/backfill-venues.ts",
+    "db:backfill-venue-fk": "tsx scripts/backfill-venue-fk.ts",
     "db:cleanup-far-events": "tsx scripts/cleanup-far-events.ts",
     "archive-past-events": "tsx scripts/archive-past-events.ts",
+    "purge-trashed": "tsx scripts/purge-trashed-events.ts",
     "enrich-featured": "tsx scripts/enrich-featured.ts",
     "health-alert": "tsx scripts/scraper-health-alert.ts",
     "merge-dups": "tsx scripts/merge-dups.ts"

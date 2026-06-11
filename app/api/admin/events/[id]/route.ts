@@ -52,6 +52,9 @@ export async function PATCH(
       ...(sourceUrl !== undefined && { sourceUrl }),
       ...(imageUrl !== undefined && { imageUrl }),
       ...(status !== undefined && { status }),
+      // Keep deletedAt consistent with status: stamp it when an event is trashed,
+      // clear it when restored to any other status (the undo / restore actions).
+      ...(status !== undefined && { deletedAt: status === "TRASHED" ? new Date() : null }),
       ...(recurringType !== undefined && { recurringType: recurringType || null }),
     },
   });
@@ -76,18 +79,46 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const event = await prisma.event.findUnique({
+
+  // `?hard=1` permanently removes the row ("delete forever" in the trash UI).
+  // The default is a soft delete (issue #103): status → TRASHED + deletedAt stamp,
+  // so a mis-click is recoverable. We return the prior status so the client can
+  // offer an immediate one-click undo that restores it exactly.
+  const hard = new URL(req.url).searchParams.get("hard") === "1";
+  if (hard) {
+    const event = await prisma.event.findUnique({
+      where: { id },
+      select: { title: true },
+    });
+    await prisma.event.delete({ where: { id } });
+    await logAdminAction(admin, {
+      action: "event.delete",
+      targetType: "event",
+      targetId: id,
+      metadata: { title: event?.title, hard: true },
+    });
+    return NextResponse.json({ ok: true, hard: true });
+  }
+
+  const existing = await prisma.event.findUnique({
     where: { id },
-    select: { title: true },
+    select: { status: true },
   });
-  await prisma.event.delete({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await prisma.event.update({
+    where: { id },
+    data: { status: "TRASHED", deletedAt: new Date() },
+  });
 
   await logAdminAction(admin, {
-    action: "event.delete",
+    action: "event.trash",
     targetType: "event",
     targetId: id,
-    metadata: { title: event?.title },
+    metadata: { previousStatus: existing.status },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, previousStatus: existing.status });
 }

@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate";
-import { ArrowLeft, Clock, MapPin, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, ExternalLink, CalendarPlus } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
@@ -295,6 +295,13 @@ export default async function EventDetailPage({
               </a>
             )}
             <ShareButton title={event.title} large />
+            <a
+              href={`/api/events/${event.id}/ics`}
+              className="btn-secondary w-full py-3 text-sm flex items-center justify-center gap-2"
+            >
+              <CalendarPlus size={14} />
+              add to calendar
+            </a>
             <InterestButton
               eventId={event.id}
               initialCount={event._count.interests + event.externalInterest}

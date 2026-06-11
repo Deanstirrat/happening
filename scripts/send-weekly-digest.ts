@@ -37,7 +37,10 @@ import {
  *   DATABASE_URL          required.
  */
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+// Always ship a friendly display name so inboxes show "happening", not the bare
+// "noreply" local part. Honour a name the env already provides (e.g. "X <a@b>").
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+const FROM = FROM_ADDRESS.includes("<") ? FROM_ADDRESS : `happening <${FROM_ADDRESS}>`;
 const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now").replace(/\/$/, "");
 
 // Mint the unsubscribe capability token the first time we email an account.
@@ -100,6 +103,7 @@ async function main() {
     const token = user.unsubscribeToken ?? unsubscribeToken();
     const html = renderDigestEmail({
       weekendLabel: label,
+      weekendCount: weekend.length,
       picks,
       personalized,
       curatorNote,
@@ -115,7 +119,20 @@ async function main() {
     }
 
     try {
-      await resend!.emails.send({ from: FROM, to: user.email, subject, html });
+      // RFC 8058 one-click unsubscribe. Gmail/Yahoo bulk-sender rules (Feb 2024)
+      // expect this header; its absence both hurts deliverability and nudges mail
+      // toward the Promotions/Spam tabs. The POST target lives in the unsubscribe route.
+      const unsubscribeUrl = `${BASE_URL}/api/unsubscribe?token=${token}`;
+      await resend!.emails.send({
+        from: FROM,
+        to: user.email,
+        subject,
+        html,
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      });
       // Persist the freshly minted token + send timestamp in one write.
       await prisma.user.update({
         where: { id: user.id },

@@ -32,9 +32,6 @@ import {
  * An intuitive glyph for every event category. This replaces the old colour-only
  * key: the icon tells you what kind of event a marker is at a glance, while the
  * category colour is now just a secondary accent.
- *
- * Note `MUSIC_RNB_SOUL` is the Prisma enum value; `MUSIC_SOUL_RNB` is the alias
- * used by CATEGORY_LABELS — keep both mapped so neither falls back to the generic.
  */
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   MUSIC_ELECTRONIC: Disc3,
@@ -42,7 +39,6 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   MUSIC_JAZZ_BLUES: Music4,
   MUSIC_HIPHOP: Mic2,
   MUSIC_RNB_SOUL: Mic,
-  MUSIC_SOUL_RNB: Mic,
   MUSIC_CLASSICAL: Piano,
   MUSIC_OTHER: Music,
   ART_GALLERY: Palette,

@@ -49,7 +49,7 @@ function hostOf(url: string): string {
   }
 }
 
-// Structured single-line log, aggregatable in Vercel logs by outcome/host to
+// Structured single-line log, aggregatable in the platform logs by outcome/host to
 // track the proxy's success rate and latency over time (issue #46). Failures
 // always log; successes only when unusually slow.
 function log(outcome: string, host: string, ms: number, status?: number) {

@@ -32,6 +32,11 @@ model Event {
   allDay           Boolean            @default(false)
   venueName        String?
   venueAddress     String?
+  // Nullable FK to the normalized Venue table. Resolved at ingest (after
+  // geocoding) when venueName matches a known venue (lib/venues.ts); free-text
+  // venueName remains the source of truth for everything else. See Venue.
+  venueId          String?
+  venue            Venue?             @relation(fields: [venueId], references: [id])
   city             String             @default("San Francisco")
   neighborhood     String?
   latitude         Float?
@@ -82,7 +87,28 @@ model Event {
   @@index([status, featured, featuredAt])
   @@index([mergedIntoId])
   @@index([status, deletedAt])
+  @@index([venueId])
   @@map("events")
+}
+
+// Normalized venue, seeded from the static known-venue table (lib/venues.ts).
+// Collapses the many free-text spellings of a venue ("Exploratorium" / "The
+// Exploratorium" / "Exploratorium SF") onto one row so grouping, venue stats,
+// mini-maps, and venue-follow can key off a stable id instead of a name. `slug`
+// is the deterministic natural key (slugifyVenue(name)) used to upsert idempotently.
+model Venue {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  address   String?
+  latitude  Float?
+  longitude Float?
+  photoUrl  String?
+  events    Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("venues")
 }
 
 enum InteractionType {

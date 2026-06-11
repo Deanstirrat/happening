@@ -149,7 +149,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
   // allDay is true if caller explicitly sets it, OR if no time was provided (and caller didn't override)
   const allDay = allDayField !== undefined ? allDayField : noTimeProvided;
 
-  const dedupeHash = computeDedupeHash(startDate, title);
+  const dedupeHash = computeDedupeHash(startDate, title, venueName);
 
   const existing = await prisma.event.findUnique({ where: { dedupeHash } });
   if (existing) {

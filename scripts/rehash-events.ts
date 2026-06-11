@@ -17,7 +17,7 @@ function score(e: { imageUrl: string | null; description: string | null; sourceU
 
 async function main() {
   const events = await prisma.event.findMany({
-    select: { id: true, title: true, startDate: true, imageUrl: true, description: true, sourceUrl: true, dedupeHash: true },
+    select: { id: true, title: true, startDate: true, venueName: true, imageUrl: true, description: true, sourceUrl: true, dedupeHash: true },
   });
 
   console.log(`Found ${events.length} total events`);
@@ -25,7 +25,7 @@ async function main() {
   // Group events by new SF-date-based hash
   const groups = new Map<string, typeof events>();
   for (const event of events) {
-    const newHash = computeDedupeHash(event.startDate, event.title);
+    const newHash = computeDedupeHash(event.startDate, event.title, event.venueName);
     const group = groups.get(newHash) ?? [];
     group.push(event);
     groups.set(newHash, group);

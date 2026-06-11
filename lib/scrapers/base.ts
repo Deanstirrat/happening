@@ -8,7 +8,7 @@ export abstract class BaseScraper {
   abstract scrape(): Promise<ScrapedEvent[]>;
 
   computeDedupeHash(event: ScrapedEvent): string {
-    return computeDedupeHash(event.startDate, event.title);
+    return computeDedupeHash(event.startDate, event.title, event.venueName);
   }
 
   /**

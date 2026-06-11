@@ -1,4 +1,10 @@
+import { assertPublicUrl, SsrfError } from "@/lib/ssrf";
+
 const TIMEOUT_MS = 10_000;
+
+// Cap on redirects we'll follow manually. Each hop is re-validated against the
+// SSRF guard, so a public host can't bounce us onto an internal one.
+const MAX_REDIRECTS = 5;
 
 // Successful image requests are logged only when they exceed this latency, to
 // surface slow upstreams without drowning the logs in routine 200s.
@@ -58,6 +64,40 @@ const IMAGE_HEADERS = (contentType: string) => ({
   "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
 });
 
+const FETCH_HEADERS = {
+  // Mimic a browser request to avoid hotlink blocks
+  "User-Agent": "Mozilla/5.0 (compatible; happening-app/1.0; +https://happening.app)",
+  Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+};
+
+/**
+ * Fetch `startUrl`, following redirects manually so every hop — including the
+ * initial URL — passes the SSRF guard before we connect to it. Throws
+ * SsrfError for a blocked destination and a plain Error if the redirect chain
+ * is too long. Returns the first non-redirect response.
+ */
+async function fetchValidated(startUrl: string, signal: AbortSignal): Promise<Response> {
+  let target = startUrl;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    await assertPublicUrl(target);
+    const res = await fetch(target, {
+      signal,
+      redirect: "manual",
+      headers: FETCH_HEADERS,
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) return res;
+      // Cancel the redirect body so the connection can be reused.
+      await res.body?.cancel();
+      target = new URL(location, target).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error("too many redirects");
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url");
@@ -77,15 +117,7 @@ export async function GET(request: Request) {
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const upstream = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        // Mimic a browser request to avoid hotlink blocks
-        "User-Agent":
-          "Mozilla/5.0 (compatible; happening-app/1.0; +https://happening.app)",
-        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-      },
-    });
+    const upstream = await fetchValidated(url, controller.signal);
 
     if (!upstream.ok) {
       log("upstream_error", host, Date.now() - start, upstream.status);
@@ -117,6 +149,10 @@ export async function GET(request: Request) {
     if (err instanceof Error && err.name === "AbortError") {
       log("timeout", host, Date.now() - start);
       return new Response("Upstream timeout", { status: 504 });
+    }
+    if (err instanceof SsrfError) {
+      log(`blocked(${err.message})`, host, Date.now() - start);
+      return new Response("Blocked URL", { status: 400 });
     }
     log("proxy_error", host, Date.now() - start);
     return new Response("Proxy error", { status: 502 });

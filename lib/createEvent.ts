@@ -240,7 +240,9 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
       category,
       geocoded: geo.latitude != null,
       categorized: true,
-      status: "PENDING",
+      // Community submissions publish immediately — no admin gate. Admins can
+      // still moderate (unpublish/trash) after the fact from the events dashboard.
+      status: "PUBLISHED",
       submitterNote: submitterNote || null,
       sourceId: source.id,
       recurringType: recurringType ? (recurringType as import("@prisma/client").RecurringType) : null,

@@ -12,11 +12,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Image as ImageIcon,
-  Calendar,
   Clock,
   MapPin,
+  ExternalLink,
+  CalendarPlus,
 } from "lucide-react";
 import type { ExtractedEvent } from "@/lib/extract";
+import { CATEGORY_COLORS, type EventCategory } from "@/lib/types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -328,7 +330,7 @@ export default function SubmitWizard({ fromFeature = false }: { fromFeature?: bo
       } else {
         setSubmitResult({
           type: "success",
-          message: "Submitted for review — it'll appear on the calendar once approved.",
+          message: "Your event is live!",
           eventId: data.eventId,
         });
         setStep("success");
@@ -359,7 +361,7 @@ export default function SubmitWizard({ fromFeature = false }: { fromFeature?: bo
   // ─── Render ────────────────────────────────────────────────────────────────
 
   if (step === "success") {
-    return <SuccessView onReset={reset} />;
+    return <SuccessView onReset={reset} eventId={submitResult?.eventId} />;
   }
 
   if (step === "import") {
@@ -574,12 +576,7 @@ function PreviewStep({
   onEditMore: () => void;
   onBack: () => void;
 }) {
-  const dateDisplay = formatDateForDisplay(form.dateRaw);
-  const timeDisplay = formatTimeForDisplay(form.timeRaw);
-  const tags = form.tags
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const [view, setView] = useState<"card" | "detail">("card");
 
   return (
     <div className="flex flex-col gap-6">
@@ -599,85 +596,30 @@ function PreviewStep({
         <div className="w-16" />
       </div>
 
-      {/* Event card — mirrors the real listing */}
-      <div className="bg-surface-container-low rounded-2xl overflow-hidden flex flex-col">
-        {form.imageUrl && (
-          <img
-            src={form.imageUrl}
-            alt="Event"
-            className="w-full max-h-72 object-cover"
-            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-          />
-        )}
+      <p className="font-body text-sm text-on-surface-variant -mt-2">
+        Here&apos;s exactly how your event will appear once it&apos;s live. Switch between the
+        listing card and its detail page, then publish when it looks right.
+      </p>
 
-        <div className="p-5 flex flex-col gap-4">
-          {/* Title */}
-          <h2 className="font-display text-2xl font-bold text-on-surface leading-tight">
-            {form.title || <span className="text-on-surface-variant italic">Untitled Event</span>}
-          </h2>
-
-          {/* Date / time */}
-          <div className="flex flex-col gap-1.5">
-            {dateDisplay ? (
-              <div className="flex items-center gap-2 font-body text-sm text-on-surface-variant">
-                <Calendar size={14} className="shrink-0" />
-                {dateDisplay}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 font-body text-sm text-on-surface-variant/50 italic">
-                <Calendar size={14} className="shrink-0" />
-                No date set
-              </div>
-            )}
-            {timeDisplay && (
-              <div className="flex items-center gap-2 font-body text-sm text-on-surface-variant">
-                <Clock size={14} className="shrink-0" />
-                {timeDisplay}
-              </div>
-            )}
-          </div>
-
-          {/* Venue */}
-          {(form.venueName || form.venueAddress) && (
-            <div className="flex items-start gap-2 font-body text-sm text-on-surface-variant">
-              <MapPin size={14} className="shrink-0 mt-0.5" />
-              <span>
-                {form.venueName}
-                {form.venueName && form.venueAddress && " · "}
-                {form.venueAddress}
-              </span>
-            </div>
-          )}
-
-          {/* Price */}
-          {(form.price || form.isFree) && (
-            <span className="font-body text-sm font-semibold text-on-surface">
-              {form.isFree ? "Free" : form.price}
-            </span>
-          )}
-
-          {/* Description */}
-          {form.description && (
-            <p className="font-body text-sm text-on-surface-variant leading-relaxed">
-              {form.description}
-            </p>
-          )}
-
-          {/* Tags */}
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="font-body text-xs bg-surface-container px-2.5 py-1 rounded-full text-on-surface-variant"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Card / Detail toggle */}
+      <div className="flex gap-1 bg-surface-container-low p-1 rounded-full w-fit self-center">
+        {(["card", "detail"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`font-body text-xs font-semibold uppercase tracking-widest px-5 py-1.5 rounded-full transition-colors ${
+              view === v
+                ? "bg-surface-container text-on-surface"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            {v === "card" ? "Card" : "Detail page"}
+          </button>
+        ))}
       </div>
+
+      {view === "card" ? <CardPreview form={form} /> : <DetailPreview form={form} />}
 
       {/* Result message */}
       {submitResult && submitResult.type !== "success" && (
@@ -704,11 +646,11 @@ function PreviewStep({
           {submitting ? (
             <>
               <Loader size={14} className="animate-spin" />
-              Submitting...
+              Publishing...
             </>
           ) : (
             <>
-              Submit for Review
+              Publish Event
               <ArrowRight size={15} />
             </>
           )}
@@ -721,6 +663,199 @@ function PreviewStep({
           Edit details
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── Preview helpers (shared by Card + Detail previews) ───────────────────────
+
+function categoryDisplay(category: string): { label: string | null; color: string } {
+  const color = category ? (CATEGORY_COLORS[category as EventCategory] ?? "#3a3a3a") : "#3a3a3a";
+  const label = CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? null;
+  // "Auto-detect" isn't a real chip — we don't know the category until publish.
+  return { label: category ? label : null, color };
+}
+
+function parseTags(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+// ─── Card Preview (mirrors the listing grid card) ─────────────────────────────
+
+function CardPreview({ form }: { form: FormState }) {
+  const dateDisplay = formatDateForDisplay(form.dateRaw);
+  const timeDisplay = formatTimeForDisplay(form.timeRaw);
+  const { label: categoryLabel, color: categoryColor } = categoryDisplay(form.category);
+  const priceLabel = form.isFree ? "Free" : form.price || "";
+  const subtitle = [timeDisplay, form.venueName].filter(Boolean).join(" · ");
+
+  return (
+    <div className="mx-auto w-full max-w-[20rem]">
+      <div className="bg-surface-container rounded-DEFAULT overflow-hidden">
+        {/* Image */}
+        <div className="relative aspect-[4/3] bg-surface-container-high">
+          {form.imageUrl ? (
+            <img
+              src={form.imageUrl}
+              alt={form.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+            />
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: `linear-gradient(160deg, ${categoryColor}55 0%, ${categoryColor}14 55%, transparent 80%)` }}
+            >
+              <span
+                className="font-headline font-black text-7xl lowercase select-none"
+                style={{ color: `${categoryColor}33` }}
+                aria-hidden
+              >
+                {(categoryLabel ?? form.title ?? "?").charAt(0).toLowerCase()}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="p-3">
+          <h3 className="font-body font-semibold text-sm text-on-surface leading-tight line-clamp-2 mb-0.5">
+            {form.title || <span className="text-on-surface-variant italic">Untitled event</span>}
+          </h3>
+          <p className="text-on-surface-variant text-xs font-body truncate">
+            {subtitle || dateDisplay || "Date TBD"}
+          </p>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[0.6rem] font-body font-medium" style={{ color: categoryColor }}>
+              {categoryLabel ?? ""}
+            </span>
+            <span className="text-[0.6rem] font-body font-medium text-on-surface-variant">
+              {priceLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Detail Preview (mirrors the event detail page) ───────────────────────────
+
+function DetailPreview({ form }: { form: FormState }) {
+  const dateDisplay = formatDateForDisplay(form.dateRaw);
+  const timeDisplay = formatTimeForDisplay(form.timeRaw);
+  const { label: categoryLabel, color: categoryColor } = categoryDisplay(form.category);
+  const tags = parseTags(form.tags);
+  const priceLabel = form.isFree ? "Free" : form.price || "See site";
+
+  return (
+    <div className="bg-surface-container-low rounded-2xl p-5 sm:p-6 flex flex-col">
+      {/* Flyer */}
+      <div className="relative w-full rounded-lg overflow-hidden bg-surface-container-high mb-6 aspect-[4/3]">
+        {form.imageUrl ? (
+          <img
+            src={form.imageUrl}
+            alt={form.title}
+            className="absolute inset-0 w-full h-full object-contain"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+          />
+        ) : (
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ background: `linear-gradient(160deg, ${categoryColor}55 0%, ${categoryColor}14 55%, transparent 80%)` }}
+          >
+            <span
+              className="font-headline font-black text-8xl lowercase select-none"
+              style={{ color: `${categoryColor}33` }}
+              aria-hidden
+            >
+              {(categoryLabel ?? form.title ?? "?").charAt(0).toLowerCase()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Chips */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {categoryLabel && (
+          <span className="chip" style={{ background: `${categoryColor}22`, color: categoryColor }}>
+            {categoryLabel}
+          </span>
+        )}
+        <span className="chip text-on-surface-variant">community</span>
+        {tags.map((tag) => (
+          <span key={tag} className="chip text-on-surface-variant">
+            {tag}
+          </span>
+        ))}
+      </div>
+
+      {/* Title */}
+      <h1 className="font-headline font-black text-3xl sm:text-4xl text-on-surface lowercase leading-tight mb-5">
+        {form.title || <span className="text-on-surface-variant italic">Untitled event</span>}
+      </h1>
+
+      {/* Date / time pills */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <span className="bg-surface-container rounded-DEFAULT px-3 py-1.5 text-xs font-body text-on-surface flex items-center gap-1.5">
+          <Clock size={12} className="text-primary" />
+          {dateDisplay || "Date TBD"}
+        </span>
+        <span className="bg-surface-container rounded-DEFAULT px-3 py-1.5 text-xs font-body text-on-surface flex items-center gap-1.5">
+          <Clock size={12} className={timeDisplay ? "text-primary" : "text-on-surface-variant"} />
+          {timeDisplay || "All day"}
+        </span>
+      </div>
+
+      {/* Price */}
+      <div className="mb-6">
+        <span className="font-headline font-bold text-3xl text-on-surface">{priceLabel}</span>
+      </div>
+
+      {/* CTA mocks */}
+      <div className="flex flex-col gap-2 mb-6">
+        {form.sourceUrl && (
+          <span className="btn-primary text-center py-3 text-sm flex items-center justify-center gap-2 opacity-90 pointer-events-none">
+            learn more
+            <ExternalLink size={13} />
+          </span>
+        )}
+        <span className="btn-secondary w-full py-2.5 text-sm flex items-center justify-center gap-2 opacity-90 pointer-events-none">
+          <CalendarPlus size={14} />
+          add to calendar
+        </span>
+      </div>
+
+      {/* Vibe / description */}
+      {form.description && (
+        <div className="mb-6">
+          <h2 className="font-headline font-bold text-lg text-on-surface lowercase mb-2">the vibe</h2>
+          <p className="font-body text-on-surface-variant text-sm leading-relaxed">
+            {form.description}
+          </p>
+        </div>
+      )}
+
+      {/* The spot (venue) */}
+      {(form.venueName || form.venueAddress) && (
+        <div>
+          <h2 className="font-headline font-bold text-lg text-on-surface lowercase mb-2">the spot</h2>
+          <div className="bg-surface-container rounded-lg p-4 flex items-start gap-3">
+            <MapPin size={16} className="text-primary mt-0.5 shrink-0" />
+            <div>
+              {form.venueName && (
+                <p className="font-body font-semibold text-on-surface text-sm">{form.venueName}</p>
+              )}
+              {form.venueAddress && (
+                <p className="font-body text-on-surface-variant text-xs mt-0.5">{form.venueAddress}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -979,7 +1114,7 @@ function DetailsStep({
             type="text"
             value={form.submitterNote}
             onChange={(e) => setField("submitterNote", e.target.value)}
-            placeholder="Anything the reviewer should know?"
+            placeholder="Anything we should know?"
             className="input-field"
           />
         </Field>
@@ -1020,25 +1155,36 @@ function DetailsStep({
 
 // ─── Success View ─────────────────────────────────────────────────────────────
 
-function SuccessView({ onReset }: { onReset: () => void }) {
+function SuccessView({ onReset, eventId }: { onReset: () => void; eventId?: string }) {
   return (
     <div className="flex flex-col items-start gap-4">
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-[#4ade80]/10 text-[#4ade80] w-full">
         <CheckCircle size={18} className="shrink-0 mt-0.5" />
         <div className="flex flex-col gap-0.5">
-          <span className="font-body text-sm font-semibold">Submitted for review</span>
+          <span className="font-body text-sm font-semibold">Your event is live</span>
           <span className="font-body text-sm opacity-80">
-            It'll appear on the calendar once approved.
+            It&apos;s now on the calendar for everyone to see.
           </span>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onReset}
-        className="font-body text-sm text-on-surface-variant hover:text-on-surface transition-colors"
-      >
-        Submit another event
-      </button>
+      <div className="flex flex-wrap items-center gap-4">
+        {eventId && (
+          <a
+            href={`/events/${eventId}`}
+            className="flex items-center gap-2 font-body text-sm font-semibold px-5 py-2.5 rounded-full bg-on-surface text-surface hover:opacity-90 transition-opacity"
+          >
+            View your event
+            <ArrowRight size={15} />
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={onReset}
+          className="font-body text-sm text-on-surface-variant hover:text-on-surface transition-colors"
+        >
+          Submit another event
+        </button>
+      </div>
     </div>
   );
 }

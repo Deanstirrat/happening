@@ -21,6 +21,14 @@ export interface KnownVenue {
   /** Canonical full address, used to backfill venueAddress when missing. */
   address: string;
   /**
+   * Canonical display name for the physical venue, used to seed the Venue table
+   * and resolve Event.venueId (see resolveVenueIdentity). Multiple alias keys may
+   * point at the same physical venue; they share one `name` so they collapse to a
+   * single Venue row. Omitted for SFPL branches, whose name is derived from the
+   * branch label (see sfplBranchName).
+   */
+  name?: string;
+  /**
    * Optional venue photo, shown as the card/flyer image for events at this venue
    * that have no flyer of their own (see resolveVenuePhoto). Lifts the perceived
    * quality of the imageless ~37% over a generic category tile.
@@ -76,19 +84,19 @@ export const SFPL_BRANCHES: Record<string, KnownVenue> = {
  * geocode. Aliases for the same venue point at the same coordinates.
  */
 export const KNOWN_VENUES: Record<string, KnownVenue> = {
-  "green apple books on the park": { latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Greenapplebooks.jpg?width=1200" },
-  "books on the park on 9th avenue": { latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Greenapplebooks.jpg?width=1200" },
-  exploratorium: { latitude: 37.80162, longitude: -122.39737, address: "Pier 15, Embarcadero, San Francisco, CA 94111", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Main_Entrance_to_the_Exploratorium_at_Pier_15.jpg?width=1200" },
-  "city lights booksellers & publishers": { latitude: 37.79765, longitude: -122.40662, address: "261 Columbus Ave, San Francisco, CA 94133", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/City_Lights_Booksellers.jpg?width=1200" },
-  "sf spca": { latitude: 37.76723, longitude: -122.41243, address: "201 Alabama St, San Francisco, CA 94103" },
-  "sydney goldstein theater": { latitude: 37.77689, longitude: -122.42096, address: "275 Hayes St, San Francisco, CA 94102", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Nourse_Theater.jpeg?width=1200" },
-  audium: { latitude: 37.78843, longitude: -122.42404, address: "1616 Bush St, San Francisco, CA 94109", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Audium_door_sign.jpg?width=1200" },
-  "roxie theater": { latitude: 37.76481, longitude: -122.42231, address: "3117 16th St, San Francisco, CA 94103", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/RoxieSF.jpg?width=1200" },
-  "the castro theatre": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
-  "castro theater": { latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
+  "green apple books on the park": { name: "Green Apple Books on the Park", latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Greenapplebooks.jpg?width=1200" },
+  "books on the park on 9th avenue": { name: "Green Apple Books on the Park", latitude: 37.76535, longitude: -122.46672, address: "1231 9th Ave, San Francisco, CA 94122", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Greenapplebooks.jpg?width=1200" },
+  exploratorium: { name: "Exploratorium", latitude: 37.80162, longitude: -122.39737, address: "Pier 15, Embarcadero, San Francisco, CA 94111", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Main_Entrance_to_the_Exploratorium_at_Pier_15.jpg?width=1200" },
+  "city lights booksellers & publishers": { name: "City Lights Booksellers & Publishers", latitude: 37.79765, longitude: -122.40662, address: "261 Columbus Ave, San Francisco, CA 94133", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/City_Lights_Booksellers.jpg?width=1200" },
+  "sf spca": { name: "San Francisco SPCA", latitude: 37.76723, longitude: -122.41243, address: "201 Alabama St, San Francisco, CA 94103" },
+  "sydney goldstein theater": { name: "Sydney Goldstein Theater", latitude: 37.77689, longitude: -122.42096, address: "275 Hayes St, San Francisco, CA 94102", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Nourse_Theater.jpeg?width=1200" },
+  audium: { name: "Audium", latitude: 37.78843, longitude: -122.42404, address: "1616 Bush St, San Francisco, CA 94109", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Audium_door_sign.jpg?width=1200" },
+  "roxie theater": { name: "Roxie Theater", latitude: 37.76481, longitude: -122.42231, address: "3117 16th St, San Francisco, CA 94103", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/RoxieSF.jpg?width=1200" },
+  "the castro theatre": { name: "The Castro Theatre", latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
+  "castro theater": { name: "The Castro Theatre", latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
   // F8 nightclub — some sources mis-parse "1192 Folsom St" as the city Folsom, CA (148 km away).
-  f8sf: { latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
-  f8: { latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
+  f8sf: { name: "F8", latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
+  f8: { name: "F8", latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
 };
 
 function normalize(s: string): string {
@@ -122,4 +130,84 @@ export function resolveVenuePhoto(
   sourceSlug?: string
 ): string | null {
   return resolveVenue(venueName, sourceSlug)?.photoUrl ?? null;
+}
+
+/**
+ * Stable, normalized identity for a known venue — the bridge between the static
+ * table above and the Venue table in the database. `slug` is the natural key:
+ * it is deterministic from `name`, so reseeding never creates duplicate rows and
+ * every alias of the same physical venue resolves to the same Venue.
+ */
+export interface VenueIdentity {
+  /** Deterministic natural key, unique per physical venue. */
+  slug: string;
+  /** Canonical display name. */
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  photoUrl?: string;
+}
+
+/** Deterministic slug for a venue name, used as the Venue natural key. */
+export function slugifyVenue(name: string): string {
+  return name
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Canonical display name for an SFPL branch, derived from its branch label. */
+function sfplBranchName(label: string): string {
+  return label === "Main" ? "SFPL Main Library" : `SFPL ${label} Branch`;
+}
+
+function toIdentity(name: string, v: KnownVenue): VenueIdentity {
+  return {
+    slug: slugifyVenue(name),
+    name,
+    address: v.address,
+    latitude: v.latitude,
+    longitude: v.longitude,
+    ...(v.photoUrl ? { photoUrl: v.photoUrl } : {}),
+  };
+}
+
+/**
+ * Resolve a venue name to its normalized Venue identity, or null if not a known
+ * venue. Same matching rules as resolveVenue (SFPL branches only for the sfpl
+ * source); used at ingest to set Event.venueId and by the backfill.
+ */
+export function resolveVenueIdentity(
+  venueName: string | null | undefined,
+  sourceSlug?: string
+): VenueIdentity | null {
+  if (!venueName) return null;
+  if (sourceSlug === "sfpl") {
+    const label = venueName.trim();
+    const branch = SFPL_BRANCHES[label];
+    if (branch) return toIdentity(sfplBranchName(label), branch);
+  }
+  const known = KNOWN_VENUES[normalize(venueName)];
+  if (known?.name) return toIdentity(known.name, known);
+  return null;
+}
+
+/**
+ * Every known venue as a deduped list of identities, for seeding the Venue
+ * table. Aliases that share a physical venue collapse to one entry by slug.
+ */
+export function allKnownVenues(): VenueIdentity[] {
+  const bySlug = new Map<string, VenueIdentity>();
+  for (const [label, v] of Object.entries(SFPL_BRANCHES)) {
+    const identity = toIdentity(sfplBranchName(label), v);
+    if (!bySlug.has(identity.slug)) bySlug.set(identity.slug, identity);
+  }
+  for (const v of Object.values(KNOWN_VENUES)) {
+    if (!v.name) continue;
+    const identity = toIdentity(v.name, v);
+    if (!bySlug.has(identity.slug)) bySlug.set(identity.slug, identity);
+  }
+  return [...bySlug.values()];
 }

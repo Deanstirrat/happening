@@ -3,6 +3,7 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { PrismaClient, ScrapeType, SourceCategory } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { seedVenues } from "@/lib/seedVenues";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -441,6 +442,11 @@ async function main() {
     });
     console.log(`  ✓ ${source.name}`);
   }
+
+  console.log("Seeding venues...");
+  const venueCount = await seedVenues(prisma);
+  console.log(`  ✓ ${venueCount} venues`);
+
   console.log("Done.");
 }
 

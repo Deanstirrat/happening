@@ -2,6 +2,7 @@ import { parse, isValid } from "date-fns";
 import { computeDedupeHash } from "@/lib/dedupeHash";
 import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
+import { resolveVenueId } from "@/lib/venueLink";
 import { categorizeEvent } from "@/lib/categorize";
 import { sfDayStart, sfDateFromLocal } from "@/lib/sfDate";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
@@ -198,6 +199,10 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     startDate,
   });
 
+  // Link to the normalized Venue table when the venue is known (community
+  // submissions never carry SFPL branch labels, so no source slug is passed).
+  const venueId = await resolveVenueId(venueName);
+
   const category = categoryOverride
     ? (categoryOverride as import("@prisma/client").EventCategory)
     : await categorizeEvent({
@@ -218,6 +223,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
       allDay,
       venueName: venueName || null,
       venueAddress: venueAddress || null,
+      venueId,
       neighborhood: geo.neighborhood,
       latitude: geo.latitude,
       longitude: geo.longitude,

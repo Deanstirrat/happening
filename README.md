@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# happening
+
+An SF events discovery platform: scrapes events from around the city, dedupes and
+curates them, and surfaces a daily featured set. Built with [Next.js](https://nextjs.org)
+(App Router) and Prisma on Postgres.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and run the dev server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You'll need a `.env` with at least `DATABASE_URL` (Postgres). Other features need
+their own keys — e.g. `ANTHROPIC_API_KEY` (curation/merge), `RESEND_API_KEY` +
+`RESEND_FROM_EMAIL` (email), `CRON_SECRET` (cron-triggered admin endpoints).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Apply the schema to your database with `npx prisma migrate dev`.
 
-## Learn More
+## Deployment (Railway)
 
-To learn more about Next.js, take a look at the following resources:
+**Production runs on [Railway](https://railway.app) — it is the canonical deploy
+target.** The repo is not deployed on Vercel; any Vercel deployments are vestigial
+and can be ignored or disconnected.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Each Railway service is configured by a `railway*.toml` file at the repo root:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **`railway.toml`** — the web service. Builds `Dockerfile.web`, runs
+  `prisma migrate deploy` then the Next.js standalone server (`scripts/start.sh`),
+  and health-checks `/api/health`.
+- **`railway.scrape.toml`** — nightly event scraper (`npm run scrape`).
+- **`railway.auto-feature.toml`** — daily curation: picks featured events and
+  enriches them (`npm run auto-feature && npm run enrich-featured`).
+- **`railway.merge-dups.toml`** — nightly duplicate merging (`npm run merge-dups`).
+- **`railway.archive-past.toml`** — archives stale past events
+  (`npm run archive-past-events`).
+- **`railway.health-alert.toml`** — emails an alert if the scrape looks unhealthy
+  (`npm run health-alert`).
+- **`railway.backfill-*.toml`** — one-off backfills; run once, then remove.
 
-## Deploy on Vercel
+The background services build from `Dockerfile.scrape`. Cron services have no
+long-running process — their schedules are set per-service in the Railway
+dashboard under **Settings → Cron Schedule** (see the comments in each `.toml`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The admin curation endpoints (`/api/admin/curation/auto-feature`,
+`/api/admin/curation/reflect`) also accept a scheduled `GET` with
+`Authorization: Bearer $CRON_SECRET`, but the canonical daily jobs run as the
+Railway cron services above. `reflect` (weekly curation self-review) currently
+has no scheduled service — trigger it from the admin UI, or add a Railway cron
+service if you want it automated.

@@ -69,6 +69,11 @@ export default function NavBar({ isSignedIn = false }: { isSignedIn?: boolean })
               )}
             </span>
           </NavLink>
+          {isSignedIn && (
+            <NavLink href="/following" active={isActive("/following")}>
+              following
+            </NavLink>
+          )}
           <NavLink href="/submit" active={isActive("/submit")}>
             submit
           </NavLink>

@@ -13,10 +13,12 @@ import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
 import InterestButton from "@/components/events/InterestButton";
+import FollowButton from "@/components/events/FollowButton";
 import EventFlyerContainer from "./EventFlyerContainer";
 import VenueMiniMapWrapper from "@/components/map/VenueMiniMapWrapper";
 import EventEditPanel from "./EventEditPanel";
 import { getSessionUser } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 /** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
 function extractLocationFromTitle(title: string): string | null {
@@ -111,6 +113,7 @@ export default async function EventDetailPage({
   // Inline editing is for staff only. Since open signup (#96) made USER the
   // default role, !!sessionUser is no longer an editor check — gate on the role.
   const isEditor = sessionUser?.role === "ADMIN" || sessionUser?.role === "EDITOR";
+  const isSignedIn = !!sessionUser;
   const isAdmin = sessionUser?.role === "ADMIN";
   const event = await getEvent(id);
   if (!event) notFound();
@@ -121,6 +124,26 @@ export default async function EventDetailPage({
   }
 
   const similar = await getSimilarEvents(event);
+
+  // Which of this event's followable targets the signed-in user already follows,
+  // so each FollowButton renders in the right initial state (issue #98). Artists
+  // are keyed lowercase to match how follows are stored (lib/artistMatch).
+  const performerNames = [...new Set(event.performers.map((p) => p.toLowerCase()))];
+  const followedKeys = new Set<string>();
+  if (sessionUser) {
+    const orConds: Prisma.FollowWhereInput[] = [];
+    if (event.category) orConds.push({ targetType: "CATEGORY", targetId: event.category });
+    if (event.venueId) orConds.push({ targetType: "VENUE", targetId: event.venueId });
+    if (performerNames.length) orConds.push({ targetType: "ARTIST", targetId: { in: performerNames } });
+    if (orConds.length) {
+      const rows = await prisma.follow.findMany({
+        where: { userId: sessionUser.id, OR: orConds },
+        select: { targetType: true, targetId: true },
+      });
+      for (const r of rows) followedKeys.add(`${r.targetType}:${r.targetId}`);
+    }
+  }
+  const isFollowing = (type: string, id: string) => followedKeys.has(`${type}:${id}`);
 
   const categoryLabel = event.category ? CATEGORY_LABELS[event.category] : null;
   const categoryColor = event.category ? CATEGORY_COLORS[event.category] : "#3a3a3a";
@@ -245,6 +268,15 @@ export default async function EventDetailPage({
               <span className="chip">{event.neighborhood}</span>
             )}
             <span className="chip text-on-surface-variant">{event.source.name}</span>
+            {event.category && categoryLabel && (
+              <FollowButton
+                targetType="CATEGORY"
+                targetId={event.category}
+                label={categoryLabel}
+                isSignedIn={isSignedIn}
+                initialFollowing={isFollowing("CATEGORY", event.category)}
+              />
+            )}
           </div>
 
           {/* Title */}
@@ -324,12 +356,51 @@ export default async function EventDetailPage({
         </div>
       </div>
 
+      {/* Lineup — follow the artists playing (issue #98) */}
+      {event.performers.length > 0 && (
+        <div className="mb-16">
+          <h2 className="font-headline font-bold text-2xl text-on-surface lowercase mb-6">
+            lineup
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {event.performers.map((p) => (
+              <span
+                key={p}
+                className="inline-flex items-center gap-2 bg-surface-container rounded-full pl-3 pr-1.5 py-1"
+              >
+                <span className="font-body text-sm text-on-surface">{p}</span>
+                <FollowButton
+                  targetType="ARTIST"
+                  targetId={p.toLowerCase()}
+                  label={p}
+                  isSignedIn={isSignedIn}
+                  initialFollowing={isFollowing("ARTIST", p.toLowerCase())}
+                />
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* The Spot (venue) */}
       {(venueDisplayName || event.venueAddress) && (
         <div className="mb-16">
-          <h2 className="font-headline font-bold text-2xl text-on-surface lowercase mb-6">
-            the spot
-          </h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="font-headline font-bold text-2xl text-on-surface lowercase">
+              the spot
+            </h2>
+            {/* Only normalized venues (with a venueId) are followable — free-text
+                venueName can't key a stable follow. */}
+            {event.venueId && venueDisplayName && (
+              <FollowButton
+                targetType="VENUE"
+                targetId={event.venueId}
+                label={venueDisplayName}
+                isSignedIn={isSignedIn}
+                initialFollowing={isFollowing("VENUE", event.venueId)}
+              />
+            )}
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-surface-container rounded-lg p-6">
               <div className="flex items-start gap-3">

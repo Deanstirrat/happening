@@ -80,6 +80,16 @@ export async function getAdminUser(req?: NextRequest) {
   return user;
 }
 
+// Returns the signed-in user only when they can edit content — ADMIN or EDITOR.
+// Since open signup (issue #96) made USER the default role, a bare getSessionUser
+// check is NOT an authorization gate: it admits any registered visitor. Use this
+// for content mutations (e.g. inline event edits) that aren't full admin-only.
+export async function getEditorUser(req?: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user || (user.role !== "ADMIN" && user.role !== "EDITOR")) return null;
+  return user;
+}
+
 export function sessionCookieOptions(token: string) {
   const expires = new Date();
   expires.setDate(expires.getDate() + SESSION_DURATION_DAYS);

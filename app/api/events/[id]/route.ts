@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getEditorUser } from "@/lib/auth";
 
 export async function GET(
   _req: NextRequest,
@@ -33,8 +33,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getSessionUser(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getEditorUser(req);
+  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json().catch(() => null);
@@ -66,8 +66,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getSessionUser(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getEditorUser(req);
+  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   await prisma.event.delete({ where: { id } });

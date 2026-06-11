@@ -108,7 +108,9 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params;
   const sessionUser = await getSessionUser();
-  const isEditor = !!sessionUser;
+  // Inline editing is for staff only. Since open signup (#96) made USER the
+  // default role, !!sessionUser is no longer an editor check — gate on the role.
+  const isEditor = sessionUser?.role === "ADMIN" || sessionUser?.role === "EDITOR";
   const isAdmin = sessionUser?.role === "ADMIN";
   const event = await getEvent(id);
   if (!event) notFound();

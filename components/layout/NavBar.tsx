@@ -44,14 +44,14 @@ export default function NavBar({ isSignedIn = false }: { isSignedIn?: boolean })
 
   return (
     <header className="sticky top-0 z-50 glass border-b border-on-surface/10">
-      <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-6">
+      <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-2 gap-y-3 sm:flex-nowrap sm:gap-6">
         {/* Logo */}
         <Link href="/" className="text-on-surface shrink-0" aria-label="happening home">
           <Logo className="text-xl" />
         </Link>
 
         {/* Nav links — hidden on mobile when search is focused */}
-        <div className={`flex items-center shrink-0 transition-all duration-200 ${searchFocused ? "hidden sm:flex" : "flex"}`}>
+        <div className={`flex items-center min-w-0 flex-1 sm:flex-initial overflow-x-auto no-scrollbar transition-all duration-200 ${searchFocused ? "hidden sm:flex" : "flex"}`}>
           <NavLink href="/" active={pathname === "/" || pathname.startsWith("/events")}>
             explore
           </NavLink>
@@ -104,7 +104,7 @@ export default function NavBar({ isSignedIn = false }: { isSignedIn?: boolean })
         {/* Search — takes remaining space, expands on focus */}
         <form
           onSubmit={handleSearch}
-          className="flex-1 min-w-0 sm:max-w-sm transition-all duration-200"
+          className="order-last basis-full min-w-0 sm:order-none sm:basis-auto sm:flex-1 sm:max-w-sm transition-all duration-200"
         >
           <div className="relative">
             <Search
@@ -139,7 +139,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`font-body text-xs font-semibold uppercase tracking-widest px-2 sm:px-3 py-1.5 rounded-full transition-colors ${
+      className={`font-body text-xs font-semibold uppercase tracking-widest px-2 sm:px-3 py-1.5 rounded-full shrink-0 whitespace-nowrap transition-colors ${
         active
           ? "text-on-surface bg-surface-container"
           : "text-on-surface-variant hover:text-on-surface"

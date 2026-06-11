@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import AdminNav from "../_components/AdminNav";
+import ReportList, { type ReportItem } from "../reports/ReportList";
 
 interface Props {
   searchParams: Promise<{ secret?: string }>;
@@ -20,8 +21,18 @@ export default async function BugReportsPage({ searchParams }: Props) {
   }
 
   const reports = await prisma.bugReport.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });
+  const unresolved = reports.filter((r) => r.status !== "RESOLVED").length;
+
+  const items: ReportItem[] = reports.map((r) => ({
+    id: r.id,
+    status: r.status,
+    createdAtLabel: format(r.createdAt, "MMM d yyyy, h:mma"),
+    description: r.description,
+    pageUrl: r.pageUrl,
+    userAgent: r.userAgent,
+  }));
 
   return (
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
@@ -32,41 +43,9 @@ export default async function BugReportsPage({ searchParams }: Props) {
 
       <div>
         <p className="font-body text-on-surface-variant text-sm mb-6">
-          {reports.length} report{reports.length !== 1 ? "s" : ""} submitted
+          {reports.length} report{reports.length !== 1 ? "s" : ""} submitted · {unresolved} unresolved
         </p>
-
-        {reports.length === 0 ? (
-          <p className="font-body text-on-surface-variant">No bug reports yet.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {reports.map((report) => (
-              <div
-                key={report.id}
-                className="bg-surface-container rounded-2xl p-5 flex flex-col gap-2"
-              >
-                <p className="font-body text-sm text-on-surface">{report.description}</p>
-                <div className="flex flex-wrap gap-3 text-xs font-body text-on-surface-variant">
-                  <span>{format(report.createdAt, "MMM d yyyy, h:mma")}</span>
-                  {report.pageUrl && (
-                    <a
-                      href={report.pageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-on-surface underline truncate max-w-xs"
-                    >
-                      {report.pageUrl}
-                    </a>
-                  )}
-                </div>
-                {report.userAgent && (
-                  <p className="font-body text-xs text-on-surface-variant truncate">
-                    {report.userAgent}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <ReportList kind="bug" items={items} secret={secret} />
       </div>
     </div>
   );

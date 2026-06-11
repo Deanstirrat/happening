@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<EventStatus, string> = {
   PUBLISHED: "Published",
   REJECTED: "Rejected",
   ARCHIVED: "Archived",
+  TRASHED: "Trashed",
 };
 
 const STATUS_COLORS: Record<EventStatus, string> = {
@@ -28,6 +29,7 @@ const STATUS_COLORS: Record<EventStatus, string> = {
   PUBLISHED: "bg-[#4ade80]/20 text-[#4ade80]",
   REJECTED: "bg-[#ef4444]/15 text-[#ef4444]",
   ARCHIVED: "bg-[#6b7280]/20 text-[#6b7280]",
+  TRASHED: "bg-[#ef4444]/15 text-[#ef4444]",
 };
 
 export default async function AdminEventsPage({ searchParams }: Props) {
@@ -50,7 +52,8 @@ export default async function AdminEventsPage({ searchParams }: Props) {
 
   const rawEvents = await prisma.event.findMany({
     where: {
-      ...(statusFilter ? { status: statusFilter } : {}),
+      // The default "All" view hides soft-deleted events; they live in /trash.
+      ...(statusFilter ? { status: statusFilter } : { status: { not: "TRASHED" } }),
       ...(search ? {
         OR: [
           { title: { contains: search, mode: "insensitive" } },
@@ -74,6 +77,8 @@ export default async function AdminEventsPage({ searchParams }: Props) {
 
   const hasMore = rawEvents.length > take;
   const events = hasMore ? rawEvents.slice(0, take) : rawEvents;
+
+  const trashCount = await prisma.event.count({ where: { status: "TRASHED" } });
 
   const tabs: Array<{ label: string; value: string }> = [
     { label: "All", value: "" },
@@ -115,6 +120,17 @@ export default async function AdminEventsPage({ searchParams }: Props) {
             </Link>
           );
         })}
+        <Link
+          href={`/admin/events/trash?secret=${secret}`}
+          className="ml-auto font-body text-sm px-4 py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1.5"
+        >
+          trash
+          {trashCount > 0 && (
+            <span className="bg-primary text-on-primary text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {trashCount}
+            </span>
+          )}
+        </Link>
       </div>
 
       {/* Search */}

@@ -9,7 +9,7 @@ import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
 import { SCRAPE_RUN_HISTORY } from "./health";
-import { isVirtualEvent, isBabyOrSeniorLibraryEvent } from "@/lib/ingestFilters";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent } from "@/lib/ingestFilters";
 
 // Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
 const GENERIC_SOURCE_URL_PATTERNS = [
@@ -371,6 +371,12 @@ async function scrapeSource(
     // Skip library programming aimed at babies/toddlers or seniors
     if (isBabyOrSeniorLibraryEvent(event)) {
       console.log(`[${slug}] Library baby/senior (skipped): "${event.title}"`);
+      continue;
+    }
+
+    // Skip events the source has marked cancelled/postponed
+    if (isCanceledEvent(event)) {
+      console.log(`[${slug}] Canceled (skipped): "${event.title}"`);
       continue;
     }
 

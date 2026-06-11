@@ -18,6 +18,7 @@ import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
 import { makeFeedComparator, type PreferenceVector } from "@/lib/ranking";
 import { buildSessionPreferences } from "@/lib/preferences";
 import { matchesArtists } from "@/lib/artistMatch";
+import { getEditorUser } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
 interface SearchParams {
@@ -377,11 +378,18 @@ export default async function Home({
   // it's readable here (see lib/sessionId.ts). Drives session-level ranking (#99).
   const localSid = cookieStore.get("happeningSessionId")?.value;
 
-  const [artistSet, preferences] = await Promise.all([
+  const [artistSet, preferences, elevatedUser] = await Promise.all([
     sid ? getSpotifyArtists(sid) : Promise.resolve(null),
     buildSessionPreferences(localSid),
+    // Spotify matching is unreliable for most accounts right now, so the whole
+    // integration is hidden behind elevated privileges (admins/editors) until
+    // it's stable. Regular visitors never see the connect/“for you” surface.
+    getEditorUser(),
   ]);
-  const spotifyConnected = artistSet !== null;
+  // Gate every Spotify surface — and the forYou behavior it drives — on the
+  // elevated-privilege flag, so a leftover spotify_sid cookie can't re-expose it.
+  const spotifyEnabled = elevatedUser !== null;
+  const spotifyConnected = spotifyEnabled && artistSet !== null;
   const spotifyArtistCount = artistSet?.size ?? 0;
 
   const [sources, { grouped, hasMorePerDay, totalPerDay, total, trending }, weeklyFeatured] = await Promise.all([
@@ -450,6 +458,7 @@ export default async function Home({
         <Suspense>
           <FilterSidebar
             sources={sources}
+            spotifyEnabled={spotifyEnabled}
             spotifyConnected={spotifyConnected}
             spotifyArtistCount={spotifyArtistCount}
           />

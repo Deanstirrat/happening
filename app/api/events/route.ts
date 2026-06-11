@@ -34,8 +34,14 @@ export async function GET(req: NextRequest) {
   const timeOfDay = p.get("timeOfDay") ?? "";
   const sort = p.get("sort") ?? "";
   const view = p.get("view") ?? "list";
-  const page = Math.max(1, parseInt(p.get("page") ?? "1"));
-  const limit = Math.min(200, parseInt(p.get("limit") ?? "150"));
+  // Guard against non-numeric input: parseInt(...) yields NaN, which Prisma
+  // rejects with a 500. Fall back to defaults and clamp to a sane range.
+  const parsedPage = parseInt(p.get("page") ?? "1");
+  const page = Number.isFinite(parsedPage) ? Math.max(1, parsedPage) : 1;
+  const parsedLimit = parseInt(p.get("limit") ?? "150");
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(200, Math.max(1, parsedLimit))
+    : 150;
 
   const effectiveCategories =
     hideMusic && categories.length === 0

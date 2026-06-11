@@ -6,7 +6,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { comment, email } = await req.json();
+
+  let body: { comment?: unknown; email?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const comment = typeof body.comment === "string" ? body.comment.trim().slice(0, 2000) : "";
+  const email = typeof body.email === "string" ? body.email.trim().slice(0, 320) : "";
 
   const event = await prisma.event.findUnique({ where: { id }, select: { id: true } });
   if (!event) {
@@ -16,8 +25,8 @@ export async function POST(
   const report = await prisma.eventReport.create({
     data: {
       eventId: id,
-      comment: comment?.trim() || null,
-      email: email?.trim() || null,
+      comment: comment || null,
+      email: email || null,
     },
   });
 

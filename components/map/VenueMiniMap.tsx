@@ -3,7 +3,7 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 
-// A small, non-interactive dark map centered on a single venue.
+// An interactive dark map centered on a single venue.
 // Matches the /map page styling: CartoDB dark tiles + brand-red marker.
 export default function VenueMiniMap({
   latitude,
@@ -22,16 +22,14 @@ export default function VenueMiniMap({
       const map = L.map(mapRef.current!, {
         center: [latitude, longitude],
         zoom: 15,
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: false,
-        // Static, decorative map — disable all interaction
-        dragging: false,
+        // Interactive — pan and zoom enabled. Scroll-wheel zoom only after
+        // the map gains focus, so page scrolling isn't hijacked on hover.
         scrollWheelZoom: false,
-        doubleClickZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        touchZoom: false,
       });
+      map.on("focus", () => map.scrollWheelZoom.enable());
+      map.on("blur", () => map.scrollWheelZoom.disable());
 
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
         subdomains: "abcd",

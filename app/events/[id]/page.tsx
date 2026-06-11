@@ -354,7 +354,7 @@ export default async function EventDetailPage({
 
             {/* Mini map — dark Leaflet map matching the rest of the app */}
             {event.venueAddress && event.latitude && event.longitude && (
-              <div className="relative rounded-lg overflow-hidden bg-surface-container h-40">
+              <div className="relative rounded-lg overflow-hidden bg-surface-container h-80 sm:h-96">
                 <VenueMiniMapWrapper
                   latitude={event.latitude}
                   longitude={event.longitude}

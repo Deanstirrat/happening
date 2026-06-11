@@ -84,14 +84,20 @@ async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
       tags: true,
       latitude: true,
       longitude: true,
+      featured: true,
+      externalInterest: true,
       source: { select: { slug: true, name: true } },
+      _count: { select: { interests: true } },
     },
   });
 
-  return events.map((e) => ({
+  return events.map(({ _count, externalInterest, ...e }) => ({
     ...e,
     startDate: e.startDate.toISOString(),
     endDate: e.endDate?.toISOString() ?? null,
+    // Blend in-app votes with the source's own popularity signal, mirroring the
+    // events API so marker prominence matches the rest of the app.
+    interestCount: _count.interests + externalInterest,
   })) as EventSummary[];
 }
 

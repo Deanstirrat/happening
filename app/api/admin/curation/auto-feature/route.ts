@@ -306,7 +306,9 @@ ${eventList}`,
   };
 }
 
-// GET — called by Vercel cron (Authorization: Bearer <CRON_SECRET>)
+// GET — called by a scheduled cron (Authorization: Bearer <CRON_SECRET>).
+// Note: the daily job runs on Railway via the auto-feature cron service
+// (npm run auto-feature), so this endpoint is just a manual/secondary trigger.
 export async function GET(req: NextRequest) {
   if (!checkCronOrAdminAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

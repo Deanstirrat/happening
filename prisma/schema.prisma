@@ -22,51 +22,50 @@ model Source {
 }
 
 model Event {
-  id           String         @id @default(cuid())
-  externalId   String?
-  dedupeHash   String         @unique
-  title        String
-  description  String?
-  startDate    DateTime
-  endDate      DateTime?
-  allDay       Boolean        @default(false)
-  venueName    String?
-  venueAddress String?
-  city         String         @default("San Francisco")
-  neighborhood String?
-  latitude     Float?
-  longitude    Float?
-  category     EventCategory?
-  categoryRaw  String?
-  price        String?
-  isFree       Boolean        @default(false)
-  imageUrl     String?
-  sourceUrl    String
-  tags         String[]
-  performers   String[]
-  status        EventStatus    @default(PUBLISHED)
-  submitterNote String?
-  geocoded      Boolean        @default(false)
-  categorized   Boolean        @default(false)
-  sourceId      String
-  source       Source         @relation(fields: [sourceId], references: [id])
-  featured      Boolean        @default(false)
-  featuredAt    DateTime?
-  recurringType RecurringType?
+  id               String             @id @default(cuid())
+  externalId       String?
+  dedupeHash       String             @unique
+  title            String
+  description      String?
+  startDate        DateTime
+  endDate          DateTime?
+  allDay           Boolean            @default(false)
+  venueName        String?
+  venueAddress     String?
+  city             String             @default("San Francisco")
+  neighborhood     String?
+  latitude         Float?
+  longitude        Float?
+  category         EventCategory?
+  price            String?
+  isFree           Boolean            @default(false)
+  imageUrl         String?
+  sourceUrl        String
+  tags             String[]
+  performers       String[]
+  status           EventStatus        @default(PUBLISHED)
+  submitterNote    String?
+  geocoded         Boolean            @default(false)
+  categorized      Boolean            @default(false)
+  sourceId         String
+  source           Source             @relation(fields: [sourceId], references: [id])
+  featured         Boolean            @default(false)
+  featuredAt       DateTime?
+  recurringType    RecurringType?
   // Reliable popularity signal pulled from the source (e.g. Resident Advisor's
   // "interested" count). Distinct from EventInterest (anonymous in-app votes);
   // folded into the displayed heart count and used as a curation signal.
-  externalInterest Int          @default(0)
-  scrapedAt     DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  externalInterest Int                @default(0)
+  scrapedAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
   // Semantic-merge bookkeeping. When duplicates are merged, losers are ARCHIVED
   // and point at the survivor via mergedIntoId (its /events/<id> URL 301s to the
   // survivor). The survivor records mergeProvenance: which source(s) contributed.
-  mergedIntoId    String?
-  mergeProvenance Json?
-  interactions EventInteraction[]
-  interests    EventInterest[]
-  reports      EventReport[]
+  mergedIntoId     String?
+  mergeProvenance  Json?
+  interactions     EventInteraction[]
+  interests        EventInterest[]
+  reports          EventReport[]
 
   @@index([startDate])
   @@index([neighborhood])
@@ -74,6 +73,7 @@ model Event {
   @@index([sourceId])
   @@index([startDate, neighborhood, category])
   @@index([status])
+  @@index([status, startDate, featured])
   @@index([status, featured, featuredAt])
   @@index([mergedIntoId])
   @@map("events")
@@ -166,14 +166,14 @@ enum SubmissionOutcome {
 }
 
 model Submission {
-  id                String             @id @default(cuid())
-  title             String
-  startDate         DateTime?
-  outcome           SubmissionOutcome
-  eventId           String?
-  submitterNote     String?
-  unknownSourceUrl  String?
-  createdAt         DateTime           @default(now())
+  id               String            @id @default(cuid())
+  title            String
+  startDate        DateTime?
+  outcome          SubmissionOutcome
+  eventId          String?
+  submitterNote    String?
+  unknownSourceUrl String?
+  createdAt        DateTime          @default(now())
 
   @@index([createdAt])
   @@map("submissions")
@@ -237,7 +237,7 @@ model CostEntry {
   id           String      @id @default(cuid())
   service      CostService
   amount       Float
-  billingMonth DateTime    // first day of the billing month (UTC)
+  billingMonth DateTime // first day of the billing month (UTC)
   notes        String?
   createdAt    DateTime    @default(now())
 
@@ -303,10 +303,10 @@ enum ScrapeType {
 }
 
 enum SourceCategory {
-  AGGREGATOR    // Multi-venue discovery sites (Eventbrite, Luma, Foopee, etc.)
-  VENUE         // Single venue's own event page
+  AGGREGATOR // Multi-venue discovery sites (Eventbrite, Luma, Foopee, etc.)
+  VENUE // Single venue's own event page
   INSTITUTIONAL // Government/library/park systems
-  COMMUNITY     // User-generated (Reddit, community submissions)
+  COMMUNITY // User-generated (Reddit, community submissions)
 }
 
 enum EventStatus {

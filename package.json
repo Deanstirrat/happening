@@ -24,7 +24,8 @@
     "purge-trashed": "tsx scripts/purge-trashed-events.ts",
     "enrich-featured": "tsx scripts/enrich-featured.ts",
     "health-alert": "tsx scripts/scraper-health-alert.ts",
-    "merge-dups": "tsx scripts/merge-dups.ts"
+    "merge-dups": "tsx scripts/merge-dups.ts",
+    "send-digest": "tsx scripts/send-weekly-digest.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

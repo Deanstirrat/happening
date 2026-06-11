@@ -6,8 +6,61 @@ import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
 import { QUALITY_ORDER_BY } from "@/lib/ranking";
 
+// Card-shaped projection shared by the list query and the by-ids lookup so both
+// return the same EventSummary fields.
+const EVENT_CARD_SELECT = {
+  id: true,
+  title: true,
+  startDate: true,
+  endDate: true,
+  allDay: true,
+  venueName: true,
+  venueAddress: true,
+  neighborhood: true,
+  category: true,
+  price: true,
+  isFree: true,
+  imageUrl: true,
+  sourceUrl: true,
+  tags: true,
+  latitude: true,
+  longitude: true,
+  featured: true,
+  featuredAt: true,
+  source: { select: { slug: true, name: true } },
+  externalInterest: true,
+  _count: { select: { interests: true } },
+} satisfies Prisma.EventSelect;
+
+// Same flattening the list path uses: blend in-app votes with the source's
+// external interest signal into a single top-level count.
+function withInterestCount<T extends { _count: { interests: number }; externalInterest: number }>(
+  e: T
+) {
+  const { _count, externalInterest, ...rest } = e;
+  return { ...rest, interestCount: _count.interests + externalInterest };
+}
+
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
+
+  // By-ids lookup powers the saved-events view (localStorage-backed). It returns
+  // exactly the requested PUBLISHED events with no date window — a saved event
+  // can be days out or already underway — and preserves no particular order, so
+  // the client sorts. Unknown/unpublished ids are silently dropped.
+  const idsParam = p.get("ids");
+  if (idsParam !== null) {
+    const ids = [...new Set(idsParam.split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 200);
+    if (ids.length === 0) {
+      return NextResponse.json({ events: [], total: 0, page: 1, totalPages: 0 });
+    }
+    const rawEvents = await prisma.event.findMany({
+      where: { status: "PUBLISHED", id: { in: ids } },
+      select: EVENT_CARD_SELECT,
+    });
+    const events = rawEvents.map(withInterestCount);
+    return NextResponse.json({ events, total: events.length, page: 1, totalPages: 1 });
+  }
 
   const now = new Date();
   const sfMidnightToday = sfDayStart(sfDayKey(now));
@@ -106,29 +159,7 @@ export async function GET(req: NextRequest) {
         sort === "time"
           ? [{ featured: "desc" }, { featuredAt: "desc" }, { startDate: "asc" }]
           : [{ featured: "desc" }, { featuredAt: "desc" }, ...QUALITY_ORDER_BY],
-      select: {
-        id: true,
-        title: true,
-        startDate: true,
-        endDate: true,
-        allDay: true,
-        venueName: true,
-        venueAddress: true,
-        neighborhood: true,
-        category: true,
-        price: true,
-        isFree: true,
-        imageUrl: true,
-        sourceUrl: true,
-        tags: true,
-        latitude: true,
-        longitude: true,
-        featured: true,
-        featuredAt: true,
-        source: { select: { slug: true, name: true } },
-        externalInterest: true,
-        _count: { select: { interests: true } },
-      },
+      select: EVENT_CARD_SELECT,
     }),
     prisma.event.count({ where }),
   ]);
@@ -137,13 +168,7 @@ export async function GET(req: NextRequest) {
     ? rawEvents.filter((e) => matchesTimeOfDay(e.startDate, timeOfDay))
     : rawEvents;
 
-  // Flatten the interest count into a top-level field for the client. The
-  // displayed heart count blends in-app votes with the source's external
-  // interest signal (e.g. RA's "interested" count).
-  const events = filtered.map(({ _count, externalInterest, ...e }) => ({
-    ...e,
-    interestCount: _count.interests + externalInterest,
-  }));
+  const events = filtered.map(withInterestCount);
 
   return NextResponse.json({
     events,

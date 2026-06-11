@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, LogIn, LogOut } from "lucide-react";
-import { useState } from "react";
+import { Search, LogIn, LogOut, Heart } from "lucide-react";
+import { useEffect, useState } from "react";
 import Logo from "@/components/ui/Logo";
+import { getSavedEventIds, subscribeSavedEvents } from "@/lib/savedEvents";
 
 export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
   const pathname = usePathname();
@@ -12,6 +13,16 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
   const searchParams = useSearchParams();
   const [searchVal, setSearchVal] = useState(searchParams.get("search") ?? "");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
+
+  // Live saved-events count for the nav badge. Updates as hearts toggle in this
+  // tab (custom event) or others (storage event). Reads localStorage only after
+  // mount to stay clear of SSR hydration mismatch.
+  useEffect(() => {
+    const sync = () => setSavedCount(getSavedEventIds().length);
+    sync();
+    return subscribeSavedEvents(sync);
+  }, []);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -46,6 +57,17 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
           </NavLink>
           <NavLink href="/map" active={isActive("/map")}>
             map
+          </NavLink>
+          <NavLink href="/saved" active={isActive("/saved")}>
+            <span className="flex items-center gap-1.5">
+              <Heart size={12} className="shrink-0" fill={savedCount > 0 ? "currentColor" : "none"} />
+              saved
+              {savedCount > 0 && (
+                <span className="text-[0.6rem] font-bold leading-none px-1.5 py-0.5 rounded-full bg-primary text-on-primary tabular-nums">
+                  {savedCount}
+                </span>
+              )}
+            </span>
           </NavLink>
           <NavLink href="/submit" active={isActive("/submit")}>
             submit

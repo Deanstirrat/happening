@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
+import { isEventSaved, setEventSaved } from "@/lib/savedEvents";
 
 const SESSION_KEY = "happeningSessionId";
-const VOTED_KEY = "happeningInterestedEvents";
 
 function getSessionId(): string {
   let id = localStorage.getItem(SESSION_KEY);
@@ -13,26 +13,6 @@ function getSessionId(): string {
     localStorage.setItem(SESSION_KEY, id);
   }
   return id;
-}
-
-function getVotedSet(): Set<string> {
-  try {
-    const raw = localStorage.getItem(VOTED_KEY);
-    return new Set<string>(raw ? JSON.parse(raw) : []);
-  } catch {
-    return new Set<string>();
-  }
-}
-
-function persistVoted(eventId: string, voted: boolean) {
-  const set = getVotedSet();
-  if (voted) set.add(eventId);
-  else set.delete(eventId);
-  try {
-    localStorage.setItem(VOTED_KEY, JSON.stringify([...set]));
-  } catch {
-    // ignore quota/availability errors
-  }
 }
 
 type Variant = "detail" | "overlay" | "compact";
@@ -55,7 +35,7 @@ export default function InterestButton({
 
   // Initial vote state is read from localStorage (anonymous, no server round-trip).
   useEffect(() => {
-    setInterested(getVotedSet().has(eventId));
+    setInterested(isEventSaved(eventId));
   }, [eventId]);
 
   async function toggle(e: React.MouseEvent) {
@@ -69,7 +49,7 @@ export default function InterestButton({
     setInterested(next);
     if (next) setPopping(true);
     setCount((c) => Math.max(0, c + (next ? 1 : -1)));
-    persistVoted(eventId, next);
+    setEventSaved(eventId, next);
     setPending(true);
 
     try {
@@ -84,13 +64,13 @@ export default function InterestButton({
       if (typeof data.count === "number") setCount(data.count);
       if (typeof data.interested === "boolean") {
         setInterested(data.interested);
-        persistVoted(eventId, data.interested);
+        setEventSaved(eventId, data.interested);
       }
     } catch {
       // Revert on failure.
       setInterested(!next);
       setCount((c) => Math.max(0, c + (next ? -1 : 1)));
-      persistVoted(eventId, !next);
+      setEventSaved(eventId, !next);
     } finally {
       setPending(false);
     }

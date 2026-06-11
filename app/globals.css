@@ -1,28 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
-
+/* Fonts are self-hosted via next/font in app/layout.tsx (--font-jakarta / --font-grotesk).
+   All design tokens live in @theme below — no tailwind.config (CSS-first Tailwind v4). */
 @import "tailwindcss";
-@config "../tailwind.config.ts";
 
 @theme {
-  /* Surfaces — Tertiary #121212 / Neutral #080808 */
-  --color-background: #121212;
+  /* Surfaces — warm graphite stack (cream-tinted darks, not neutral gray) */
+  --color-background: #131211;
   --color-on-background: #e9e5d8;
-  --color-surface: #121212;
-  --color-surface-dim: #0d0d0d;
-  --color-surface-bright: #2c2c2c;
-  --color-surface-container-lowest: #080808;
-  --color-surface-container-low: #161616;
-  --color-surface-container: #1c1c1c;
-  --color-surface-container-high: #242424;
-  --color-surface-container-highest: #2e2e2e;
-  --color-surface-variant: #2a2a2a;
+  --color-surface: #131211;
+  --color-surface-dim: #0e0d0c;
+  --color-surface-bright: #2e2b27;
+  --color-surface-container-lowest: #0a0908;
+  --color-surface-container-low: #181614;
+  --color-surface-container: #1e1b18;
+  --color-surface-container-high: #262320;
+  --color-surface-container-highest: #302c28;
+  --color-surface-variant: #2c2825;
   --color-on-surface: #e9e5d8;
-  --color-on-surface-variant: #b3aea0;
+  --color-on-surface-variant: #bdb7a9;
   --color-inverse-surface: #e9e5d8;
-  --color-inverse-on-surface: #1a1a1a;
-  --color-outline: #6e6e6e;
-  --color-outline-variant: #3a3a3a;
+  --color-inverse-on-surface: #1b1916;
+  --color-outline: #767066;
+  --color-outline-variant: #3d3933;
 
   /* Primary — #FF0000 */
   --color-primary: #ff0000;
@@ -46,15 +44,15 @@
   --color-on-secondary-fixed: #1a1a1a;
   --color-on-secondary-fixed-variant: #4a4640;
 
-  /* Tertiary — #121212 (dark neutral) */
-  --color-tertiary: #121212;
+  /* Tertiary — dark warm neutral */
+  --color-tertiary: #131211;
   --color-on-tertiary: #e9e5d8;
-  --color-tertiary-container: #1c1c1c;
+  --color-tertiary-container: #1e1b18;
   --color-on-tertiary-container: #e9e5d8;
-  --color-tertiary-fixed: #2a2a2a;
-  --color-tertiary-fixed-dim: #1c1c1c;
+  --color-tertiary-fixed: #2c2825;
+  --color-tertiary-fixed-dim: #1e1b18;
   --color-on-tertiary-fixed: #e9e5d8;
-  --color-on-tertiary-fixed-variant: #b3aea0;
+  --color-on-tertiary-fixed-variant: #bdb7a9;
 
   /* Error */
   --color-error: #ffb4ab;
@@ -62,9 +60,9 @@
   --color-error-container: #93000a;
   --color-on-error-container: #ffdad6;
 
-  --font-family-headline: "Plus Jakarta Sans", sans-serif;
-  --font-family-body: "Plus Jakarta Sans", sans-serif;
-  --font-family-label: "Space Grotesk", sans-serif;
+  --font-headline: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+  --font-body: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+  --font-label: var(--font-grotesk), "Space Grotesk", sans-serif;
 
   --radius-DEFAULT: 1rem;
   --radius-lg: 2rem;
@@ -73,8 +71,10 @@
 }
 
 :root {
-  --background: #121212;
+  --background: #131211;
   --foreground: #e9e5d8;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 html {
@@ -82,14 +82,32 @@ html {
 }
 
 body {
-  background: #121212;
+  background: #131211;
   color: #e9e5d8;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-body);
   min-height: 100vh;
 }
 
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+/* Film-grain overlay — tactile depth across the whole app */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+::selection {
+  background: rgba(255, 0, 0, 0.4);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid #ff5a52;
+  outline-offset: 2px;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -102,53 +120,64 @@ body {
 
 /* Glassmorphism utility */
 .glass {
-  background: rgba(28, 28, 28, 0.6);
+  background: rgba(30, 27, 24, 0.6);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
 
-/* Primary gradient button */
+/* Primary gradient button — glows */
 .btn-primary {
   background: linear-gradient(135deg, #ff3b30, #ff0000);
   color: #ffffff;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-body);
   font-weight: 600;
   border-radius: 9999px;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  box-shadow: 0 0 24px rgba(255, 30, 20, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s var(--ease-out-expo), box-shadow 0.25s var(--ease-out-expo), opacity 0.15s ease;
 }
 .btn-primary:hover {
-  transform: scale(1.02);
-  opacity: 0.95;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 36px rgba(255, 30, 20, 0.4), 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.btn-primary:active {
+  transform: scale(0.98);
 }
 
 /* Secondary button */
 .btn-secondary {
-  background: #2a2a2a;
+  background: #2c2825;
   color: #e9e5d8;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: var(--font-body);
   font-weight: 500;
   border-radius: 9999px;
-  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: inset 0 0 0 1px rgba(233, 229, 216, 0.06);
+  transition: transform 0.25s var(--ease-out-expo), background 0.15s ease, box-shadow 0.25s var(--ease-out-expo);
 }
 .btn-secondary:hover {
-  transform: scale(1.02);
-  background: #333333;
+  transform: translateY(-1px) scale(1.02);
+  background: #343029;
+  box-shadow: inset 0 0 0 1px rgba(233, 229, 216, 0.12);
+}
+.btn-secondary:active {
+  transform: scale(0.98);
 }
 
 /* Chip */
 .chip {
-  background: #1c1c1c;
+  background: #1e1b18;
   color: #e9e5d8;
   border-radius: 9999px;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-label);
   font-size: 0.6875rem;
   font-weight: 500;
   padding: 0.25rem 0.75rem;
-  transition: background 0.15s ease, color 0.15s ease;
+  box-shadow: inset 0 0 0 1px rgba(233, 229, 216, 0.05);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .chip.active {
   background: linear-gradient(135deg, #ff3b30, #ff0000);
   color: #fff;
+  box-shadow: 0 0 16px rgba(255, 30, 20, 0.3);
 }
 
 /* Fix mobile webkit text visibility in inputs */
@@ -159,6 +188,140 @@ input[type="search"] {
 
 input[type="date"] {
   -webkit-text-fill-color: #e9e5d8;
+}
+
+/* ───────────────────────── Motion & depth system ───────────────────────── */
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slide-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes heart-pop {
+  30% {
+    transform: scale(1.4);
+  }
+  55% {
+    transform: scale(0.9);
+  }
+}
+
+@keyframes dot-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Hairline edge for elevated surfaces */
+.edge {
+  box-shadow: inset 0 0 0 1px rgba(233, 229, 216, 0.06);
+}
+
+/* Card hover: lift + deep shadow + optional category accent ring via --card-accent */
+.card-lift {
+  box-shadow: inset 0 0 0 1px rgba(233, 229, 216, 0.05), 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.35s var(--ease-out-expo), box-shadow 0.35s var(--ease-out-expo),
+    background-color 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 1px rgba(233, 229, 216, 0.1), 0 16px 40px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 1px var(--card-accent, transparent), 0 0 24px -6px var(--card-accent, transparent);
+}
+
+/* Scroll-driven reveal — progressively enhanced; static where unsupported */
+@supports (animation-timeline: view()) {
+  .reveal-scroll {
+    animation: reveal-up both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+}
+
+/* Load-time entrance for hero content; stagger with --d */
+.hero-enter {
+  opacity: 0;
+  animation: slide-up-in 0.9s var(--ease-out-expo) forwards;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Spring pop applied to the heart icon on vote */
+.heart-pop {
+  animation: heart-pop 0.45s var(--ease-spring);
+  transform-origin: center;
+}
+
+/* Shimmering loading placeholder */
+.skeleton {
+  background: linear-gradient(100deg, #1e1b18 40%, #262320 50%, #1e1b18 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Lazy image fade-in (paired with FadeImage) */
+.img-fade {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.img-fade.loaded {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .hero-enter,
+  .reveal-scroll {
+    opacity: 1;
+    animation: none;
+  }
+  .card-lift:hover {
+    transform: none;
+  }
 }
 
 /* Leaflet map dark overrides */

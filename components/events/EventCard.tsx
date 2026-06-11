@@ -7,6 +7,13 @@ import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { CategoryImage } from "@/components/events/CategoryImage";
 import InterestButton from "@/components/events/InterestButton";
+import FadeImage from "@/components/ui/FadeImage";
+
+/** Layered gradient fallback: category-tinted sweep + corner glow. */
+function fallbackGradient(color: string, strong = false): string {
+  const a = strong ? "55" : "3d";
+  return `linear-gradient(160deg, ${color}${a} 0%, ${color}14 55%, transparent 80%), radial-gradient(120% 100% at 85% 0%, ${color}30, transparent 60%)`;
+}
 
 
 function recurringLabel(event: EventSummary): string | null {
@@ -54,7 +61,10 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   if (featured) {
     return (
       <Link href={`/events/${event.id}`} className="block group">
-        <div className="relative rounded-lg overflow-hidden aspect-[16/9] bg-surface-container">
+        <div
+          className="relative rounded-lg overflow-hidden aspect-[16/9] bg-surface-container card-lift"
+          style={{ "--card-accent": "rgba(255, 0, 0, 0.35)" } as React.CSSProperties}
+        >
           {imageUrl ? (
             <>
               <Image
@@ -65,7 +75,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
                 className="object-cover scale-110 blur-2xl opacity-60 saturate-150"
                 sizes="(max-width: 768px) 100vw, 60vw"
               />
-              <Image
+              <FadeImage
                 src={imageUrl}
                 alt={event.title}
                 fill
@@ -78,11 +88,11 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               src={fallbackImage}
               alt={categoryLabel ?? event.title}
               sizes="(max-width: 768px) 100vw, 60vw"
-              gradient={`linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`}
+              gradient={fallbackGradient(categoryColor, true)}
               imageClassName="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-surface-container-high to-surface-container-lowest" />
+            <div className="absolute inset-0" style={{ background: fallbackGradient(categoryColor, true) }} />
           )}
           {/* Bottom gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
@@ -156,11 +166,14 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
   // Compact card (side / grid)
   return (
     <Link href={`/events/${event.id}`} className="block group">
-      <div className="bg-surface-container rounded-DEFAULT overflow-hidden flex gap-3 p-3 hover:bg-surface-container-high transition-colors">
+      <div
+        className="bg-surface-container rounded-DEFAULT overflow-hidden flex gap-3 p-3 card-lift hover:bg-surface-container-high"
+        style={{ "--card-accent": `${categoryColor}55` } as React.CSSProperties}
+      >
         {/* Thumbnail */}
         <div className="relative w-16 h-16 shrink-0 rounded-[0.75rem] overflow-hidden bg-surface-container-high">
           {imageUrl ? (
-            <Image
+            <FadeImage
               src={imageUrl}
               alt={event.title}
               fill
@@ -172,14 +185,12 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
               src={fallbackImage}
               alt={categoryLabel ?? event.title}
               sizes="64px"
-              gradient={`linear-gradient(135deg, ${categoryColor}33, ${categoryColor}11)`}
+              gradient={fallbackGradient(categoryColor)}
             />
           ) : (
             <div
               className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, ${categoryColor}33, ${categoryColor}11)`,
-              }}
+              style={{ background: fallbackGradient(categoryColor) }}
             />
           )}
         </div>
@@ -253,7 +264,10 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
-      <div className={`bg-surface-container rounded-DEFAULT overflow-hidden hover:bg-surface-container-high transition-colors${event.featured ? " ring-1 ring-primary/40" : ""}`}>
+      <div
+        className={`bg-surface-container rounded-DEFAULT overflow-hidden card-lift hover:bg-surface-container-high${event.featured ? " ring-1 ring-primary/40" : ""}`}
+        style={{ "--card-accent": `${categoryColor}55` } as React.CSSProperties}
+      >
         {/* Image */}
         <div className="relative aspect-[4/3] bg-surface-container-high">
           {imageUrl ? (
@@ -266,7 +280,7 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
                 className="object-cover scale-110 blur-2xl opacity-60 saturate-150"
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
-              <Image
+              <FadeImage
                 src={imageUrl}
                 alt={event.title}
                 fill
@@ -279,16 +293,24 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
               src={fallbackImage}
               alt={categoryLabel ?? event.title}
               sizes="(max-width: 768px) 50vw, 25vw"
-              gradient={`linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`}
+              gradient={fallbackGradient(categoryColor)}
               imageClassName="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div
               className="absolute inset-0"
-              style={{
-                background: `linear-gradient(135deg, ${categoryColor}44, ${categoryColor}11)`,
-              }}
-            />
+              style={{ background: fallbackGradient(categoryColor) }}
+            >
+              {categoryLabel && (
+                <span
+                  className="absolute inset-0 flex items-center justify-center font-headline font-black text-7xl lowercase select-none"
+                  style={{ color: `${categoryColor}33` }}
+                  aria-hidden
+                >
+                  {categoryLabel.charAt(0).toLowerCase()}
+                </span>
+              )}
+            </div>
           )}
           {event.featured && (
             <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-on-primary text-[0.6rem] font-body font-semibold uppercase tracking-wider px-2 py-1 rounded-full">

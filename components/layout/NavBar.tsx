@@ -32,7 +32,7 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
   }
 
   return (
-    <header className="sticky top-0 z-50 glass">
+    <header className="sticky top-0 z-50 glass border-b border-on-surface/10">
       <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-6">
         {/* Logo */}
         <Link href="/" className="text-on-surface shrink-0" aria-label="happening home">

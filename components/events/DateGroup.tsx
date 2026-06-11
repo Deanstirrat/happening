@@ -101,7 +101,9 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {allEvents.map((e) => (
-              <EventCardGrid key={e.id} event={e} />
+              <div key={e.id} className="reveal-scroll">
+                <EventCardGrid event={e} />
+              </div>
             ))}
           </div>
 
@@ -109,9 +111,10 @@ export default function DateGroup({ date, dayKey, events, initialHasMore = false
             <button
               onClick={loadMore}
               disabled={loading}
-              className="mt-4 chip text-xs font-semibold disabled:opacity-50"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-outline-variant px-5 py-2.5 font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant transition-all hover:text-on-surface hover:border-outline hover:shadow-[0_0_20px_rgba(255,0,0,0.12)] disabled:opacity-50"
             >
-              {loading ? "loading…" : `show ${Math.min(PAGE_SIZE, remaining)} more events`}
+              <ChevronDown size={13} className={loading ? "animate-bounce" : ""} />
+              {loading ? "loading…" : `show ${Math.min(PAGE_SIZE, remaining)} more`}
             </button>
           )}
         </>

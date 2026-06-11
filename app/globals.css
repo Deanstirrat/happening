@@ -339,3 +339,65 @@ input[type="date"] {
 .leaflet-popup-tip {
   background: #1c1c1c;
 }
+
+/* Category event markers */
+.happening-marker {
+  position: relative;
+}
+.happening-chip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.happening-marker:hover .happening-chip {
+  transform: scale(1.12);
+}
+/* Expanding ring on trending markers */
+.happening-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: happeningPulse 2s ease-out infinite;
+}
+@keyframes happeningPulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.85;
+  }
+  70% {
+    box-shadow: 0 0 0 12px transparent;
+    opacity: 0;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    opacity: 0;
+  }
+}
+/* Featured (gold star) + trending (flame) corner badges */
+.happening-badge {
+  position: absolute;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1.5px solid #121212;
+}
+.happening-badge--feat {
+  top: -3px;
+  right: -3px;
+  background: #f5c451;
+}
+.happening-badge--hot {
+  bottom: -3px;
+  right: -3px;
+  background: linear-gradient(135deg, #ff7a18, #ff0000);
+}

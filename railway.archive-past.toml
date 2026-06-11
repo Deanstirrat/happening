@@ -1,0 +1,14 @@
+[build]
+dockerfilePath = "Dockerfile.scrape"
+
+[deploy]
+startCommand = "npm run archive-past"
+# Cron schedule: 0 9 * * * (9am UTC = 1am PT — after the nightly scrape + dedup +
+# merge have run). Set this in the Railway dashboard under the service's
+# Settings → Cron Schedule.
+# Requires env: DATABASE_URL.
+# Optional env: ARCHIVE_AFTER_DAYS (default 30) — grace period before a past
+#   PUBLISHED event is soft-archived (status → ARCHIVED, never deleted).
+#
+# Preview without writing by setting the start command's args via the dashboard,
+# or run locally first: `npm run archive-past -- --dry`.

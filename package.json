@@ -21,7 +21,8 @@
     "db:cleanup-far-events": "tsx scripts/cleanup-far-events.ts",
     "enrich-featured": "tsx scripts/enrich-featured.ts",
     "health-alert": "tsx scripts/scraper-health-alert.ts",
-    "merge-dups": "tsx scripts/merge-dups.ts"
+    "merge-dups": "tsx scripts/merge-dups.ts",
+    "archive-past": "tsx scripts/archive-past-events.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

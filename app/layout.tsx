@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import NavBarWrapper from "@/components/layout/NavBarWrapper";
@@ -20,6 +20,10 @@ const grotesk = Space_Grotesk({
   variable: "--font-grotesk",
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  themeColor: "#131211",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now"),

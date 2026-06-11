@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
-function getSessionId(): string {
-  const key = "happeningSessionId";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
+import { getSessionId } from "@/lib/sessionId";
 
 function track(eventId: string, type: "VIEW" | "CLICK") {
   try {

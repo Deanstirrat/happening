@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
 import FeaturedCarousel from "@/components/events/FeaturedCarousel";
+import TrendingRow from "@/components/events/TrendingRow";
 import TimeFilterTabs from "@/components/events/TimeFilterTabs";
 import Hero from "@/components/events/Hero";
 import EmptyState from "@/components/ui/EmptyState";
@@ -162,6 +163,16 @@ async function getSources() {
 const MAX_DAYS = 10;
 const INITIAL_PER_OTHER_DAY = 10;
 
+// "Trending this week" row config. Interest already tiebreaks the per-day feed
+// (see lib/ranking.ts); this surfaces the very top of that signal separately.
+const TRENDING_WINDOW_DAYS = 7;
+// A floor so the row reads as genuine social proof, not "2 people clicked".
+const MIN_TRENDING_INTEREST = 5;
+// Shown count, and the minimum below which the section is hidden entirely so it
+// never renders a lonely one- or two-card row.
+const TRENDING_TAKE = 5;
+const MIN_TRENDING_EVENTS = 3;
+
 async function getEvents(
   params: SearchParams,
   artistSet: Set<string> | null
@@ -170,6 +181,7 @@ async function getEvents(
   hasMorePerDay: Record<string, boolean>;
   totalPerDay: Record<string, number>;
   total: number;
+  trending: EventSummary[];
 }> {
   const hasSearch = !!params.search;
   const forYou = params.forYou === "true" && artistSet !== null && artistSet.size > 0;
@@ -341,6 +353,24 @@ async function getEvents(
     }
   }
 
+  // "Trending this week": the highest-interest events in the next week, ranked
+  // purely by interest count (not the per-day quality order). Computed from the
+  // already-fetched set so it costs no extra query. Returned as candidates —
+  // the page dedupes against the featured carousel and applies the display cap.
+  const weekEnd = sfDayEnd(sfDayKey(addDays(now, TRENDING_WINDOW_DAYS - 1)));
+  const trending = Object.values(allGrouped)
+    .flat()
+    .filter(
+      (e) =>
+        (e.interestCount ?? 0) >= MIN_TRENDING_INTEREST &&
+        new Date(e.startDate) <= weekEnd
+    )
+    .sort(
+      (a, b) =>
+        (b.interestCount ?? 0) - (a.interestCount ?? 0) ||
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
+
   const allDays = Object.keys(allGrouped).sort();
   const visibleDays = allDays.slice(0, MAX_DAYS);
 
@@ -364,7 +394,7 @@ async function getEvents(
   // 2000-row array length, so "2000 events found" was shown whenever the window
   // held more than 2000 events.
   const total = inMemoryFilterActive ? filteredEvents.length : dbCount;
-  return { grouped, hasMorePerDay, totalPerDay, total };
+  return { grouped, hasMorePerDay, totalPerDay, total, trending };
 }
 
 export default async function Home({
@@ -381,7 +411,7 @@ export default async function Home({
   const spotifyConnected = artistSet !== null;
   const spotifyArtistCount = artistSet?.size ?? 0;
 
-  const [sources, { grouped, hasMorePerDay, totalPerDay, total }, weeklyFeatured] = await Promise.all([
+  const [sources, { grouped, hasMorePerDay, totalPerDay, total, trending }, weeklyFeatured] = await Promise.all([
     getSources(),
     getEvents(params, artistSet),
     getWeeklyFeaturedEvents(params),
@@ -411,6 +441,17 @@ export default async function Home({
     .map((e) => proxiedImage(e.imageUrl))
     .filter((src): src is string => !!src)
     .slice(0, 5);
+
+  // Trending row: top community-interest events this week, excluding anything
+  // already shown in the featured carousel so the two rows don't duplicate. Only
+  // on the default browse view, and only when enough events clear the interest
+  // floor to make a credible row.
+  const featuredIds = new Set(weeklyFeatured.map((e) => e.id));
+  const trendingEvents = trending
+    .filter((e) => !featuredIds.has(e.id))
+    .slice(0, TRENDING_TAKE);
+  const showTrending =
+    !hasNonTopFilters && !forYouActive && trendingEvents.length >= MIN_TRENDING_EVENTS;
 
   return (
     <>
@@ -463,6 +504,8 @@ export default async function Home({
             <FeaturedCarousel events={weeklyFeatured} />
           </div>
         )}
+
+        {showTrending && <TrendingRow events={trendingEvents} />}
 
         <div className="mb-8">
           <Suspense>

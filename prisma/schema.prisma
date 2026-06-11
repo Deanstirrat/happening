@@ -165,6 +165,27 @@ model DuplicatePairDismissal {
   @@map("duplicate_pair_dismissals")
 }
 
+/// Persisted output of the nightly LLM duplicate adjudicator (scripts/merge-dups.ts).
+/// One row per candidate pair the adjudicator has judged, keyed by the two event ids
+/// sorted lexicographically (`${minId}:${maxId}`). This lets the admin dedup UI show
+/// only the *uncertain* band — pairs it leaned toward "duplicate" but scored below the
+/// auto-merge confidence — instead of the raw blocking firehose (thousands of pairs),
+/// and lets the cron skip re-judging settled pairs. Errored adjudications (missing key
+/// / rate-limit) are deliberately NOT written, so a transient failure can never be
+/// cached as a false "not a duplicate". Re-judging a pair replaces its row.
+model DuplicateVerdict {
+  id         String   @id @default(cuid())
+  pairKey    String   @unique
+  same       Boolean
+  confidence Float
+  reason     String
+  model      String
+  judgedAt   DateTime @default(now())
+
+  @@index([same, confidence])
+  @@map("duplicate_verdicts")
+}
+
 model BugReport {
   id          String       @id @default(cuid())
   description String

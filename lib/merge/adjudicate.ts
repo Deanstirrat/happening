@@ -12,7 +12,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = "claude-haiku-4-5";
+/** Model used for adjudication + synthesis. Exported so callers can record which
+ * model produced a persisted verdict (see DuplicateVerdict). */
+export const ADJUDICATE_MODEL = "claude-haiku-4-5";
+const MODEL = ADJUDICATE_MODEL;
 
 export interface AdjudicationInput {
   title: string;

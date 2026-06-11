@@ -33,7 +33,9 @@ import {
   mergeFields,
   type MergeableEvent,
 } from "../lib/merge/mergeFields";
-import { adjudicatePair, synthesizeCluster } from "../lib/merge/adjudicate";
+import { adjudicatePair, synthesizeCluster, ADJUDICATE_MODEL } from "../lib/merge/adjudicate";
+import { pairKey } from "../lib/merge/executeMerge";
+import { MERGE_CONFIDENCE } from "../lib/merge/thresholds";
 
 // Flags can be set via argv (--dry-run / --all) or env (MERGE_DRY_RUN=1 /
 // MERGE_ALL=1). Env is the safer path on Railway: `npm run merge-dups --all`
@@ -46,7 +48,6 @@ const DRY_RUN = process.argv.includes("--dry-run") || process.env.MERGE_DRY_RUN 
 // MERGE_ALL=1) reprocesses every pair, for the one-time backlog backfill.
 const REPROCESS_ALL = process.argv.includes("--all") || process.env.MERGE_ALL === "1";
 const NEW_SINCE_HOURS = Number(process.env.MERGE_NEW_SINCE_HOURS ?? "26");
-const MERGE_CONFIDENCE = Number(process.env.MERGE_CONFIDENCE ?? "0.75");
 const MERGE_MAX_PAIRS = Number(process.env.MERGE_MAX_PAIRS ?? "2000");
 // Lower bound on which events form the comparison universe (default: from
 // yesterday into the future). Keep small — a large window drags in past events
@@ -221,6 +222,31 @@ async function main() {
   if (errored > 0) {
     console.warn(
       `⚠️  ${errored}/${verdicts.length} adjudications FAILED — check ANTHROPIC_API_KEY / rate limits before trusting results`
+    );
+  }
+
+  // Persist every successful verdict (both same and not-same) so the admin dedup
+  // UI can surface only the uncertain band instead of the raw blocking firehose,
+  // and so settled pairs needn't be re-judged. Skip errored adjudications — a
+  // transient API failure must never be cached as a false "not a duplicate".
+  // Re-judging replaces the prior row (delete-then-insert by pairKey).
+  if (!DRY_RUN) {
+    const rows = verdicts
+      .filter((v) => !ERROR_REASONS.has(v.result.reason))
+      .map((v) => ({
+        pairKey: pairKey(v.pair.a.id, v.pair.b.id),
+        same: v.result.same,
+        confidence: v.result.confidence,
+        reason: v.result.reason,
+        model: ADJUDICATE_MODEL,
+      }));
+    const keys = rows.map((r) => r.pairKey);
+    await prisma.$transaction([
+      prisma.duplicateVerdict.deleteMany({ where: { pairKey: { in: keys } } }),
+      prisma.duplicateVerdict.createMany({ data: rows }),
+    ]);
+    console.log(
+      `Persisted ${rows.length} verdicts (skipped ${verdicts.length - rows.length} errored)\n`
     );
   }
 

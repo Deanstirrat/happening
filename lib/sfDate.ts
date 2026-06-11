@@ -169,6 +169,13 @@ export function sfHourOf(date: Date): number {
   return h === 24 ? 0 : h;
 }
 
+/** Returns the SF local minute (0-59) for a given Date */
+export function sfMinuteOf(date: Date): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, minute: "numeric" }).format(date)
+  );
+}
+
 /** Returns true if the SF local hour falls within the named time-of-day bucket */
 export function matchesTimeOfDay(date: Date, bucket: string): boolean {
   const h = sfHourOf(date);

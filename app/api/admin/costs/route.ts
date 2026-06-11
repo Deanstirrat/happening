@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 import { CostService } from "@prisma/client";
 
 const VALID_SERVICES = new Set<CostService>([
@@ -12,7 +13,8 @@ const VALID_SERVICES = new Set<CostService>([
 ]);
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -35,6 +37,13 @@ export async function POST(req: NextRequest) {
       billingMonth: new Date(billingMonth),
       notes: notes?.trim() || null,
     },
+  });
+
+  await logAdminAction(admin, {
+    action: "cost.create",
+    targetType: "cost",
+    targetId: entry.id,
+    metadata: { service, amount },
   });
 
   return NextResponse.json({ entry });

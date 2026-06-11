@@ -4,21 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import AdminNav from "../_components/AdminNav";
 import UnblockButton from "./UnblockButton";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
-
-export default async function AdminBlocklistPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function AdminBlocklistPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const entries = await prisma.eventBlocklist.findMany({
     orderBy: { createdAt: "desc" },
@@ -28,7 +18,7 @@ export default async function AdminBlocklistPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">blocklist</h1>
-        <AdminNav secret={secret} current="blocklist" />
+        <AdminNav current="blocklist" />
         <p className="font-body text-on-surface-variant text-sm">
           {entries.length} blocked event{entries.length !== 1 ? "s" : ""} · these will be skipped by all future scrapes
         </p>
@@ -56,7 +46,7 @@ export default async function AdminBlocklistPage({ searchParams }: Props) {
                 </p>
               </div>
               <div className="shrink-0">
-                <UnblockButton id={entry.id} secret={secret} />
+                <UnblockButton id={entry.id} />
               </div>
             </div>
           ))}

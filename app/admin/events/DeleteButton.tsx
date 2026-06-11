@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DeleteButton({ id, secret }: { id: string; secret: string }) {
+export default function DeleteButton({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -12,7 +12,6 @@ export default function DeleteButton({ id, secret }: { id: string; secret: strin
     setLoading(true);
     await fetch(`/api/admin/events/${id}`, {
       method: "DELETE",
-      headers: { "x-scrape-secret": secret },
     });
     router.refresh();
     setLoading(false);

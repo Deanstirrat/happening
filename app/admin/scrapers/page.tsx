@@ -8,10 +8,8 @@ import {
   type SourceHealthStatus,
 } from "@/lib/scrapers/health";
 import AdminNav from "../_components/AdminNav";
-
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 function relativeTime(date: Date | null): string {
   if (!date) return "Never";
@@ -41,16 +39,8 @@ const HEALTH_DOT: Record<SourceHealthStatus, string> = {
   ignored: "#555",
 };
 
-export default async function ScrapersPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function ScrapersPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400_000);
@@ -98,7 +88,7 @@ export default async function ScrapersPage({ searchParams }: Props) {
       {/* Header + nav */}
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">scrapers</h1>
-        <AdminNav secret={secret} current="scrapers" />
+        <AdminNav current="scrapers" />
       </div>
 
       {/* Summary stats */}

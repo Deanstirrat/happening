@@ -14,7 +14,7 @@ interface EnrichResult {
   titleMismatches: { id: string; stored: string; page: string }[];
 }
 
-export default function EnrichFeatured({ secret }: { secret: string }) {
+export default function EnrichFeatured() {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [result, setResult] = useState<EnrichResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -25,7 +25,6 @@ export default function EnrichFeatured({ secret }: { secret: string }) {
     try {
       const res = await fetch("/api/admin/curation/enrich-featured", {
         method: "POST",
-        headers: { "x-scrape-secret": secret },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

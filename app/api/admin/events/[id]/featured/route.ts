@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -19,6 +21,12 @@ export async function PATCH(
       featured,
       featuredAt: featured ? new Date() : null,
     },
+  });
+
+  await logAdminAction(admin, {
+    action: featured ? "event.feature" : "event.unfeature",
+    targetType: "event",
+    targetId: id,
   });
 
   return NextResponse.json({ success: true, featured });

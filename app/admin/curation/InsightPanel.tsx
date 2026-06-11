@@ -10,10 +10,8 @@ interface Insight {
 }
 
 export default function InsightPanel({
-  secret,
   latest,
 }: {
-  secret: string;
   latest: Insight | null;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -25,7 +23,6 @@ export default function InsightPanel({
     try {
       const res = await fetch("/api/admin/curation/reflect", {
         method: "POST",
-        headers: { "x-scrape-secret": secret },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function BlockButton({ id, secret }: { id: string; secret: string }) {
+export default function BlockButton({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -13,7 +13,6 @@ export default function BlockButton({ id, secret }: { id: string; secret: string
     await fetch(`/api/admin/events/${id}/block`, {
       method: "POST",
       headers: {
-        "x-scrape-secret": secret,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({}),

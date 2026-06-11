@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { subDays } from "date-fns";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic();
 
-function checkCronOrAdminAuth(req: NextRequest): boolean {
-  if (checkAuth(req)) return true;
+// Machine callers (Vercel cron) authenticate with the CRON_SECRET bearer token;
+// human admins authenticate with their session cookie + ADMIN role.
+async function checkCronOrAdminAuth(req: NextRequest): Promise<boolean> {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const auth = req.headers.get("authorization");
     if (auth === `Bearer ${cronSecret}`) return true;
   }
-  return false;
+  return (await getAdminUser(req)) !== null;
 }
 
 // Returns the most recent Monday at midnight UTC — used as the stable key for
@@ -165,7 +166,7 @@ Start with "## Learnings from recent performance:" and use bullet points.`,
 }
 
 export async function GET(req: NextRequest) {
-  if (!checkCronOrAdminAuth(req)) {
+  if (!(await checkCronOrAdminAuth(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
@@ -178,7 +179,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkCronOrAdminAuth(req)) {
+  if (!(await checkCronOrAdminAuth(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {

@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 export default function FeaturedToggle({
   id,
   featured,
-  secret,
 }: {
   id: string;
   featured: boolean;
-  secret: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -21,7 +19,6 @@ export default function FeaturedToggle({
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({ featured: !featured }),
     });

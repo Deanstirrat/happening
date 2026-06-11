@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DeleteCostButton({ id, secret }: { id: string; secret: string }) {
+export default function DeleteCostButton({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -12,7 +12,6 @@ export default function DeleteCostButton({ id, secret }: { id: string; secret: s
     setLoading(true);
     await fetch(`/api/admin/costs/${id}`, {
       method: "DELETE",
-      headers: { "x-scrape-secret": secret },
     });
     router.refresh();
     setLoading(false);

@@ -13,11 +13,10 @@ type User = {
 };
 
 interface Props {
-  secret: string;
   users: User[];
 }
 
-export default function UserActions({ secret, users: initial }: Props) {
+export default function UserActions({ users: initial }: Props) {
   const [users, setUsers] = useState<User[]>(initial);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -34,7 +33,6 @@ export default function UserActions({ secret, users: initial }: Props) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({ email, name }),
     });
@@ -55,7 +53,6 @@ export default function UserActions({ secret, users: initial }: Props) {
     setDeletingId(id);
     const res = await fetch(`/api/admin/users/${id}`, {
       method: "DELETE",
-      headers: { "x-scrape-secret": secret },
     });
     if (res.ok) {
       setUsers((prev) => prev.filter((u) => u.id !== id));

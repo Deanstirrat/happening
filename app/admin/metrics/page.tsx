@@ -6,9 +6,11 @@ import Link from "next/link";
 import AdminNav from "../_components/AdminNav";
 import VisitorLineChart from "./VisitorLineChart";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; window?: string; chartWin?: string }>;
+  searchParams: Promise<{ window?: string; chartWin?: string }>;
 }
 
 function windowLabel(w: string) {
@@ -43,16 +45,10 @@ function pathLabel(path: string): string {
 }
 
 export default async function MetricsPage({ searchParams }: Props) {
-  const { secret, window: win = "7", chartWin = "48" } = await searchParams;
-  const chartHours = chartWin === "24" ? 24 : chartWin === "168" ? 168 : 48;
+  if (!(await getAdminUser())) redirect("/login");
 
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+  const { window: win = "7", chartWin = "48" } = await searchParams;
+  const chartHours = chartWin === "24" ? 24 : chartWin === "168" ? 168 : 48;
 
   const windowDays = win === "all" ? null : win === "30" ? 30 : 7;
   const now = new Date();
@@ -263,7 +259,7 @@ export default async function MetricsPage({ searchParams }: Props) {
     }))
     .filter((e): e is typeof e & { id: string; title: string; startDate: Date } => !!e.id);
 
-  const base = `/admin/metrics?secret=${secret}`;
+  const base = `/admin/metrics`;
   const winTabs = [
     { label: "7d", value: "7" },
     { label: "30d", value: "30" },
@@ -300,7 +296,7 @@ export default async function MetricsPage({ searchParams }: Props) {
             {winTabs.map((t) => (
               <Link
                 key={t.value}
-                href={`${base}&window=${t.value}`}
+                href={`${base}?window=${t.value}`}
                 className={`px-3 py-1.5 rounded-lg font-body text-xs transition-colors ${
                   windowLabel(win) === t.label
                     ? "bg-primary text-on-primary font-semibold"
@@ -312,7 +308,7 @@ export default async function MetricsPage({ searchParams }: Props) {
             ))}
           </div>
         </div>
-        <AdminNav secret={secret} current="metrics" />
+        <AdminNav current="metrics" />
       </div>
 
       {/* ── Site Traffic ─────────────────────────────────────────────────────── */}
@@ -355,7 +351,7 @@ export default async function MetricsPage({ searchParams }: Props) {
                 {(["24", "48", "168"] as const).map((v) => (
                   <Link
                     key={v}
-                    href={`${base}&window=${win}&chartWin=${v}`}
+                    href={`${base}?window=${win}&chartWin=${v}`}
                     className={`px-2.5 py-1 rounded-md font-body text-[11px] transition-colors ${
                       chartWin === v
                         ? "bg-surface-container-highest text-on-surface font-semibold"
@@ -594,9 +590,9 @@ export default async function MetricsPage({ searchParams }: Props) {
         </h2>
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "submissions", value: submissionsCount, href: `/admin/submissions?secret=${secret}` },
-            { label: "bug reports", value: bugReportsCount, href: `/admin/bug-reports?secret=${secret}` },
-            { label: "event reports", value: eventReportsCount, href: `/admin/event-reports?secret=${secret}` },
+            { label: "submissions", value: submissionsCount, href: `/admin/submissions` },
+            { label: "bug reports", value: bugReportsCount, href: `/admin/bug-reports` },
+            { label: "event reports", value: eventReportsCount, href: `/admin/event-reports` },
           ].map(({ label, value, href }) => (
             <Link
               key={label}

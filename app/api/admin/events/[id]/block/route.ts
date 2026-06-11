@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -36,6 +38,13 @@ export async function POST(
   });
 
   await prisma.event.delete({ where: { id } });
+
+  await logAdminAction(admin, {
+    action: "event.block",
+    targetType: "event",
+    targetId: id,
+    metadata: { title: event.title, reason: reason ?? null },
+  });
 
   return NextResponse.json({ ok: true });
 }

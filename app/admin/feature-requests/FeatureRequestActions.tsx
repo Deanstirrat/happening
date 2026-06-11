@@ -7,12 +7,10 @@ import type { FeaturedRequestStatus } from "@prisma/client";
 export default function FeatureRequestActions({
   id,
   status,
-  secret,
   hasLinkedEvent,
 }: {
   id: string;
   status: FeaturedRequestStatus;
-  secret: string;
   hasLinkedEvent: boolean;
 }) {
   const router = useRouter();
@@ -24,7 +22,6 @@ export default function FeatureRequestActions({
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({ id, status: next }),
     });
@@ -38,7 +35,6 @@ export default function FeatureRequestActions({
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({ id, action: "apply-and-feature" }),
     });

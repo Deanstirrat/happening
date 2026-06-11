@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
-export default function EventSearch({ secret, status }: { secret: string; status?: string }) {
+export default function EventSearch({ status }: { status?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
@@ -11,12 +11,11 @@ export default function EventSearch({ secret, status }: { secret: string; status
   const update = useCallback(
     (value: string) => {
       const params = new URLSearchParams();
-      params.set("secret", secret);
       if (status) params.set("status", status);
       if (value) params.set("q", value);
       router.replace(`/admin/events?${params.toString()}`);
     },
-    [router, secret, status]
+    [router, status]
   );
 
   return (

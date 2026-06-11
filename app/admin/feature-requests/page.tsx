@@ -5,10 +5,8 @@ import { format } from "date-fns";
 import FeatureRequestActions from "./FeatureRequestActions";
 import AdminNav from "../_components/AdminNav";
 import Link from "next/link";
-
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 const STATUS_LABELS = {
   NEW: "new",
@@ -30,16 +28,8 @@ const FIELD_LABELS: Record<string, string> = {
   sourceUrl: "Source URL",
 };
 
-export default async function FeatureRequestsPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function FeatureRequestsPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const requests = await prisma.featuredRequest.findMany({
     orderBy: { createdAt: "desc" },
@@ -69,7 +59,7 @@ export default async function FeatureRequestsPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">feature requests</h1>
-        <AdminNav secret={secret} current="feature-requests" />
+        <AdminNav current="feature-requests" />
       </div>
 
       <div>
@@ -185,7 +175,6 @@ export default async function FeatureRequestsPage({ searchParams }: Props) {
                       <FeatureRequestActions
                         id={req.id}
                         status={req.status}
-                        secret={secret}
                         hasLinkedEvent={!!linkedEvent && !linkedEvent.featured}
                       />
                     </div>

@@ -54,6 +54,18 @@ export async function deleteSession(token: string) {
   await prisma.userSession.deleteMany({ where: { token } });
 }
 
+// Returns the signed-in user only when they hold the ADMIN role. Pass `req` from
+// route handlers; omit it in server components (reads the cookie jar directly).
+// This is the auth gate for every admin page and admin API route — the old
+// ?secret= URL param has been removed because URL-borne secrets leak via browser
+// history, server logs, and the Referer header. Machine callers (cron/scrape)
+// still use the header secret in lib/adminAuth.ts.
+export async function getAdminUser(req?: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user || user.role !== "ADMIN") return null;
+  return user;
+}
+
 export function sessionCookieOptions(token: string) {
   const expires = new Date();
   expires.setDate(expires.getDate() + SESSION_DURATION_DAYS);

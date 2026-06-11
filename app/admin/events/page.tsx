@@ -11,9 +11,11 @@ import EventSearch from "./EventSearch";
 import { EventStatus } from "@prisma/client";
 import AdminNav from "../_components/AdminNav";
 import FeaturedToggle from "../submissions/FeaturedToggle";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; status?: string; q?: string; take?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; take?: string }>;
 }
 
 const STATUS_LABELS: Record<EventStatus, string> = {
@@ -31,15 +33,9 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 };
 
 export default async function AdminEventsPage({ searchParams }: Props) {
-  const { secret, status, q, take: takeParam } = await searchParams;
+  if (!(await getAdminUser())) redirect("/login");
 
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+  const { status, q, take: takeParam } = await searchParams;
 
   const statusFilter = status && Object.keys(STATUS_LABELS).includes(status)
     ? (status as EventStatus)
@@ -86,7 +82,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">events</h1>
-        <AdminNav secret={secret} current="events" />
+        <AdminNav current="events" />
         <p className="font-body text-on-surface-variant text-sm">
           showing {events.length}{hasMore ? "+" : ""} event{events.length !== 1 ? "s" : ""}
           {statusFilter ? ` · ${STATUS_LABELS[statusFilter].toLowerCase()}` : ""}
@@ -98,13 +94,13 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       <div className="flex gap-2">
         {tabs.map((tab) => {
           const isActive = (tab.value === "" && !statusFilter) || tab.value === statusFilter;
-          const params = new URLSearchParams({ secret });
+          const params = new URLSearchParams();
           if (tab.value) params.set("status", tab.value);
           if (search) params.set("q", search);
           return (
             <Link
               key={tab.value}
-              href={`/admin/events?${params.toString()}`}
+              href={params.toString() ? `/admin/events?${params.toString()}` : `/admin/events`}
               className={`font-body text-sm px-4 py-1.5 rounded-full transition-colors ${
                 isActive
                   ? "bg-on-surface text-surface font-semibold"
@@ -120,7 +116,7 @@ export default async function AdminEventsPage({ searchParams }: Props) {
       {/* Search */}
       <div>
         <Suspense>
-          <EventSearch secret={secret} status={statusFilter} />
+          <EventSearch status={statusFilter} />
         </Suspense>
       </div>
 
@@ -155,21 +151,21 @@ export default async function AdminEventsPage({ searchParams }: Props) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <FeaturedToggle id={event.id} featured={event.featured} secret={secret} />
+                <FeaturedToggle id={event.id} featured={event.featured} />
                 <Link
-                  href={`/admin/events/${event.id}/edit?secret=${secret}`}
+                  href={`/admin/events/${event.id}/edit`}
                   className="font-body text-sm font-semibold px-4 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors"
                 >
                   Edit
                 </Link>
-                <BlockButton id={event.id} secret={secret} />
-                <DeleteButton id={event.id} secret={secret} />
+                <BlockButton id={event.id} />
+                <DeleteButton id={event.id} />
               </div>
             </div>
           ))}
         </div>
         {hasMore && (() => {
-          const moreParams = new URLSearchParams({ secret });
+          const moreParams = new URLSearchParams();
           if (statusFilter) moreParams.set("status", statusFilter);
           if (search) moreParams.set("q", search);
           moreParams.set("take", String(take + 50));

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await getAdminUser(req)))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
@@ -14,7 +16,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const admin = await getAdminUser(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { email, name } = await req.json().catch(() => ({}));
   if (!email || typeof email !== "string") {
@@ -25,6 +28,13 @@ export async function POST(req: NextRequest) {
     where: { email: email.trim().toLowerCase() },
     create: { email: email.trim().toLowerCase(), name: name?.trim() || null },
     update: { name: name?.trim() || null },
+  });
+
+  await logAdminAction(admin, {
+    action: "user.grant",
+    targetType: "user",
+    targetId: user.id,
+    metadata: { email: user.email },
   });
 
   return NextResponse.json(user, { status: 201 });

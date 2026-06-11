@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function AdminActions({ id, secret }: { id: string; secret: string }) {
+export default function AdminActions({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -13,7 +13,6 @@ export default function AdminActions({ id, secret }: { id: string; secret: strin
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({ id, action }),
     });

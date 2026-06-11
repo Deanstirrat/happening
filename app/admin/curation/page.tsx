@@ -7,21 +7,11 @@ import EnrichFeatured from "./EnrichFeatured";
 import InsightPanel from "./InsightPanel";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { addDays } from "date-fns";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
-
-export default async function CurationPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function CurationPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const now = new Date();
   const todayKey = sfDayKey(now);
@@ -52,7 +42,7 @@ export default async function CurationPage({ searchParams }: Props) {
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">
           curation
         </h1>
-        <AdminNav secret={secret} current="curation" />
+        <AdminNav current="curation" />
         <p className="font-body text-on-surface-variant text-sm">
           {weeklyCount} non-recurring unfeatured event
           {weeklyCount !== 1 ? "s" : ""} next 2 weeks ·{" "}
@@ -60,12 +50,11 @@ export default async function CurationPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <AiSuggestions secret={secret} />
+      <AiSuggestions />
 
-      <EnrichFeatured secret={secret} />
+      <EnrichFeatured />
 
       <InsightPanel
-        secret={secret}
         latest={
           latestInsight
             ? {

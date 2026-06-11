@@ -260,15 +260,35 @@ enum UserRole {
 }
 
 model User {
-  id        String        @id @default(cuid())
-  email     String        @unique
+  id        String          @id @default(cuid())
+  email     String          @unique
   name      String?
-  role      UserRole      @default(EDITOR)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  role      UserRole        @default(EDITOR)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
   sessions  UserSession[]
+  auditLogs AdminAuditLog[]
 
   @@map("users")
+}
+
+// Append-only record of admin actions (approve/reject/feature/delete/etc.) for
+// per-user accountability. actorEmail is denormalized so the trail survives
+// deletion of the acting user (userId is nulled on user delete).
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorEmail String
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@map("admin_audit_logs")
 }
 
 model UserSession {

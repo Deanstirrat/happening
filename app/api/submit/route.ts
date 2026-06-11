@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createEvent, parseDate } from "@/lib/createEvent";
+import { createEvent, parseDate, rejectionMessage } from "@/lib/createEvent";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
 
     if ("parseError" in result) {
       return NextResponse.json({ error: result.message }, { status: 400 });
+    }
+
+    if ("rejected" in result) {
+      return NextResponse.json({ error: rejectionMessage(result.reason) }, { status: 422 });
     }
 
     if ("duplicate" in result) {

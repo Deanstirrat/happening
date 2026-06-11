@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
 import { prisma } from "@/lib/prisma";
-import { isVirtualEvent } from "@/lib/scrapers/runner";
+import { isVirtualEvent } from "@/lib/ingestFilters";
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");

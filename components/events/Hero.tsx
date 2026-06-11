@@ -1,4 +1,3 @@
-import { ChevronDown } from "lucide-react";
 import HeroBackdrop from "./HeroBackdrop";
 
 interface HeroProps {
@@ -28,10 +27,10 @@ function sfDateLine(): string {
  */
 export default function Hero({ title, subtitle, total, tonightCount, images }: HeroProps) {
   return (
-    <section className="relative -mt-px min-h-[24rem] h-[48vh] max-h-[34rem] flex items-end">
+    <section className="relative -mt-px min-h-[17rem] h-[32vh] max-h-[23rem] flex items-center">
       <HeroBackdrop images={images} />
 
-      <div className="relative w-full max-w-screen-xl mx-auto px-4 sm:px-6 pb-10 sm:pb-14">
+      <div className="relative w-full max-w-screen-xl mx-auto px-4 sm:px-6 py-8">
         <p
           className="hero-enter flex items-center gap-2 font-label text-[0.7rem] sm:text-xs font-semibold uppercase tracking-[0.25em] text-on-surface-variant mb-3"
           style={{ "--d": "80ms" } as React.CSSProperties}
@@ -44,7 +43,7 @@ export default function Hero({ title, subtitle, total, tonightCount, images }: H
         </p>
 
         <h1
-          className="hero-enter font-headline font-black text-6xl sm:text-7xl lg:text-8xl text-on-surface lowercase leading-[0.92] tracking-tight"
+          className="hero-enter font-headline font-black text-5xl sm:text-6xl lg:text-7xl text-on-surface lowercase leading-[0.92] tracking-tight"
           style={{ "--d": "180ms" } as React.CSSProperties}
         >
           {title}
@@ -79,14 +78,6 @@ export default function Hero({ title, subtitle, total, tonightCount, images }: H
             </>
           )}
         </div>
-      </div>
-
-      <div
-        className="hero-enter absolute bottom-3 left-1/2 -translate-x-1/2 hidden sm:block text-on-surface-variant/60"
-        style={{ "--d": "700ms" } as React.CSSProperties}
-        aria-hidden
-      >
-        <ChevronDown size={18} className="animate-bounce" />
       </div>
     </section>
   );

@@ -40,8 +40,12 @@ export async function loadGoogleFont(
     if (!cssRes.ok) return null;
 
     const css = await cssRes.text();
+    // Google's css2 API now hands the old-Chrome UA a `woff` source (it used to
+    // be `truetype`). Satori parses ttf/otf/woff, so accept `woff` too — but never
+    // `woff2`, which Satori can't decode. The trailing quote keeps `woff` from
+    // matching inside `woff2`.
     const match = css.match(
-      /src:\s*url\((https:\/\/[^)]+)\)\s*format\('(?:truetype|opentype)'\)/,
+      /src:\s*url\((https:\/\/[^)]+)\)\s*format\('(?:truetype|opentype|woff)'\)/,
     );
     if (!match) return null;
 

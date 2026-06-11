@@ -8,6 +8,7 @@
  * "which value is best" rules and is straightforward to unit-test.
  */
 import type { EventCategory, RecurringType } from "@prisma/client";
+import { sfHourOf, sfMinuteOf } from "@/lib/sfDate";
 
 export interface MergeableEvent {
   id: string;
@@ -76,7 +77,9 @@ function isVenueAsTitle(e: MergeableEvent): boolean {
 
 /** A start time of exactly local-midnight usually means "time unknown", not a real time. */
 function hasSpecificTime(d: Date): boolean {
-  return !(d.getUTCHours() === 0 && d.getUTCMinutes() === 0);
+  // Events are stored in SF local time. Compare against SF-local midnight, not
+  // UTC midnight (which is 4–5 PM SF and would discard real late-afternoon times).
+  return !(sfHourOf(d) === 0 && sfMinuteOf(d) === 0);
 }
 
 /**

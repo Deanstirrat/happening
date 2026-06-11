@@ -29,11 +29,15 @@ interface Source {
 
 interface FilterSidebarProps {
   sources: Source[];
+  // The Spotify integration is unreliable for most accounts right now, so it's
+  // hidden for everyone except elevated users (admins/editors). The server
+  // computes this flag; when false the whole "For You" section is omitted.
+  spotifyEnabled?: boolean;
   spotifyConnected?: boolean;
   spotifyArtistCount?: number;
 }
 
-export default function FilterSidebar({ sources, spotifyConnected = false, spotifyArtistCount = 0 }: FilterSidebarProps) {
+export default function FilterSidebar({ sources, spotifyEnabled = false, spotifyConnected = false, spotifyArtistCount = 0 }: FilterSidebarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -220,7 +224,8 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
           Filters
         </p>
 
-        {/* Spotify */}
+        {/* Spotify — only shown to elevated users while the integration is flaky */}
+        {spotifyEnabled && (
         <div className="rounded-DEFAULT overflow-hidden mb-1">
           <div className="px-3 py-2.5">
             <div className="flex items-center gap-2 text-on-surface-variant font-body text-xs font-medium uppercase tracking-wider mb-2">
@@ -268,6 +273,7 @@ export default function FilterSidebar({ sources, spotifyConnected = false, spoti
             )}
           </div>
         </div>
+        )}
 
         {/* Date */}
         <Section

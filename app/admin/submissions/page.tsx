@@ -1,11 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
-import { CATEGORY_LABELS } from "@/lib/types";
 import { format } from "date-fns";
-import AdminActions from "./AdminActions";
 import FeaturedToggle from "./FeaturedToggle";
-import SubmissionImageEdit from "./SubmissionImageEdit";
+import SubmissionsQueue from "./SubmissionsQueue";
 import AdminNav from "../_components/AdminNav";
 import { getAdminUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -84,75 +82,7 @@ export default async function SubmissionsPage() {
           </p>
         </div>
 
-        {events.length === 0 ? (
-          <p className="font-body text-on-surface-variant">Nothing to review.</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {events.map((event) => (
-              <div
-                key={event.id}
-                className="bg-surface-container rounded-2xl p-5 flex flex-col gap-3"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">
-                      {event.title}
-                    </h2>
-                    <p className="font-body text-on-surface-variant text-sm mt-0.5">
-                      {format(event.startDate, "EEE, MMM d yyyy")}
-                      {event.venueName && ` · ${event.venueName}`}
-                      {event.neighborhood && ` · ${event.neighborhood}`}
-                    </p>
-                  </div>
-                  {event.category && (
-                    <span className="chip shrink-0 text-xs">
-                      {CATEGORY_LABELS[event.category] ?? event.category}
-                    </span>
-                  )}
-                </div>
-
-                {event.description && (
-                  <p className="font-body text-on-surface text-sm">{event.description}</p>
-                )}
-
-                <div className="flex flex-wrap gap-2 text-xs font-body text-on-surface-variant">
-                  {event.price && <span>{event.price}</span>}
-                  {event.isFree && <span>Free</span>}
-                  {event.venueAddress && <span>{event.venueAddress}</span>}
-                  {event.tags.map((t) => (
-                    <span key={t} className="chip">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                {event.submitterNote && (
-                  <p className="font-body text-on-surface-variant text-xs italic">
-                    Note: {event.submitterNote}
-                  </p>
-                )}
-
-                <SubmissionImageEdit id={event.id} imageUrl={event.imageUrl} />
-
-                <div className="flex items-center gap-3 mt-1">
-                  <a
-                    href={event.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-body text-xs text-on-surface-variant hover:text-on-surface underline truncate max-w-xs"
-                  >
-                    {event.sourceUrl}
-                  </a>
-                  <span className="font-body text-xs text-on-surface-variant ml-auto">
-                    submitted {format(event.scrapedAt, "MMM d h:mma")}
-                  </span>
-                </div>
-
-                <AdminActions id={event.id} />
-              </div>
-            ))}
-          </div>
-        )}
+        <SubmissionsQueue events={events} />
       </section>
 
       {/* Submission history */}

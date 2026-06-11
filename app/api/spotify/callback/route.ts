@@ -13,10 +13,9 @@ export async function GET(req: NextRequest) {
   const savedState = cookieStore.get("spotify_state")?.value;
   cookieStore.delete("spotify_state");
 
-  // Respect reverse-proxy headers (Railway serves on 0.0.0.0 internally)
-  const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(/:$/, "");
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
-  const base = `${proto}://${host}`;
+  // Pin redirects to the configured base URL rather than trusting
+  // client-controlled forwarded-host headers (open-redirect surface).
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now";
   const eventsUrl = new URL("/", base);
 
   if (error || !code) {

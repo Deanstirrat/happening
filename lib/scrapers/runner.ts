@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
+import { resolveVenueId } from "@/lib/venueLink";
 import { categorizeEvent } from "@/lib/categorize";
 import { BaseScraper } from "./base";
 import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, isVenueFuzzyMatch, MIN_TOKENS } from "@/lib/fuzzy";
@@ -538,6 +539,10 @@ export async function runScraper(
       console.log(`[${slug}] Ungeocoded — held for review: "${event.title}"`);
     }
 
+    // Link to the normalized Venue table when the venue is known. Same matching
+    // as geocodeEvent (pass slug so SFPL branch labels resolve for sfpl only).
+    const venueId = await resolveVenueId(event.venueName, slug);
+
     // Categorize — use pre-assigned category if the scraper provided one
     const category = event.category
       ? (event.category as import("@prisma/client").EventCategory)
@@ -556,6 +561,7 @@ export async function runScraper(
           allDay: event.allDay ?? false,
           venueName: event.venueName,
           venueAddress: event.venueAddress,
+          venueId,
           neighborhood: geo.neighborhood,
           latitude: geo.latitude,
           longitude: geo.longitude,

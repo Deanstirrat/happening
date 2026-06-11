@@ -388,8 +388,39 @@ model User {
   sessions  UserSession[]
   auditLogs AdminAuditLog[]
   interests EventInterest[]
+  follows   Follow[]
 
   @@map("users")
+}
+
+enum FollowTargetType {
+  VENUE
+  CATEGORY
+  ARTIST
+}
+
+// A user's standing interest in a venue, category, or artist (issue #98). Feeds
+// the "following" page and, later, the weekly email digest (#97). One row per
+// (user, type, target); presence = an active follow.
+//
+// targetId is polymorphic by targetType:
+//   VENUE    → Venue.id (only normalized venues are followable; see lib/venues.ts)
+//   CATEGORY → an EventCategory enum name, e.g. "MUSIC_ELECTRONIC"
+//   ARTIST   → a lowercased artist display name, matched the same way the Spotify
+//              "for you" feed does (lib/artistMatch.ts): a performer hit, or a
+//              word-boundary title hit on music events
+model Follow {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType FollowTargetType
+  targetId   String
+  createdAt  DateTime         @default(now())
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@map("follows")
 }
 
 // Append-only record of admin actions (approve/reject/feature/delete/etc.) for

@@ -127,7 +127,7 @@ export default async function MapPage({
   return (
     <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-52px)]">
       {/* Filter sidebar */}
-      <div className="relative w-full lg:w-52 lg:shrink-0 bg-surface-container-low overflow-y-auto py-4 lg:py-6 px-4 max-h-64 lg:max-h-none z-10">
+      <div className="relative w-full lg:w-52 lg:shrink-0 bg-surface-container-low overflow-y-auto py-4 lg:py-6 px-4 max-h-[75vh] lg:max-h-none z-10">
         <Suspense>
           <FilterSidebar sources={sources} />
         </Suspense>

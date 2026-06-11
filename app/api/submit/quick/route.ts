@@ -46,6 +46,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result.message }, { status: 422 });
     }
 
+    if ("rejected" in result) {
+      return NextResponse.json({ error: result.reason }, { status: 422 });
+    }
+
     if ("duplicate" in result) {
       return NextResponse.json({
         duplicate: true,

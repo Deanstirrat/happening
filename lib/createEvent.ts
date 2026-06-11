@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
 import { categorizeEvent } from "@/lib/categorize";
 import { sfDayStart, sfDateFromLocal } from "@/lib/sfDate";
+import { decodeHtmlEntities } from "@/lib/decodeEntities";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent } from "@/lib/eventFilters";
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -107,11 +109,12 @@ export interface EventFields {
 export type CreateEventResult =
   | { success: true; eventId: string; title: string }
   | { duplicate: true; eventId: string }
-  | { parseError: true; message: string };
+  | { parseError: true; message: string }
+  | { rejected: true; reason: string };
 
 export async function createEvent(fields: EventFields): Promise<CreateEventResult> {
   const {
-    title,
+    title: rawTitle,
     dateRaw,
     timeRaw,
     allDay: allDayField,
@@ -119,7 +122,7 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     venueAddress,
     price,
     isFree,
-    description,
+    description: rawDescription,
     tags,
     sourceUrl,
     submitterNote,
@@ -127,6 +130,22 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
     categoryOverride,
     recurringType,
   } = fields;
+
+  // Decode HTML entities (e.g. &amp;, &#39;) so encoded artifacts never reach
+  // storage, the dedupe hash, or downstream filters. Applied here so every
+  // creation path — quick submit, full form, URL extract, admin create — gets
+  // the same hygiene the scraper runner already does. (See issue #87.)
+  const title = decodeHtmlEntities(rawTitle);
+  const description = rawDescription != null ? decodeHtmlEntities(rawDescription) : rawDescription;
+
+  // Same ingestion-quality gates the scraper runner applies: drop online-only
+  // events and babies/seniors library programming, which are off-vibe for the app.
+  if (isVirtualEvent({ title, description, venueName })) {
+    return { rejected: true, reason: "This looks like a virtual / online-only event, which we don't list." };
+  }
+  if (isBabyOrSeniorLibraryEvent({ title, venueName, sourceUrl, tags })) {
+    return { rejected: true, reason: "This looks like a babies/seniors library program, which we don't list." };
+  }
 
   const startDate = parseDate(dateRaw, timeRaw);
   if (!startDate) {

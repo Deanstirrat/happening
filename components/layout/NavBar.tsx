@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, LogIn, LogOut } from "lucide-react";
 import { useState } from "react";
+import Logo from "@/components/ui/Logo";
 
 export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
   const pathname = usePathname();
@@ -34,11 +35,8 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
     <header className="sticky top-0 z-50 glass">
       <nav className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-6">
         {/* Logo */}
-        <Link
-          href="/"
-          className="font-headline font-bold text-xl text-on-surface tracking-tight shrink-0"
-        >
-          happening
+        <Link href="/" className="text-on-surface shrink-0" aria-label="happening home">
+          <Logo className="text-xl" />
         </Link>
 
         {/* Nav links — hidden on mobile when search is focused */}

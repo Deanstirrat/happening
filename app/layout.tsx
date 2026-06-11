@@ -3,6 +3,7 @@ import "./globals.css";
 import NavBarWrapper from "@/components/layout/NavBarWrapper";
 import BugReportButton from "@/components/ui/BugReportButton";
 import PageTracker from "@/components/analytics/PageTracker";
+import Logo from "@/components/ui/Logo";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function RootLayout({
         </Suspense>
         <main className="flex-1">{children}</main>
         <footer className="mt-auto py-6 px-4 sm:px-6 flex items-center justify-between text-on-surface-variant text-xs font-body max-w-screen-xl mx-auto w-full">
-          <span className="font-headline font-bold text-sm text-on-surface">happening</span>
+          <Logo className="text-sm text-on-surface" />
           <a
             href="/feature"
             className="hover:text-on-surface transition-colors"

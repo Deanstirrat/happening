@@ -374,6 +374,15 @@ model User {
   // Self-serve magic-link signups default to USER (issue #96). EDITOR/ADMIN are
   // granted explicitly by an admin via the users admin page.
   role      UserRole        @default(USER)
+  // Weekly "this weekend in SF" digest (issue #97). Accounts are opted in by
+  // default — signing up is the consent — and opt out via the one-click
+  // unsubscribe link in every email (no login required, so the token is the
+  // capability). unsubscribeToken is minted lazily on first send (null until
+  // then); lastDigestSentAt guards against double-sends within a week and aids
+  // observability.
+  digestOptIn      Boolean   @default(true)
+  unsubscribeToken String?   @unique
+  lastDigestSentAt DateTime?
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   sessions  UserSession[]

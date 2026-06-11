@@ -24,10 +24,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email is required." }, { status: 400 });
   }
 
+  // This is the "grant access" flow, so created accounts are EDITORs explicitly
+  // — the column default is now USER for self-serve signups (issue #96). An
+  // existing self-serve USER being added here is promoted to EDITOR; ADMINs and
+  // EDITORs keep their role.
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
   const user = await prisma.user.upsert({
-    where: { email: email.trim().toLowerCase() },
-    create: { email: email.trim().toLowerCase(), name: name?.trim() || null },
-    update: { name: name?.trim() || null },
+    where: { email: normalizedEmail },
+    create: { email: normalizedEmail, name: name?.trim() || null, role: "EDITOR" },
+    update: {
+      name: name?.trim() || null,
+      ...(existing?.role === "USER" ? { role: "EDITOR" as const } : {}),
+    },
   });
 
   await logAdminAction(admin, {

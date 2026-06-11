@@ -14,6 +14,20 @@ function generateToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
+// ── Users ──────────────────────────────────────────────────────────────────--
+
+// Self-serve signup (issue #96): the first time someone redeems a magic link for
+// an email with no account, create one with the default USER role. Editors/admins
+// are still provisioned explicitly via the admin users page. Idempotent — used on
+// every login, so it just returns the existing user when one is present.
+export async function findOrCreateUser(email: string) {
+  return prisma.user.upsert({
+    where: { email },
+    update: {},
+    create: { email },
+  });
+}
+
 // ── Session ──────────────────────────────────────────────────────────────────
 
 export async function createSession(email: string): Promise<string> {

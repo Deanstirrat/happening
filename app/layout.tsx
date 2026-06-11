@@ -4,6 +4,7 @@ import "./globals.css";
 import NavBarWrapper from "@/components/layout/NavBarWrapper";
 import BugReportButton from "@/components/ui/BugReportButton";
 import PageTracker from "@/components/analytics/PageTracker";
+import SessionSync from "@/components/analytics/SessionSync";
 import Logo from "@/components/ui/Logo";
 import { Suspense } from "react";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
         <Suspense>
           <NavBarWrapper />
           <PageTracker />
+          <SessionSync />
         </Suspense>
         <main className="flex-1">{children}</main>
         <footer className="mt-auto border-t border-on-surface/10">

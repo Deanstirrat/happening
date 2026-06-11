@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyMagicLinkToken, createSession, sessionCookieOptions } from "@/lib/auth";
+import {
+  verifyMagicLinkToken,
+  findOrCreateUser,
+  createSession,
+  sessionCookieOptions,
+} from "@/lib/auth";
 
 function siteUrl(path: string) {
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now";
@@ -18,8 +23,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(siteUrl("/login?error=invalid"));
   }
 
+  // Self-serve signup: create a USER-role account on first redemption (issue
+  // #96). `?claimed=1` tells the client to migrate any anonymous interest data
+  // from this browser into the account.
+  await findOrCreateUser(email);
+
   const sessionToken = await createSession(email);
-  const response = NextResponse.redirect(siteUrl("/"));
+  const response = NextResponse.redirect(siteUrl("/?claimed=1"));
   response.cookies.set(sessionCookieOptions(sessionToken));
   return response;
 }

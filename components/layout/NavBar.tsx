@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import Logo from "@/components/ui/Logo";
 import { getSavedEventIds, subscribeSavedEvents } from "@/lib/savedEvents";
 
-export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
+export default function NavBar({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -76,7 +76,7 @@ export default function NavBar({ isEditor = false }: { isEditor?: boolean }) {
 
         {/* Auth */}
         <div className={`shrink-0 transition-all duration-200 ${searchFocused ? "hidden sm:flex" : "flex"}`}>
-          {isEditor ? (
+          {isSignedIn ? (
             <button
               onClick={handleLogout}
               className="font-body text-xs text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1.5 px-2 py-1.5"

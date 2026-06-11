@@ -7,6 +7,7 @@ import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, isVenueFuzzyMatch, MI
 import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
+import { decodeHtmlEntities } from "@/lib/decodeEntities";
 
 // Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
 const GENERIC_SOURCE_URL_PATTERNS = [
@@ -222,13 +223,7 @@ function extractOgDescription(html: string): string | undefined {
     html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ??
     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
   if (!match?.[1]) return undefined;
-  let desc = match[1]
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
+  let desc = decodeHtmlEntities(match[1]);
   if (!desc) return undefined;
   if (desc.length > DESCRIPTION_MAX_LENGTH) {
     desc = desc.slice(0, DESCRIPTION_MAX_LENGTH).replace(/\s+\S*$/, "") + "…";

@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
 import { prisma } from "../lib/prisma";
+import { decodeHtmlEntities } from "../lib/decodeEntities";
 
 const CONCURRENCY = 5;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -17,13 +18,7 @@ function extractOgDescription(html: string): string | undefined {
     html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ??
     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
   if (!match?.[1]) return undefined;
-  let desc = match[1]
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
+  let desc = decodeHtmlEntities(match[1]);
   if (!desc) return undefined;
   if (desc.length > DESCRIPTION_MAX_LENGTH) {
     desc = desc.slice(0, DESCRIPTION_MAX_LENGTH).replace(/\s+\S*$/, "") + "…";

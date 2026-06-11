@@ -1,9 +1,24 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import NavBarWrapper from "@/components/layout/NavBarWrapper";
 import BugReportButton from "@/components/ui/BugReportButton";
 import PageTracker from "@/components/analytics/PageTracker";
 import { Suspense } from "react";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
+
+const grotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-grotesk",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now"),
@@ -17,21 +32,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark h-full antialiased">
+    <html lang="en" className={`dark h-full antialiased ${jakarta.variable} ${grotesk.variable}`}>
       <body className="min-h-full flex flex-col bg-background text-on-surface">
         <Suspense>
           <NavBarWrapper />
           <PageTracker />
         </Suspense>
         <main className="flex-1">{children}</main>
-        <footer className="mt-auto py-6 px-4 sm:px-6 flex items-center justify-between text-on-surface-variant text-xs font-body max-w-screen-xl mx-auto w-full">
-          <span className="font-headline font-bold text-sm text-on-surface">happening</span>
-          <a
-            href="/feature"
-            className="hover:text-on-surface transition-colors"
-          >
-            feature an event
-          </a>
+        <footer className="mt-auto border-t border-on-surface/10">
+          <div className="py-6 px-4 sm:px-6 flex items-center justify-between text-on-surface-variant text-xs font-body max-w-screen-xl mx-auto w-full">
+            <span className="font-headline font-bold text-sm text-on-surface">
+              happening<span className="text-primary">.</span>
+            </span>
+            <a
+              href="/feature"
+              className="hover:text-primary transition-colors"
+            >
+              feature an event
+            </a>
+          </div>
         </footer>
         <BugReportButton />
       </body>

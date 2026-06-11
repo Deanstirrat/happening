@@ -51,6 +51,7 @@ export default function InterestButton({
   const [count, setCount] = useState(initialCount);
   const [interested, setInterested] = useState(false);
   const [pending, setPending] = useState(false);
+  const [popping, setPopping] = useState(false);
 
   // Initial vote state is read from localStorage (anonymous, no server round-trip).
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function InterestButton({
     const next = !interested;
     // Optimistic update.
     setInterested(next);
+    if (next) setPopping(true);
     setCount((c) => Math.max(0, c + (next ? 1 : -1)));
     persistVoted(eventId, next);
     setPending(true);
@@ -97,6 +99,20 @@ export default function InterestButton({
   const label = interested ? "Remove interest" : "I'm interested";
   const countLabel = count > 0 ? count.toLocaleString() : "";
 
+  // Spring-pop wrapper around the heart; cleared when the animation finishes.
+  const heartWrap = (size: number) => (
+    <span
+      className={`inline-flex shrink-0 ${popping ? "heart-pop" : ""}`}
+      onAnimationEnd={() => setPopping(false)}
+    >
+      <Heart
+        size={size}
+        className={interested ? "text-primary" : ""}
+        fill={interested ? "currentColor" : "none"}
+      />
+    </span>
+  );
+
   if (variant === "detail") {
     return (
       <button
@@ -108,11 +124,7 @@ export default function InterestButton({
           interested ? "!bg-primary/15" : ""
         }`}
       >
-        <Heart
-          size={15}
-          className={interested ? "text-primary" : ""}
-          fill={interested ? "currentColor" : "none"}
-        />
+        {heartWrap(15)}
         {interested ? "interested" : "i'm interested"}
         {countLabel && <span className="opacity-70">· {countLabel}</span>}
       </button>
@@ -131,13 +143,11 @@ export default function InterestButton({
       onClick={toggle}
       aria-pressed={interested}
       aria-label={label}
-      className={`flex items-center gap-1 rounded-full px-2 py-1 text-[0.65rem] font-body font-semibold transition-colors ${pillBase}`}
+      className={`flex items-center gap-1 rounded-full min-h-[1.75rem] px-2.5 py-1 text-[0.7rem] font-body font-semibold transition-all ${pillBase} ${
+        interested ? "ring-1 ring-primary/60" : ""
+      }`}
     >
-      <Heart
-        size={11}
-        className={`shrink-0 ${interested ? "text-primary" : ""}`}
-        fill={interested ? "currentColor" : "none"}
-      />
+      {heartWrap(12)}
       {countLabel || "interested"}
     </button>
   );

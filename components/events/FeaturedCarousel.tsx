@@ -58,8 +58,11 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
       >
         {/* Sliding strip */}
         <div
-          className="flex transition-transform duration-500 ease-in-out"
-          style={{ transform: `translateX(-${index * 100}%)` }}
+          className="flex transition-transform duration-700"
+          style={{
+            transform: `translateX(-${index * 100}%)`,
+            transitionTimingFunction: "var(--ease-out-expo)",
+          }}
         >
           {events.map((event) => (
             <div key={event.id} className="w-full shrink-0">
@@ -104,7 +107,7 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
           </>
         )}
 
-        {/* Dot indicators — inside card at bottom */}
+        {/* Dot indicators — active dot fills like a progress bar over the 5s auto-advance */}
         {multi && (
           <div className="absolute bottom-3 left-0 right-0 flex gap-1.5 items-center justify-center pointer-events-none">
             {events.map((_, i) => (
@@ -112,13 +115,25 @@ export default function FeaturedCarousel({ events }: FeaturedCarouselProps) {
                 key={i}
                 onClick={() => goTo(i)}
                 aria-label={`Go to slide ${i + 1}`}
-                className="rounded-full transition-all duration-300 pointer-events-auto"
+                className="relative overflow-hidden rounded-full transition-all duration-300 pointer-events-auto"
                 style={
                   i === index
-                    ? { width: "1rem", height: "0.375rem", background: "linear-gradient(135deg, #ff3b30, #ff0000)" }
+                    ? { width: "1.75rem", height: "0.375rem", background: "rgba(255,255,255,0.25)" }
                     : { width: "0.375rem", height: "0.375rem", background: "rgba(255,255,255,0.3)" }
                 }
-              />
+              >
+                {i === index && (
+                  <span
+                    key={`fill-${index}-${paused}`}
+                    className="absolute inset-0 origin-left rounded-full"
+                    style={{
+                      background: "linear-gradient(135deg, #ff3b30, #ff0000)",
+                      animation: "dot-fill 5s linear forwards",
+                      animationPlayState: paused ? "paused" : "running",
+                    }}
+                  />
+                )}
+              </button>
             ))}
           </div>
         )}

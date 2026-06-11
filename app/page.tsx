@@ -7,6 +7,9 @@ import FilterSidebar from "@/components/layout/FilterSidebar";
 import DateGroup from "@/components/events/DateGroup";
 import FeaturedCarousel from "@/components/events/FeaturedCarousel";
 import TimeFilterTabs from "@/components/events/TimeFilterTabs";
+import Hero from "@/components/events/Hero";
+import EmptyState from "@/components/ui/EmptyState";
+import { proxiedImage } from "@/lib/eventImage";
 import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
@@ -400,8 +403,34 @@ export default async function Home({
     params.timeOfDay || params.forYou || params.sort
   );
 
+  // Full-bleed hero on the default browse view; compact heading once the
+  // visitor is actively filtering/searching (they came to scan, not to land).
+  const showHero = !hasNonTopFilters;
+  const todayKey = sfDayKey(new Date());
+  const heroImages = weeklyFeatured
+    .map((e) => proxiedImage(e.imageUrl))
+    .filter((src): src is string => !!src)
+    .slice(0, 5);
+
   return (
-    <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-6 lg:gap-8">
+    <>
+      {showHero && (
+        <Hero
+          title={forYouActive ? "for you" : "san francisco"}
+          subtitle={
+            forYouActive
+              ? total > 0
+                ? `${total} event${total !== 1 ? "s" : ""} matching your Spotify artists`
+                : "no matching events — try a wider date range or connect more artists"
+              : undefined
+          }
+          total={total}
+          tonightCount={totalPerDay[todayKey] ?? 0}
+          images={heroImages}
+        />
+      )}
+
+    <div className={`max-w-screen-xl mx-auto px-4 sm:px-6 ${showHero ? "pb-6 sm:pb-8" : "py-6 sm:py-8"} flex flex-col lg:flex-row gap-6 lg:gap-8`}>
       {/* Filter sidebar */}
       <div className="w-full lg:w-52 lg:shrink-0">
         <Suspense>
@@ -415,18 +444,18 @@ export default async function Home({
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        <div className="mb-8">
-          <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
-            {forYouActive ? "for you" : "san francisco"}
-          </h1>
-          <p className="font-body text-on-surface-variant text-sm mt-2">
-            {total > 0
-              ? `${total} event${total !== 1 ? "s" : ""} found${forYouActive ? " matching your Spotify artists" : ""}`
-              : forYouActive
-              ? "No matching events — try a wider date range or connect more artists"
-              : "No events found — try adjusting your filters"}
-          </p>
-        </div>
+        {!showHero && (
+          <div className="mb-8">
+            <h1 className="font-headline font-black text-4xl sm:text-5xl lg:text-6xl text-on-surface lowercase leading-none">
+              san francisco<span className="text-primary">.</span>
+            </h1>
+            <p className="font-body text-on-surface-variant text-sm mt-2">
+              {total > 0
+                ? `${total} event${total !== 1 ? "s" : ""} found`
+                : "No events found — try adjusting your filters"}
+            </p>
+          </div>
+        )}
 
         {!hasNonTopFilters && weeklyFeatured.length > 0 && !forYouActive && (
           <div className="mb-6">
@@ -453,16 +482,10 @@ export default async function Home({
             />
           ))
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="text-5xl">🌉</div>
-            <p className="font-body text-on-surface-variant text-center">
-              No events match your filters.
-              <br />
-              Try a wider date range or fewer filters.
-            </p>
-          </div>
+          <EmptyState />
         )}
       </div>
     </div>
+    </>
   );
 }

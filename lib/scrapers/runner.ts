@@ -587,10 +587,22 @@ export async function runScraper(
 
     // Skip events outside the SF service area (too far to be worth listing).
     // Only filters when coordinates confidently place the event out of range —
-    // missing/placeholder coords are kept (see isTooFarFromSf).
+    // missing/placeholder coords are kept (see isTooFarFromSf). Dropping at
+    // ingest retires the scripts/cleanup-far-events archive sweep for new events.
     if (isTooFarFromSf(geo.latitude, geo.longitude)) {
       console.log(`[${slug}] Out of area (skipped): "${event.title}"`);
       continue;
+    }
+
+    // Hold ungeocoded events for review instead of publishing them without a
+    // neighborhood. geocodeEvent already tries scraper-provided coords, the
+    // static known-venue table (lib/venues.ts), and Nominatim; if all three
+    // fail we can't place the event on the map or filter it by neighborhood, so
+    // it goes to the admin PENDING queue rather than live. Retires the manual
+    // scripts/backfill-venues sweep for the ungeocoded backlog.
+    const geocodeFailed = geo.latitude == null || geo.longitude == null;
+    if (geocodeFailed) {
+      console.log(`[${slug}] Ungeocoded — held for review: "${event.title}"`);
     }
 
     // Categorize — use pre-assigned category if the scraper provided one
@@ -623,6 +635,7 @@ export async function runScraper(
           performers: event.performers ?? [],
           externalInterest: event.externalInterest ?? 0,
           geocoded: geo.latitude != null,
+          status: geocodeFailed ? "PENDING" : "PUBLISHED",
           categorized: true,
           sourceId: source.id,
         },

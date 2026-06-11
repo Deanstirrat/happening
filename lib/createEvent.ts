@@ -33,6 +33,31 @@ function startTimeOnly(timeRaw: string): string {
   return timeRaw.split(/\s*[-–]\s*/)[0].trim();
 }
 
+// Events ingested here are always near-future (we scrape daily, flyers advertise
+// weeks-to-months ahead). A parsed date landing far beyond that window almost
+// always means a wrong year — most often an LLM that "filled in" a year the flyer
+// never printed (see lib/extract.ts), which we'd otherwise trust because the
+// format carried an explicit year. Re-anchor such dates to the nearest sensible
+// occurrence instead of trusting the year blindly.
+const MAX_FUTURE_DAYS = 310;
+const MAX_PAST_DAYS = 60;
+
+function reanchorFarFuture(d: Date): Date {
+  const now = Date.now();
+  if ((d.getTime() - now) / 86400000 <= MAX_FUTURE_DAYS) return d;
+  const out = new Date(d);
+  // Step back whole years until the date is within the plausible-future window.
+  while ((out.getTime() - now) / 86400000 > MAX_FUTURE_DAYS) {
+    out.setFullYear(out.getFullYear() - 1);
+  }
+  // Don't overshoot into the distant past (e.g. a date that's genuinely ~11
+  // months out shouldn't get pulled back a full year).
+  if ((out.getTime() - now) / 86400000 < -MAX_PAST_DAYS) {
+    out.setFullYear(out.getFullYear() + 1);
+  }
+  return out;
+}
+
 function tryParse(str: string, fmt: string, refYear: number): Date | null {
   const parsed = parse(str.trim(), fmt, new Date(refYear, 0, 1));
   if (!isValid(parsed)) return null;
@@ -64,15 +89,18 @@ export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null
         // Re-interpret the parsed components as SF local time so "11:30 AM"
         // from a user means 11:30 AM Pacific, not 11:30 AM UTC.
         if (startTime) {
+          // Re-anchor the wall-clock date before converting to a UTC instant so
+          // the SF local time is preserved across the year shift.
+          const anchored = reanchorFarFuture(result);
           return sfDateFromLocal(
-            result.getFullYear(),
-            result.getMonth() + 1,
-            result.getDate(),
-            result.getHours(),
-            result.getMinutes(),
+            anchored.getFullYear(),
+            anchored.getMonth() + 1,
+            anchored.getDate(),
+            anchored.getHours(),
+            anchored.getMinutes(),
           );
         }
-        return result;
+        return reanchorFarFuture(result);
       }
     }
   }
@@ -81,7 +109,7 @@ export function parseDate(dateRaw: string, timeRaw?: string | null): Date | null
   if (isValid(native)) {
     const diffDays = (native.getTime() - Date.now()) / 86400000;
     if (diffDays < -60) native.setFullYear(currentYear + 1);
-    return native;
+    return reanchorFarFuture(native);
   }
 
   return null;

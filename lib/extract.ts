@@ -14,6 +14,20 @@ export interface ExtractedEvent {
   tags: string[];
 }
 
+// The SF-local date the extraction is running on. Giving the model an explicit
+// "today" anchor stops it from inventing a year for year-less flyers — its main
+// failure mode was emitting a date one+ years in the future (see parseDate's
+// reanchorFarFuture guard in lib/createEvent.ts).
+function todaySf(): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+}
+
 const EXTRACT_PROMPT = `You are extracting event details from a San Francisco event flyer or Instagram post.
 
 Extract the following fields. If a field is not present or unclear, return null for it.
@@ -33,7 +47,7 @@ Return ONLY a valid JSON object with exactly these keys:
 
 Guidelines:
 - title: The event name (not the venue or artist name if they differ)
-- dateRaw: Date as written, e.g. "Saturday March 29" or "3/29/2026" — do not convert to ISO
+- dateRaw: Date exactly as written on the post, e.g. "Saturday March 29". Do not convert to ISO. CRITICAL: only include a year if a year is explicitly printed on the flyer/post. If no year is shown, do NOT add or guess one — return just the weekday/month/day as written (e.g. "Saturday March 29", not "Saturday March 29, 2027"). The current date is provided below; use it only to disambiguate relative dates like "this Friday" or "tomorrow", never to fabricate a year that isn't on the post.
 - timeRaw: Start time as written, e.g. "9pm" or "9:00 PM - 2:00 AM". Null if no time is shown — do NOT guess or default to midnight/"12:00 AM".
 - venueName: Name of the venue or location
 - venueAddress: Street address if present
@@ -65,8 +79,8 @@ export async function extractEventFromImage(
     {
       type: "text",
       text: caption
-        ? `${EXTRACT_PROMPT}\n\nInstagram caption:\n${caption}`
-        : EXTRACT_PROMPT,
+        ? `${EXTRACT_PROMPT}\n\nToday's date (San Francisco): ${todaySf()}\n\nInstagram caption:\n${caption}`
+        : `${EXTRACT_PROMPT}\n\nToday's date (San Francisco): ${todaySf()}`,
     },
   ];
 
@@ -107,7 +121,7 @@ export async function extractEventFromCaption(caption: string): Promise<Extracte
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
 
-  const prompt = `${EXTRACT_PROMPT}\n\nInstagram caption / event description:\n${caption}`;
+  const prompt = `${EXTRACT_PROMPT}\n\nToday's date (San Francisco): ${todaySf()}\n\nInstagram caption / event description:\n${caption}`;
 
   const msg = await client.messages.create({
     model: "claude-haiku-4-5",

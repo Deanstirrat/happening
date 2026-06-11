@@ -36,11 +36,9 @@ const STATUS_COLORS: Record<ReportStatus, string> = {
 export default function ReportList({
   kind,
   items,
-  secret,
 }: {
   kind: "bug" | "event";
   items: ReportItem[];
-  secret: string;
 }) {
   const router = useRouter();
   const endpoint = kind === "bug" ? "/api/admin/bug-reports" : "/api/admin/event-reports";
@@ -51,7 +49,7 @@ export default function ReportList({
     setLoading(true);
     await fetch(endpoint, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-scrape-secret": secret },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setSelected(new Set());
@@ -162,7 +160,7 @@ export default function ReportList({
               )}
               {kind === "event" && item.eventId && (
                 <Link
-                  href={`/admin/events/${item.eventId}/edit?secret=${secret}`}
+                  href={`/admin/events/${item.eventId}/edit`}
                   className="hover:text-on-surface transition-colors underline"
                 >
                   edit event

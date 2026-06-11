@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
 
 const client = new Anthropic({ timeout: 30_000 });
 
@@ -11,14 +11,15 @@ const DESC_MIN_LENGTH = 120;
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
-function checkCronOrAdminAuth(req: NextRequest): boolean {
-  if (checkAuth(req)) return true;
+// Machine callers (Vercel cron) authenticate with the CRON_SECRET bearer token;
+// human admins authenticate with their session cookie + ADMIN role.
+async function checkCronOrAdminAuth(req: NextRequest): Promise<boolean> {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const auth = req.headers.get("authorization");
     if (auth === `Bearer ${cronSecret}`) return true;
   }
-  return false;
+  return (await getAdminUser(req)) !== null;
 }
 
 // ─── Page scraping ────────────────────────────────────────────────────────────
@@ -496,7 +497,7 @@ async function runEnrichFeatured() {
 }
 
 export async function GET(req: NextRequest) {
-  if (!checkCronOrAdminAuth(req)) {
+  if (!(await checkCronOrAdminAuth(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
@@ -509,7 +510,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkCronOrAdminAuth(req)) {
+  if (!(await checkCronOrAdminAuth(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {

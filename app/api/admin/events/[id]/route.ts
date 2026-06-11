@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -57,6 +59,13 @@ export async function PATCH(
     },
   });
 
+  await logAdminAction(admin, {
+    action: "event.edit",
+    targetType: "event",
+    targetId: id,
+    metadata: { fields: Object.keys(body), ...(status !== undefined && { status }) },
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -64,7 +73,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -76,7 +86,17 @@ export async function DELETE(
   // offer an immediate one-click undo that restores it exactly.
   const hard = new URL(req.url).searchParams.get("hard") === "1";
   if (hard) {
+    const event = await prisma.event.findUnique({
+      where: { id },
+      select: { title: true },
+    });
     await prisma.event.delete({ where: { id } });
+    await logAdminAction(admin, {
+      action: "event.delete",
+      targetType: "event",
+      targetId: id,
+      metadata: { title: event?.title, hard: true },
+    });
     return NextResponse.json({ ok: true, hard: true });
   }
 
@@ -91,6 +111,13 @@ export async function DELETE(
   await prisma.event.update({
     where: { id },
     data: { status: "TRASHED", deletedAt: new Date() },
+  });
+
+  await logAdminAction(admin, {
+    action: "event.trash",
+    targetType: "event",
+    targetId: id,
+    metadata: { previousStatus: existing.status },
   });
 
   return NextResponse.json({ ok: true, previousStatus: existing.status });

@@ -51,7 +51,7 @@ function sfIsoFromDateOnly(dateStr: string): string {
   return sfDateFromLocal(+m[1], +m[2], +m[3], 12, 0).toISOString();
 }
 
-export default function EditEventForm({ event, secret }: { event: EventData; secret: string }) {
+export default function EditEventForm({ event }: { event: EventData }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +82,6 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({
         title,
@@ -110,7 +109,7 @@ export default function EditEventForm({ event, secret }: { event: EventData; sec
       return;
     }
 
-    router.push(`/admin/events?secret=${secret}`);
+    router.push(`/admin/events`);
   }
 
   const inputClass =

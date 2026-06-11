@@ -7,21 +7,11 @@ import AdminActions from "./AdminActions";
 import FeaturedToggle from "./FeaturedToggle";
 import SubmissionImageEdit from "./SubmissionImageEdit";
 import AdminNav from "../_components/AdminNav";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
-
-export default async function SubmissionsPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function SubmissionsPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const [events, featuredEvents, submissions] = await Promise.all([
     prisma.event.findMany({
@@ -80,7 +70,7 @@ export default async function SubmissionsPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-10">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">submissions</h1>
-        <AdminNav secret={secret} current="submissions" />
+        <AdminNav current="submissions" />
       </div>
 
       {/* Pending submissions */}
@@ -142,7 +132,7 @@ export default async function SubmissionsPage({ searchParams }: Props) {
                   </p>
                 )}
 
-                <SubmissionImageEdit id={event.id} imageUrl={event.imageUrl} secret={secret} />
+                <SubmissionImageEdit id={event.id} imageUrl={event.imageUrl} />
 
                 <div className="flex items-center gap-3 mt-1">
                   <a
@@ -158,7 +148,7 @@ export default async function SubmissionsPage({ searchParams }: Props) {
                   </span>
                 </div>
 
-                <AdminActions id={event.id} secret={secret} />
+                <AdminActions id={event.id} />
               </div>
             ))}
           </div>
@@ -270,7 +260,7 @@ export default async function SubmissionsPage({ searchParams }: Props) {
                     </p>
                   )}
                 </div>
-                <FeaturedToggle id={event.id} featured={event.featured} secret={secret} />
+                <FeaturedToggle id={event.id} featured={event.featured} />
               </div>
             ))}
           </div>

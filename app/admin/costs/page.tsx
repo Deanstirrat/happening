@@ -6,10 +6,8 @@ import AdminNav from "../_components/AdminNav";
 import AddCostForm from "./AddCostForm";
 import DeleteCostButton from "./DeleteCostButton";
 import { CostService } from "@prisma/client";
-
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 const SERVICE_LABELS: Record<CostService, string> = {
   CLAUDE_CODE: "Claude Code",
@@ -25,16 +23,8 @@ function fmt(n: number) {
   return `$${n.toFixed(2)}`;
 }
 
-export default async function CostsPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function CostsPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const entries = await prisma.costEntry.findMany({
     orderBy: [{ billingMonth: "desc" }, { createdAt: "desc" }],
@@ -85,7 +75,7 @@ export default async function CostsPage({ searchParams }: Props) {
       {/* Header */}
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">costs</h1>
-        <AdminNav secret={secret} current="costs" />
+        <AdminNav current="costs" />
       </div>
 
       {/* Summary cards */}
@@ -206,7 +196,7 @@ export default async function CostsPage({ searchParams }: Props) {
                     <td className="text-right px-4 py-3 tabular-nums font-semibold text-on-surface">{fmt(e.amount)}</td>
                     <td className="px-4 py-3 text-on-surface-variant text-xs">{e.notes ?? "—"}</td>
                     <td className="text-right px-5 py-3">
-                      <DeleteCostButton id={e.id} secret={secret} />
+                      <DeleteCostButton id={e.id} />
                     </td>
                   </tr>
                 ))}
@@ -220,7 +210,7 @@ export default async function CostsPage({ searchParams }: Props) {
       <section className="flex flex-col gap-4">
         <h2 className="font-headline font-bold text-xl text-on-surface lowercase">add entry</h2>
         <div className="bg-surface-container rounded-2xl p-5">
-          <AddCostForm secret={secret} />
+          <AddCostForm />
         </div>
       </section>
     </div>

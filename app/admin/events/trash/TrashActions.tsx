@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function TrashActions({ id, secret }: { id: string; secret: string }) {
+export default function TrashActions({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -11,7 +11,7 @@ export default function TrashActions({ id, secret }: { id: string; secret: strin
     setLoading(true);
     await fetch(`/api/admin/events/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-scrape-secret": secret },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "PUBLISHED" }),
     });
     router.refresh();
@@ -23,7 +23,6 @@ export default function TrashActions({ id, secret }: { id: string; secret: strin
     setLoading(true);
     await fetch(`/api/admin/events/${id}?hard=1`, {
       method: "DELETE",
-      headers: { "x-scrape-secret": secret },
     });
     router.refresh();
     setLoading(false);

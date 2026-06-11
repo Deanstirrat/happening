@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 interface Props {
-  secret: string;
   current: string;
 }
 
@@ -17,12 +16,13 @@ const navItems = [
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "reports", label: "reports", href: "/admin/reports" },
   { key: "users", label: "users", href: "/admin/users" },
+  { key: "audit", label: "audit", href: "/admin/audit" },
 ];
 
 // Pages that map to the "reports" nav item
 const reportsKeys = new Set(["reports", "feature-requests", "bug-reports", "event-reports"]);
 
-export default async function AdminNav({ secret, current }: Props) {
+export default async function AdminNav({ current }: Props) {
   const [pendingCount, newRequestCount, eventReportCount, bugReportCount] = await Promise.all([
     prisma.event.count({ where: { status: "PENDING" } }),
     prisma.featuredRequest.count({ where: { status: "NEW" } }),
@@ -44,7 +44,7 @@ export default async function AdminNav({ secret, current }: Props) {
         return (
           <Link
             key={item.key}
-            href={`${item.href}?secret=${secret}`}
+            href={item.href}
             className={`flex items-center gap-1 transition-colors ${
               isActive
                 ? "text-on-surface font-semibold"

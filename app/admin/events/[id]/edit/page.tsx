@@ -3,23 +3,17 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import EditEventForm from "./EditEventForm";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ secret?: string }>;
 }
 
-export default async function EditEventPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const { secret } = await searchParams;
+export default async function EditEventPage({ params }: Props) {
+  if (!(await getAdminUser())) redirect("/login");
 
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+  const { id } = await params;
 
   const event = await prisma.event.findUnique({
     where: { id },
@@ -65,9 +59,9 @@ export default async function EditEventPage({ params, searchParams }: Props) {
       </div>
       <div className="mb-6 flex items-center gap-3">
         <span className="font-body text-sm text-on-surface-variant">Featured:</span>
-        <FeaturedToggle id={event.id} featured={event.featured} secret={secret} />
+        <FeaturedToggle id={event.id} featured={event.featured} />
       </div>
-      <EditEventForm event={event} secret={secret} />
+      <EditEventForm event={event} />
     </div>
   );
 }

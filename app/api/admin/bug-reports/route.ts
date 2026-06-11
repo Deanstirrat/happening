@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 import { ReportStatus } from "@prisma/client";
 
 const VALID = new Set<string>(Object.values(ReportStatus));
@@ -10,7 +11,8 @@ const VALID = new Set<string>(Object.values(ReportStatus));
  * of `ids` (bulk mark-resolved), plus the target `status`.
  */
 export async function PATCH(req: NextRequest) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -29,6 +31,13 @@ export async function PATCH(req: NextRequest) {
   const { count } = await prisma.bugReport.updateMany({
     where: { id: { in: targetIds } },
     data: { status: status as ReportStatus },
+  });
+
+  await logAdminAction(admin, {
+    action: "bug-report.status",
+    targetType: "bug-report",
+    targetId: targetIds.length === 1 ? targetIds[0] : undefined,
+    metadata: { status, ids: targetIds, count },
   });
 
   return NextResponse.json({ ok: true, count });

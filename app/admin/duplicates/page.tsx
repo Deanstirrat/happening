@@ -8,9 +8,11 @@ import { pairKey } from "@/lib/merge/executeMerge";
 import AdminNav from "../_components/AdminNav";
 import DuplicateActions from "./DuplicateActions";
 import type { EventCategory } from "@prisma/client";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; take?: string }>;
+  searchParams: Promise<{ take?: string }>;
 }
 
 // How many candidate pairs to render. Blocking can surface a lot of low-score
@@ -69,15 +71,9 @@ function EventCard({ e }: { e: DupEvent }) {
 }
 
 export default async function DuplicatesPage({ searchParams }: Props) {
-  const { secret, take: takeParam } = await searchParams;
+  if (!(await getAdminUser())) redirect("/login");
 
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+  const { take: takeParam } = await searchParams;
 
   const take = Math.max(parseInt(takeParam ?? String(DEFAULT_TAKE), 10) || DEFAULT_TAKE, DEFAULT_TAKE);
 
@@ -120,7 +116,7 @@ export default async function DuplicatesPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">duplicates</h1>
-        <AdminNav secret={secret} current="duplicates" />
+        <AdminNav current="duplicates" />
         <p className="font-body text-on-surface-variant text-sm">
           {ranked.length} suspected duplicate pair{ranked.length !== 1 ? "s" : ""} across{" "}
           {events.length} upcoming events
@@ -157,7 +153,7 @@ export default async function DuplicatesPage({ searchParams }: Props) {
                   <span className="font-body text-xs text-on-surface-variant">
                     match score {p.score}
                   </span>
-                  <DuplicateActions aId={p.a.id} bId={p.b.id} secret={secret} />
+                  <DuplicateActions aId={p.a.id} bId={p.b.id} />
                 </div>
               </div>
             );
@@ -167,7 +163,7 @@ export default async function DuplicatesPage({ searchParams }: Props) {
 
       {hasMore && (
         <a
-          href={`/admin/duplicates?secret=${secret}&take=${take + DEFAULT_TAKE}`}
+          href={`/admin/duplicates?take=${take + DEFAULT_TAKE}`}
           className="font-body text-sm font-semibold px-6 py-2 rounded-full bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors self-start"
         >
           Load more

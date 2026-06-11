@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
+  if (!(await getAdminUser(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -32,7 +33,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -44,11 +46,23 @@ export async function POST(req: NextRequest) {
 
   if (action === "delete") {
     await prisma.event.delete({ where: { id } });
+    await logAdminAction(admin, {
+      action: "submission.delete",
+      targetType: "event",
+      targetId: id,
+    });
     return NextResponse.json({ success: true, status: "DELETED" });
   }
 
   const status = action === "approve" ? "PUBLISHED" : "REJECTED";
   await prisma.event.update({ where: { id }, data: { status } });
+
+  await logAdminAction(admin, {
+    action: action === "approve" ? "submission.approve" : "submission.reject",
+    targetType: "event",
+    targetId: id,
+    metadata: { status },
+  });
 
   return NextResponse.json({ success: true, status });
 }

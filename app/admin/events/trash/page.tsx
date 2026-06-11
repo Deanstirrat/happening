@@ -6,25 +6,15 @@ import { format } from "date-fns";
 import Link from "next/link";
 import AdminNav from "../../_components/AdminNav";
 import TrashActions from "./TrashActions";
-
-interface Props {
-  searchParams: Promise<{ secret?: string }>;
-}
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 // Retention window after which the purge job hard-deletes a trashed event.
 // Keep in sync with PURGE_AFTER_DAYS in scripts/purge-trashed-events.ts.
 const PURGE_AFTER_DAYS = 30;
 
-export default async function TrashPage({ searchParams }: Props) {
-  const { secret } = await searchParams;
-
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+export default async function TrashPage() {
+  if (!(await getAdminUser())) redirect("/login");
 
   const events = await prisma.event.findMany({
     where: { status: "TRASHED" },
@@ -44,10 +34,10 @@ export default async function TrashPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">trash</h1>
-        <AdminNav secret={secret} current="events" />
+        <AdminNav current="events" />
         <div className="flex items-center gap-3 flex-wrap">
           <Link
-            href={`/admin/events?secret=${secret}`}
+            href={`/admin/events`}
             className="font-body text-sm text-on-surface-variant hover:text-on-surface transition-colors"
           >
             ← back to events
@@ -87,7 +77,7 @@ export default async function TrashPage({ searchParams }: Props) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <TrashActions id={event.id} secret={secret} />
+                <TrashActions id={event.id} />
               </div>
             </div>
           ))}

@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 export default function DuplicateActions({
   aId,
   bId,
-  secret,
 }: {
   aId: string;
   bId: string;
-  secret: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<"merge" | "dismiss" | null>(null);
@@ -24,7 +22,7 @@ export default function DuplicateActions({
     setError(null);
     const res = await fetch("/api/admin/duplicates", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-scrape-secret": secret },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, aId, bId }),
     });
     if (!res.ok) {

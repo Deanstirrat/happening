@@ -25,7 +25,7 @@ interface Pick {
   source: { slug: string; name: string };
 }
 
-export default function AiSuggestions({ secret }: { secret: string }) {
+export default function AiSuggestions() {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
     "idle"
   );
@@ -39,7 +39,6 @@ export default function AiSuggestions({ secret }: { secret: string }) {
     try {
       const res = await fetch("/api/admin/curation/suggest", {
         method: "POST",
-        headers: { "x-scrape-secret": secret },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -134,7 +133,7 @@ export default function AiSuggestions({ secret }: { secret: string }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
-                    href={`/events/${event.id}?secret=${secret}`}
+                    href={`/events/${event.id}`}
                     target="_blank"
                     className="font-body font-semibold text-sm text-on-surface hover:text-primary transition-colors line-clamp-1"
                   >
@@ -149,7 +148,6 @@ export default function AiSuggestions({ secret }: { secret: string }) {
                 <FeaturedToggle
                   id={event.id}
                   featured={event.featured}
-                  secret={secret}
                 />
               </div>
 

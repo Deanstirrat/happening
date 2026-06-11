@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { addDays } from "date-fns";
@@ -9,7 +9,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const anthropic = new Anthropic();
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
+  if (!(await getAdminUser(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

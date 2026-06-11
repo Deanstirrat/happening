@@ -11,7 +11,7 @@ const SERVICE_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ] as const;
 
-export default function AddCostForm({ secret }: { secret: string }) {
+export default function AddCostForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,6 @@ export default function AddCostForm({ secret }: { secret: string }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-scrape-secret": secret,
         },
         body: JSON.stringify({ service, amount, billingMonth, notes }),
       });

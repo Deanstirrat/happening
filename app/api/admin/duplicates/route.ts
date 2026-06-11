@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 import { mergeEventCluster, pairKey } from "@/lib/merge/executeMerge";
 
 /**
@@ -9,7 +10,8 @@ import { mergeEventCluster, pairKey } from "@/lib/merge/executeMerge";
  *   action: "dismiss" — record a "not a duplicate" so the pair stops resurfacing.
  */
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,6 +25,12 @@ export async function POST(req: NextRequest) {
   if (action === "merge") {
     try {
       const result = await mergeEventCluster([aId, bId]);
+      await logAdminAction(admin, {
+        action: "duplicate.merge",
+        targetType: "event",
+        targetId: aId,
+        metadata: { aId, bId, ...result },
+      });
       return NextResponse.json({ ok: true, ...result });
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 409 });
@@ -35,6 +43,12 @@ export async function POST(req: NextRequest) {
       where: { pairKey: key },
       update: {},
       create: { pairKey: key },
+    });
+    await logAdminAction(admin, {
+      action: "duplicate.dismiss",
+      targetType: "event",
+      targetId: aId,
+      metadata: { aId, bId },
     });
     return NextResponse.json({ ok: true });
   }

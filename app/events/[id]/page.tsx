@@ -102,15 +102,13 @@ export async function generateMetadata({
 
 export default async function EventDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ secret?: string }>;
 }) {
-  const [{ id }, { secret }] = await Promise.all([params, searchParams]);
-  const isAdmin = secret && secret === process.env.SCRAPE_SECRET;
+  const { id } = await params;
   const sessionUser = await getSessionUser();
   const isEditor = !!sessionUser;
+  const isAdmin = sessionUser?.role === "ADMIN";
   const event = await getEvent(id);
   if (!event) notFound();
 
@@ -197,7 +195,7 @@ export default async function EventDetailPage({
       {isAdmin && (
         <div className="mb-4 flex items-center gap-3 bg-surface-container-high rounded-xl px-4 py-3">
           <span className="font-body text-xs text-on-surface-variant">admin</span>
-          <FeaturedToggle id={event.id} featured={event.featured} secret={secret!} />
+          <FeaturedToggle id={event.id} featured={event.featured} />
         </div>
       )}
 

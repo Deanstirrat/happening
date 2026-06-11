@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DeleteButton({ id, secret }: { id: string; secret: string }) {
+export default function DeleteButton({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   // After a soft delete we hold the prior status so "undo" can restore it exactly.
@@ -13,7 +13,6 @@ export default function DeleteButton({ id, secret }: { id: string; secret: strin
     setLoading(true);
     const res = await fetch(`/api/admin/events/${id}`, {
       method: "DELETE",
-      headers: { "x-scrape-secret": secret },
     });
     const data = await res.json().catch(() => ({}));
     setUndoStatus(typeof data.previousStatus === "string" ? data.previousStatus : "PUBLISHED");
@@ -25,7 +24,7 @@ export default function DeleteButton({ id, secret }: { id: string; secret: strin
     setLoading(true);
     await fetch(`/api/admin/events/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-scrape-secret": secret },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: undoStatus }),
     });
     setUndoStatus(null);

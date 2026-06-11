@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { normalizeTitle } from "@/lib/dedupeHash";
@@ -21,14 +21,15 @@ const DAY_TARGETS: Record<number, number> = {
 };
 const WEEKLY_MAX = 24;
 
-function checkCronOrAdminAuth(req: NextRequest): boolean {
-  if (checkAuth(req)) return true;
+// Machine callers (Vercel cron) authenticate with the CRON_SECRET bearer token;
+// human admins authenticate with their session cookie + ADMIN role.
+async function checkCronOrAdminAuth(req: NextRequest): Promise<boolean> {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const auth = req.headers.get("authorization");
     if (auth === `Bearer ${cronSecret}`) return true;
   }
-  return false;
+  return (await getAdminUser(req)) !== null;
 }
 
 async function runAutoFeature() {
@@ -310,7 +311,7 @@ ${eventList}`,
 // Note: the daily job runs on Railway via the auto-feature cron service
 // (npm run auto-feature), so this endpoint is just a manual/secondary trigger.
 export async function GET(req: NextRequest) {
-  if (!checkCronOrAdminAuth(req)) {
+  if (!(await checkCronOrAdminAuth(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
@@ -324,7 +325,7 @@ export async function GET(req: NextRequest) {
 
 // POST — for manual admin triggers
 export async function POST(req: NextRequest) {
-  if (!checkCronOrAdminAuth(req)) {
+  if (!(await checkCronOrAdminAuth(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {

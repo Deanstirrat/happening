@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkAuth } from "@/lib/adminAuth";
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-scrape-secret");
-  if (secret !== process.env.SCRAPE_SECRET) {
+  // Machine caller (scrape trigger) — authenticates with the header secret.
+  if (!checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

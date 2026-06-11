@@ -6,10 +6,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import AdminNav from "../_components/AdminNav";
 import FeatureRequestActions from "../feature-requests/FeatureRequestActions";
+import { getAdminUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import ReportList, { type ReportItem } from "./ReportList";
 
 interface Props {
-  searchParams: Promise<{ secret?: string; tab?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
 type Tab = "feature-requests" | "event-reports" | "bug-reports";
@@ -35,15 +37,9 @@ const REQUEST_STATUS_COLORS = {
 const fmtDate = (d: Date) => format(d, "MMM d yyyy, h:mma");
 
 export default async function ReportsPage({ searchParams }: Props) {
-  const { secret, tab } = await searchParams;
+  if (!(await getAdminUser())) redirect("/login");
 
-  if (!secret || secret !== process.env.SCRAPE_SECRET) {
-    return (
-      <div className="max-w-screen-md mx-auto px-6 py-16 text-center">
-        <p className="font-body text-on-surface-variant">Access denied.</p>
-      </div>
-    );
-  }
+  const { tab } = await searchParams;
 
   const activeTab: Tab =
     tab === "event-reports" || tab === "bug-reports" || tab === "feature-requests"
@@ -96,7 +92,7 @@ export default async function ReportsPage({ searchParams }: Props) {
     <div className="max-w-screen-lg mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <h1 className="font-headline font-black text-3xl text-on-surface lowercase">reports</h1>
-        <AdminNav secret={secret} current="reports" />
+        <AdminNav current="reports" />
       </div>
 
       {/* Sub-tabs */}
@@ -107,7 +103,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           return (
             <Link
               key={t.key}
-              href={`/admin/reports?secret=${secret}&tab=${t.key}`}
+              href={`/admin/reports?tab=${t.key}`}
               className={`font-body text-sm px-4 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
                 isActive
                   ? "bg-on-surface text-surface font-semibold"
@@ -181,7 +177,7 @@ export default async function ReportsPage({ searchParams }: Props) {
                       </span>
                       <div className="ml-auto">
                         <Suspense>
-                          <FeatureRequestActions id={req.id} status={req.status} secret={secret} hasLinkedEvent={false} />
+                          <FeatureRequestActions id={req.id} status={req.status} hasLinkedEvent={false} />
                         </Suspense>
                       </div>
                     </div>
@@ -212,7 +208,7 @@ export default async function ReportsPage({ searchParams }: Props) {
             <p className="font-body text-on-surface-variant text-sm">
               {reports.length} report{reports.length !== 1 ? "s" : ""} · {eventReportsCount} unresolved
             </p>
-            <ReportList kind="event" items={items} secret={secret} />
+            <ReportList kind="event" items={items} />
           </div>
         );
       })()}
@@ -234,7 +230,7 @@ export default async function ReportsPage({ searchParams }: Props) {
               {reports.length} report{reports.length !== 1 ? "s" : ""} submitted · {bugReportsCount}{" "}
               unresolved
             </p>
-            <ReportList kind="bug" items={items} secret={secret} />
+            <ReportList kind="bug" items={items} />
           </div>
         );
       })()}

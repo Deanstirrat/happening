@@ -7,11 +7,9 @@ import Image from "next/image";
 export default function SubmissionImageEdit({
   id,
   imageUrl,
-  secret,
 }: {
   id: string;
   imageUrl: string | null;
-  secret: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -24,7 +22,6 @@ export default function SubmissionImageEdit({
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-scrape-secret": secret,
       },
       body: JSON.stringify({ imageUrl: value || null }),
     });

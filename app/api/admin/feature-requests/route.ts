@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkAuth } from "@/lib/adminAuth";
+import { getAdminUser } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export async function PATCH(req: NextRequest) {
-  if (!checkAuth(req)) {
+  const admin = await getAdminUser(req);
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -45,6 +47,13 @@ export async function PATCH(req: NextRequest) {
       prisma.featuredRequest.update({ where: { id }, data: { status: "CLOSED" } }),
     ]);
 
+    await logAdminAction(admin, {
+      action: "feature-request.apply-and-feature",
+      targetType: "feature-request",
+      targetId: id,
+      metadata: { eventId: request.eventId },
+    });
+
     return NextResponse.json({ success: true, action: "apply-and-feature" });
   }
 
@@ -54,6 +63,13 @@ export async function PATCH(req: NextRequest) {
   }
 
   await prisma.featuredRequest.update({ where: { id }, data: { status } });
+
+  await logAdminAction(admin, {
+    action: "feature-request.status",
+    targetType: "feature-request",
+    targetId: id,
+    metadata: { status },
+  });
 
   return NextResponse.json({ success: true, status });
 }

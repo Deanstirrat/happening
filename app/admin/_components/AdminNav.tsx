@@ -28,7 +28,16 @@ export default async function AdminNav({ current }: Props) {
     await Promise.all([
       prisma.event.count({ where: { status: "PENDING" } }),
       // Future events live without coordinates — surfaced for venue-mapping triage.
-      prisma.event.count({ where: { geocoded: false, startDate: { gte: new Date() } } }),
+      // Match the Ungeocoded page's own filter (PUBLISHED|PENDING) so the badge
+      // counts what the page actually shows; ARCHIVED/REJECTED rows are hidden
+      // there and shouldn't inflate the count.
+      prisma.event.count({
+        where: {
+          geocoded: false,
+          startDate: { gte: new Date() },
+          status: { in: ["PUBLISHED", "PENDING"] },
+        },
+      }),
       prisma.featuredRequest.count({ where: { status: "NEW" } }),
       // Badges count only unresolved reports (issue #104).
       prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),

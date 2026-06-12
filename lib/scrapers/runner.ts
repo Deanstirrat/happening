@@ -402,9 +402,16 @@ async function scrapeSource(
     }
 
     // Skip clearly out-of-area venues from the name-only music sources, which
-    // arrive without a street address and so escape the coordinate distance filter
-    if (OUT_OF_AREA_VENUE_FILTER_SOURCES.has(slug) && isOutOfAreaVenue(event.venueName)) {
-      console.log(`[${slug}] Out-of-area venue (skipped): "${event.title}" @ ${event.venueName}`);
+    // arrive without a street address and so escape the coordinate distance filter.
+    // We check both the venue name and any locality string the source carries —
+    // folkyeah, a statewide touring promoter, puts the city in venueAddress.
+    if (
+      OUT_OF_AREA_VENUE_FILTER_SOURCES.has(slug) &&
+      (isOutOfAreaVenue(event.venueName) || isOutOfAreaVenue(event.venueAddress))
+    ) {
+      console.log(
+        `[${slug}] Out-of-area venue (skipped): "${event.title}" @ ${event.venueName ?? event.venueAddress}`
+      );
       continue;
     }
 

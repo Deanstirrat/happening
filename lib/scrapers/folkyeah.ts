@@ -146,10 +146,16 @@ export class FolkYeahScraper extends BaseScraper {
         }
       }
 
-      // Venue: the strong immediately before a "City, CA" strong
+      // Venue: the strong immediately before a "City, CA" strong. folkYEAH is a
+      // statewide touring promoter, so we also capture that "City, CA" line into
+      // venueAddress — it's the only locality signal these listings carry, and it
+      // lets the out-of-area filter (lib/ingestFilters.ts) drop the many shows
+      // outside our service area (Ojai, Santa Cruz, Ventura, …).
       let venueName: string | undefined;
+      let venueAddress: string | undefined;
       for (let i = 1; i < strongs.length; i++) {
         if (/,\s*CA\b/i.test(strongs[i])) {
+          venueAddress = strongs[i].trim();
           const prev = strongs[i - 1];
           const isDateLike = /(?:January|February|March|April|May|June|July|August|September|October|November|December)/i.test(prev);
           const isPresenter = /folkYEAH/i.test(prev);
@@ -176,6 +182,7 @@ export class FolkYeahScraper extends BaseScraper {
             startDate,
             sourceUrl: ticketUrl,
             venueName,
+            venueAddress,
             tags: ["music", "live", "folkyeah"],
           });
         }
@@ -196,6 +203,7 @@ export class FolkYeahScraper extends BaseScraper {
             startDate,
             sourceUrl: ticketUrl,
             venueName,
+            venueAddress,
             tags: ["music", "live", "folkyeah"],
           });
         }

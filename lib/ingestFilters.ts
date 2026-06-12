@@ -143,16 +143,42 @@ const OUT_OF_AREA_CITIES = new Set([
   "manteca", "roseville", "folsom", "elk grove", "santa cruz", "capitola",
   "scotts valley", "watsonville", "aptos", "felton", "ben lomond",
   "boulder creek", "monterey", "carmel", "pacific grove", "seaside", "salinas",
-  "truckee", "south lake tahoe", "tahoe city", "reno", "fresno",
+  "truckee", "south lake tahoe", "tahoe city", "reno", "fresno", "lincoln",
+  // Far North Bay / Mendocino / Russian River (folkyeah + 19hz festival sites)
+  "mendocino", "hopland", "navarro", "boonville", "ukiah", "piercy", "isleton",
+  "rio nido", "monte rio", "forestville", "calistoga", "st. helena",
+  "saint helena", "yountville", "wilseyville", "woodacre",
+  // SoCal / Central Coast — folkyeah is a statewide touring promoter
+  "los angeles", "santa barbara", "ventura", "ojai", "pioneertown",
+  "san luis obispo", "big sur", "oakhurst", "joshua tree",
+  // Common misspellings seen in foopee's hand-typed list
+  "memlo park", "mountain veiw", "san josea",
 ]);
+
+// A subset of the deny-list distinctive enough to match anywhere in the venue
+// string, not just as a delimited city token — these sources also embed the city
+// mid-name ("Blue Note Napa Summer Sessions", "Lost Church Santa Rosa", "Napa
+// Music Hall", "Meyhouse San Ramon & Jazz Club"). Kept deliberately narrow to
+// names that never collide with an in-area venue's name or street: excluded
+// here (token-only above) are San Jose Ave, Sacramento St, Saratoga Dr, Monterey
+// Blvd, Fresno St and Lincoln Way — all real in-area streets a venue could sit on.
+const EMBEDDED_OUT_OF_AREA = [
+  "napa", "sonoma", "santa rosa", "santa cruz", "san ramon", "sebastopol",
+  "petaluma", "healdsburg", "rohnert park", "livermore", "pleasanton",
+  "walnut creek", "morgan hill", "gilroy", "san luis obispo", "santa barbara",
+  "pioneertown", "big sur",
+].map((c) => new RegExp(`\\b${c.replace(/\s+/g, "\\s+")}\\b`, "i"));
 
 // Split a venue string into the chunks where these sources put the city — last
 // comma token in "Venue, City", a parenthetical "Venue (City)", or a dash-suffix
 // "Venue - City" — then normalize each for exact comparison against the deny-list.
 export function isOutOfAreaVenue(venueName?: string | null): boolean {
   if (!venueName) return false;
-  return venueName
+  const exactToken = venueName
     .split(/[,()\-–—]/)
     .map((tok) => tok.trim().toLowerCase().replace(/\.$/, ""))
     .some((tok) => OUT_OF_AREA_CITIES.has(tok));
+  if (exactToken) return true;
+  // City embedded mid-name rather than as a delimited token.
+  return EMBEDDED_OUT_OF_AREA.some((re) => re.test(venueName));
 }

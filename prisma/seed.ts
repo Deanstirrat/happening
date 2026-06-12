@@ -131,6 +131,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "jambase",
+    name: "JamBase SF",
+    url: "https://www.jambase.com/concerts/finder?location=San%20Francisco%2C%20CA%2C%20USA&lat=37.7749&lng=-122.4194",
+    scrapeType: ScrapeType.PLAYWRIGHT,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
     slug: "tixr",
     name: "Tixr SF",
     url: "https://www.tixr.com/search?q=san+francisco",

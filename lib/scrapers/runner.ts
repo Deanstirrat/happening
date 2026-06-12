@@ -93,6 +93,7 @@ import { AlamoSfScraper } from "./alamosf";
 import { FerryBuildingScraper } from "./ferrybuilding";
 import { ParksConservancyScraper } from "./parksconservancy";
 import { MinnesotaStreetScraper } from "./minnesotastreet";
+import { JamBaseScraper } from "./jambase";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -106,6 +107,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   posh: new PoshScraper(),
   eventbrite: new EventbriteScraper(),
   bandsintown: new BandsintownScraper(),
+  jambase: new JamBaseScraper(),
   kqed: new KqedScraper(),
   dothebay: new DothebayScraper(),
   // reddit-sfevents: disabled — Reddit now requires OAuth for JSON API (403 without auth)

@@ -9,6 +9,11 @@ const SCHEDULE_URL = "https://drafthouse.com/s/mother/v2/schedule/market/sf";
 const SF_CINEMA_ID = "0801"; // New Mission, 2550 Mission Street
 const VENUE_NAME = "Alamo Drafthouse New Mission";
 const VENUE_ADDRESS = "2550 Mission Street, San Francisco, CA 94110";
+// Single fixed venue. Nominatim can't resolve the cinema by name/address, so we
+// supply coordinates directly — otherwise every showtime is held ungeocoded
+// (status PENDING) and never publishes.
+const VENUE_LAT = 37.756038;
+const VENUE_LNG = -122.419611;
 
 interface AlamoShow {
   title: string;
@@ -97,6 +102,8 @@ export class AlamoSfScraper extends BaseScraper {
         startDate,
         venueName: VENUE_NAME,
         venueAddress: VENUE_ADDRESS,
+        latitude: VENUE_LAT,
+        longitude: VENUE_LNG,
         sourceUrl: `https://drafthouse.com/sf/show/${session.presentationSlug}`,
         imageUrl,
         isFree: false,

@@ -7,6 +7,15 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 const HOME_URL = "https://minnesotastreetproject.com/";
 const BASE_URL = "https://minnesotastreetproject.com";
 
+// The complex sits in Dogpatch (1275 Minnesota St, the main gallery building
+// where openings and talks happen). We set coordinates directly because each
+// event's venueName is the individual gallery (e.g. "Anglim/Trimble"), which
+// poisons the Nominatim query and leaves events held ungeocoded (status
+// PENDING). All buildings are within a block, so one complex coordinate is
+// accurate for neighborhood placement.
+const VENUE_LAT = 37.754254;
+const VENUE_LNG = -122.38939;
+
 /** Parse a visible time like "4PM", "4:30PM", "11AM" → 24h components. */
 function parseTime(text: string): { hours: number; minutes: number } | null {
   const m = text.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
@@ -120,6 +129,8 @@ export class MinnesotaStreetScraper extends BaseScraper {
         allDay: isExhibition,
         venueName,
         venueAddress,
+        latitude: VENUE_LAT,
+        longitude: VENUE_LNG,
         sourceUrl,
         imageUrl,
         isFree: true,

@@ -7,6 +7,11 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 const CALENDAR_URL = "https://roxie.com/calendar/";
 const BASE_URL = "https://roxie.com";
 const VENUE_ADDRESS = "3117 16th Street, San Francisco, CA 94103";
+// Single fixed venue. Nominatim can't resolve the theater by name/address, so
+// supply coordinates directly — otherwise every showtime is held ungeocoded
+// (status PENDING) and never publishes.
+const VENUE_LAT = 37.764671;
+const VENUE_LNG = -122.422431;
 
 /**
  * Parse a showtime string like "6:00 pm" / "11:30 am" into 24h components.
@@ -108,6 +113,8 @@ export class RoxieScraper extends BaseScraper {
             startDate,
             venueName: "Roxie Theater",
             venueAddress: VENUE_ADDRESS,
+            latitude: VENUE_LAT,
+            longitude: VENUE_LNG,
             sourceUrl,
             imageUrl,
             isFree: false,

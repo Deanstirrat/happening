@@ -411,7 +411,7 @@ const sources = [
     url: "https://sfrecpark.org/Calendar.aspx",
     scrapeType: ScrapeType.CHEERIO,
     category: SourceCategory.INSTITUTIONAL,
-    enabled: true,
+    enabled: false, // disabled in the scraper registry (low-quality events); keep the DB flag in sync so health stops flagging it stale
   },
   {
     slug: "exploratorium",
@@ -428,7 +428,7 @@ const sources = [
     url: "https://www.reddit.com/r/SFEvents/",
     scrapeType: ScrapeType.API,
     category: SourceCategory.COMMUNITY,
-    enabled: true,
+    enabled: false, // disabled in the scraper registry (Reddit now requires OAuth; JSON API returns 403); keep the DB flag in sync so health stops flagging it stale
   },
   {
     slug: "badslava",

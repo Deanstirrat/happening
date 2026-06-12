@@ -7,6 +7,11 @@ import { sfDateFromLocal } from "@/lib/sfDate";
 const EVENTS_URL = "https://www.ferrybuildingmarketplace.com/events/";
 const VENUE_NAME = "Ferry Building Marketplace";
 const VENUE_ADDRESS = "1 Ferry Building, San Francisco, CA 94111";
+// Single fixed venue. The "Marketplace" venue name + the unusual "1 Ferry
+// Building" address don't geocode reliably, so supply coordinates directly to
+// keep events from being held ungeocoded (status PENDING).
+const VENUE_LAT = 37.795549;
+const VENUE_LNG = -122.393475;
 
 function stripHtml(html: string): string {
   return html
@@ -111,6 +116,8 @@ export class FerryBuildingScraper extends BaseScraper {
         endDate,
         venueName: VENUE_NAME,
         venueAddress: VENUE_ADDRESS,
+        latitude: VENUE_LAT,
+        longitude: VENUE_LNG,
         sourceUrl: ld.url,
         imageUrl: ld.image || undefined,
         isFree: false,

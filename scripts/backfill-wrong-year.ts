@@ -16,10 +16,23 @@
  *   - Recompute dedupeHash (it keys on the SF calendar day) and skip rows that
  *     would collide with an existing event.
  *
+ * --fix-midnight-day extends the midnight→noon fix to CORRECT-year rows that
+ * still sit at exactly 00:00:00.000 UTC. Those render a day early in SF (00:00Z
+ * = 5 PM the prior day) even though their year is fine — the gap the wrong-year
+ * pass alone leaves behind. This is opt-in because an exact-UTC-midnight value
+ * is AMBIGUOUS: a genuine 5 PM PDT / 4 PM PST start stores the identical
+ * instant, and flipping one of those to all-day noon would move it to the wrong
+ * day. The flag is Instagram-scoped (the only LLM-dated path) and dry-run still
+ * prints every row, so review the list and confirm none are real evening-of-5
+ * starts before --apply. (In practice these are nightlife / watch-party posts
+ * that never start at 5 PM, so the midnight value is a no-real-time placeholder.)
+ *
  * Dry-run by default. Pass --apply to write changes.
  *
- *   npx tsx scripts/backfill-wrong-year.ts            # preview
- *   npx tsx scripts/backfill-wrong-year.ts --apply    # execute
+ *   npx tsx scripts/backfill-wrong-year.ts                          # preview wrong-year only
+ *   npx tsx scripts/backfill-wrong-year.ts --apply                  # execute wrong-year only
+ *   npx tsx scripts/backfill-wrong-year.ts --fix-midnight-day       # preview + day-early rows
+ *   npx tsx scripts/backfill-wrong-year.ts --fix-midnight-day --apply
  */
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
@@ -29,6 +42,7 @@ import { computeDedupeHash } from "../lib/dedupeHash";
 import { sfDayStart } from "../lib/sfDate";
 
 const APPLY = process.argv.includes("--apply");
+const FIX_MIDNIGHT_DAY = process.argv.includes("--fix-midnight-day");
 const MAX_FUTURE_DAYS = 310;
 const MAX_PAST_DAYS = 60;
 // A flyer advertises an event near or after the day it was scraped. A stored
@@ -105,21 +119,25 @@ async function main() {
   for (const e of events) {
     const yearCorrected = correctYear(e.startDate, e.scrapedAt);
     const yearChanged = yearCorrected.getTime() !== e.startDate.getTime();
+    const midnightPlaceholder = isMidnightPlaceholder(e.startDate);
 
-    // Only touch known-broken rows (wrong year). We deliberately do NOT flip
-    // every UTC-midnight event to all-day: a correctly-dated 00:00Z value may be
-    // a genuine 5 PM PDT start that other scrapers store legitimately, and we'd
-    // erase a real time. The midnight→noon fix is applied only when this row was
-    // already proven broken by its year.
-    if (!yearChanged) continue;
+    // Touch known-broken rows. By default that means wrong-year only: we
+    // deliberately do NOT flip every UTC-midnight event to all-day, because a
+    // correctly-dated 00:00Z value may be a genuine 5 PM PDT start and we'd
+    // erase a real time. --fix-midnight-day opts into also repairing
+    // correct-year rows still parked at exact UTC midnight — they render a day
+    // early in SF — accepting that ambiguity in exchange for the dry-run review
+    // above (see header). Correct-year, non-midnight rows are never touched.
+    if (!yearChanged && !(FIX_MIDNIGHT_DAY && midnightPlaceholder)) continue;
 
     let newStart: Date;
     let newAllDay = e.allDay;
 
-    if (isMidnightPlaceholder(e.startDate)) {
-      // Wrong-year + exact UTC midnight = the no-real-time path (renders as 5 PM
-      // the prior SF day). The intended SF day is the stored value's UTC date;
-      // pin to noon SF on the corrected date and flag all-day.
+    if (midnightPlaceholder) {
+      // Exact UTC midnight = the no-real-time path (renders as 5 PM the prior SF
+      // day). The intended SF day is the stored value's UTC date; pin to noon SF
+      // on the (year-corrected) date and flag all-day. For correct-year rows
+      // yearCorrected === startDate, so this just shifts the time, not the day.
       const y = yearCorrected.getUTCFullYear();
       const m = String(yearCorrected.getUTCMonth() + 1).padStart(2, "0");
       const d = String(yearCorrected.getUTCDate()).padStart(2, "0");

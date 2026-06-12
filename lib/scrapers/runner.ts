@@ -94,6 +94,7 @@ import { FerryBuildingScraper } from "./ferrybuilding";
 import { ParksConservancyScraper } from "./parksconservancy";
 import { MinnesotaStreetScraper } from "./minnesotastreet";
 import { JamBaseScraper } from "./jambase";
+import { DnaLoungeScraper } from "./dnalounge";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -137,6 +138,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   exploratorium: new ExploratoriumScraper(),
   brokeassstuart: new BrokeAssStuartScraper(),
   storkclub: new StorkClubScraper(),
+  dnalounge: new DnaLoungeScraper(),
   // borderlandsbooks: disabled — event program is currently on hold per their website
   greenapplebooks: new GreenAppleBooksScraper(),
   spotlightcomedy: new SpotlightComedyScraper(),

@@ -196,6 +196,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "dnalounge",
+    name: "DNA Lounge",
+    url: "https://www.dnalounge.com/calendar/",
+    scrapeType: ScrapeType.API,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
     slug: "borderlandsbooks",
     name: "Borderlands Books",
     url: "https://borderlands-books.com/v2/events/",

@@ -107,6 +107,7 @@ import { DnaLoungeScraper } from "./dnalounge";
 import { ComedyCalendarScraper } from "./comedycalendar";
 import { OpenMicXScraper } from "./openmicx";
 import { SfStationScraper } from "./sfstation";
+import { KillingMyLobsterScraper } from "./killingmylobster";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -158,6 +159,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   comedycalendar: new ComedyCalendarScraper(),
   openmicx: new OpenMicXScraper(),
   sfstation: new SfStationScraper(),
+  killingmylobster: new KillingMyLobsterScraper(),
   folkyeah: new FolkYeahScraper(),
   // ── Thin-category venue sources (film, food & drink, galleries, outdoor) ──
   roxie: new RoxieScraper(),

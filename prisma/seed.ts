@@ -364,6 +364,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "killingmylobster",
+    name: "Killing My Lobster",
+    url: "https://www.killingmylobster.com/shows-events",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
     slug: "folkyeah",
     name: "(((folkYEAH!)))",
     url: "https://folkyeah.com/",

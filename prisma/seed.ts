@@ -340,6 +340,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "comedycalendar",
+    name: "Comedy Calendar",
+    url: "https://comedycalendar.com/city/san-francisco/",
+    scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
     slug: "folkyeah",
     name: "(((folkYEAH!)))",
     url: "https://folkyeah.com/",

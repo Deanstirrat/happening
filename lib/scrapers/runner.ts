@@ -95,6 +95,7 @@ import { ParksConservancyScraper } from "./parksconservancy";
 import { MinnesotaStreetScraper } from "./minnesotastreet";
 import { JamBaseScraper } from "./jambase";
 import { DnaLoungeScraper } from "./dnalounge";
+import { ComedyCalendarScraper } from "./comedycalendar";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -143,6 +144,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   greenapplebooks: new GreenAppleBooksScraper(),
   spotlightcomedy: new SpotlightComedyScraper(),
   bestmedicinecomedy: new BestMedicineComedyScraper(),
+  comedycalendar: new ComedyCalendarScraper(),
   folkyeah: new FolkYeahScraper(),
   // ── Thin-category venue sources (film, food & drink, galleries, outdoor) ──
   roxie: new RoxieScraper(),

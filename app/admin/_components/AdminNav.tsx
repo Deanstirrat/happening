@@ -12,6 +12,7 @@ const navItems = [
   { key: "curation", label: "curation", href: "/admin/curation" },
   { key: "events", label: "events", href: "/admin/events" },
   { key: "duplicates", label: "duplicates", href: "/admin/duplicates" },
+  { key: "ungeocoded", label: "ungeocoded", href: "/admin/ungeocoded" },
   { key: "blocklist", label: "blocklist", href: "/admin/blocklist" },
   { key: "scrapers", label: "scrapers", href: "/admin/scrapers" },
   { key: "reports", label: "reports", href: "/admin/reports" },
@@ -23,16 +24,20 @@ const navItems = [
 const reportsKeys = new Set(["reports", "feature-requests", "bug-reports", "event-reports"]);
 
 export default async function AdminNav({ current }: Props) {
-  const [pendingCount, newRequestCount, eventReportCount, bugReportCount] = await Promise.all([
-    prisma.event.count({ where: { status: "PENDING" } }),
-    prisma.featuredRequest.count({ where: { status: "NEW" } }),
-    // Badges count only unresolved reports (issue #104).
-    prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),
-    prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
-  ]);
+  const [pendingCount, ungeocodedCount, newRequestCount, eventReportCount, bugReportCount] =
+    await Promise.all([
+      prisma.event.count({ where: { status: "PENDING" } }),
+      // Future events live without coordinates — surfaced for venue-mapping triage.
+      prisma.event.count({ where: { geocoded: false, startDate: { gte: new Date() } } }),
+      prisma.featuredRequest.count({ where: { status: "NEW" } }),
+      // Badges count only unresolved reports (issue #104).
+      prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),
+      prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
+    ]);
 
   const badges: Record<string, number> = {
     submissions: pendingCount,
+    ungeocoded: ungeocodedCount,
     reports: newRequestCount + eventReportCount + bugReportCount,
   };
 

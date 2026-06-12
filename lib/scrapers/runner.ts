@@ -591,15 +591,16 @@ async function scrapeSource(
       continue;
     }
 
-    // Hold ungeocoded events for review instead of publishing them without a
-    // neighborhood. geocodeEvent already tries scraper-provided coords, the
-    // static known-venue table (lib/venues.ts), and Nominatim; if all three
-    // fail we can't place the event on the map or filter it by neighborhood, so
-    // it goes to the admin PENDING queue rather than live. Retires the manual
-    // scripts/backfill-venues sweep for the ungeocoded backlog.
+    // Scraped events always publish — we don't human-gate ingest. geocodeEvent
+    // already tries scraper-provided coords, the static known-venue table
+    // (lib/venues.ts), and Nominatim; if all three fail the event still goes
+    // live (it just won't appear on the map or match a neighborhood filter
+    // until coords are filled in). It's flagged via geocoded=false; the admin
+    // "Ungeocoded" tab surfaces these so reliable venue mappings can be added to
+    // lib/venues.ts, then `npm run backfill-geocode` fills the existing rows in.
     const geocodeFailed = geo.latitude == null || geo.longitude == null;
     if (geocodeFailed) {
-      console.log(`[${slug}] Ungeocoded — held for review: "${event.title}"`);
+      console.log(`[${slug}] Ungeocoded — publishing, flagged for backfill: "${event.title}"`);
     }
 
     // Link to the normalized Venue table when the venue is known. Same matching
@@ -637,7 +638,7 @@ async function scrapeSource(
           performers: event.performers ?? [],
           externalInterest: event.externalInterest ?? 0,
           geocoded: geo.latitude != null,
-          status: geocodeFailed ? "PENDING" : "PUBLISHED",
+          status: "PUBLISHED",
           categorized: true,
           sourceId,
         },

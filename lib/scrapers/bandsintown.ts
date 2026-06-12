@@ -11,7 +11,27 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 /**
- * Bandsintown SF — bandsintown.com/c/san-francisco-ca
+ * Genre pages to load. The default city page is all-genres (mostly music); the
+ * comedy genre page is a filtered subset. Comedy is loaded first so that any
+ * event appearing on both pages keeps the explicit COMEDY category/tags (see
+ * cross-page dedupe in scrape()).
+ */
+type Genre = {
+  url: string;
+  /** Pre-assigned category — skips LLM categorization in the runner. */
+  category?: string;
+  tags: string[];
+};
+
+const GENRES: Genre[] = [
+  { url: `${CITY_URL}/all-dates/genre/comedy`, category: "COMEDY", tags: ["comedy"] },
+  { url: CITY_URL, tags: ["music", "concert", "live"] },
+];
+
+type RawCard = { path: string; imgPhotoId: string; text: string };
+
+/**
+ * Bandsintown SF — bandsintown.com/c/san-francisco-ca (+ /genre/comedy)
  *
  * JS-rendered SPA. Each event card is an <a href="/e/ID-slug"> containing:
  *   - img src: https://photos.bandsintown.com/thumb/NNNNN.jpeg  (use /large/)
@@ -46,76 +66,98 @@ export class BandsintownScraper extends BaseScraper {
     });
 
     try {
-      await page.goto(CITY_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-      // Wait for at least one event card to appear (JS-rendered SPA)
-      await page.waitForSelector('a[href*="/e/"]', { timeout: 45000 });
+      const events: ScrapedEvent[] = [];
+      // Dedupe across genre pages — the all-genres city page overlaps the comedy
+      // page, so we keep the first occurrence (comedy is loaded first).
+      const seenPaths = new Set<string>();
 
-      // Wait for photo images to load (large viewport makes them all visible).
-      // Bandsintown proxies images via /_next/image, so match on that or the direct CDN URL.
-      await page.waitForSelector('img[src*="photos.bandsintown.com"], img[src*="/_next/image"]', { timeout: 15000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      for (const genre of GENRES) {
+        const rawCards = await this.loadGenrePage(page, genre.url);
 
-      const rawEvents = await page.evaluate(() => {
-        const cards = Array.from(document.querySelectorAll('a[href*="/e/"]'));
-        const seen = new Set<string>();
-        const results: Array<{
-          path: string;
-          imgPhotoId: string;
-          text: string;
-        }> = [];
+        for (const raw of rawCards) {
+          if (seenPaths.has(raw.path)) continue;
+          seenPaths.add(raw.path);
 
-        for (const card of cards) {
-          const anchor = card as HTMLAnchorElement;
-          const path = anchor.pathname;
-          if (seen.has(path)) continue;
-          seen.add(path);
+          const imgSrc = raw.imgPhotoId
+            ? (capturedPhotos.get(raw.imgPhotoId)?.replace("/thumb/", "/large/") ??
+               `https://photos.bandsintown.com/large/${raw.imgPhotoId}.jpeg`)
+            : "";
 
-          const parent =
-            anchor.closest("li") ??
-            anchor.closest("[data-testid]") ??
-            anchor.parentElement?.parentElement ??
-            anchor;
-
-          // Try to find photo ID from any img in the card
-          let photoId = "";
-          const imgs = (parent as Element).querySelectorAll("img");
-          for (const img of Array.from(imgs)) {
-            let src = img.getAttribute("src") ?? img.getAttribute("data-src") ?? "";
-            // Decode Next.js image proxy URLs: /_next/image?url=<encoded-url>
-            const nextImgParam = src.match(/[?&]url=([^&]+)/);
-            if (nextImgParam) src = decodeURIComponent(nextImgParam[1]);
-            const match = src.match(/\/(?:thumb|large)\/(\d+)\./);
-            if (match) { photoId = match[1]; break; }
-          }
-
-          const text = (parent as HTMLElement).innerText ?? "";
-          results.push({ path, imgPhotoId: photoId, text });
+          const event = this.parseCard(raw.path, imgSrc, raw.text, genre);
+          if (event) events.push(event);
         }
-        return results;
-      });
+      }
 
-      // Merge captured photo URLs into the results
-      const rawEventsWithImages = rawEvents.map((e) => ({
-        ...e,
-        imgSrc: e.imgPhotoId
-          ? (capturedPhotos.get(e.imgPhotoId)?.replace("/thumb/", "/large/") ??
-             `https://photos.bandsintown.com/large/${e.imgPhotoId}.jpeg`)
-          : "",
-      }));
-
-      return rawEventsWithImages.flatMap((raw) => {
-        const event = this.parseCard(raw.path, raw.imgSrc, raw.text);
-        return event ? [event] : [];
-      });
+      return events;
     } finally {
       await browser.close();
     }
   }
 
+  /** Navigate to a genre page and extract the raw card data for each event. */
+  private async loadGenrePage(
+    page: import("playwright-core").Page,
+    url: string
+  ): Promise<RawCard[]> {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    // Wait for at least one event card to appear (JS-rendered SPA). A genre page
+    // with no upcoming events never renders a card — treat that as empty.
+    const hasCards = await page
+      .waitForSelector('a[href*="/e/"]', { timeout: 45000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!hasCards) return [];
+
+    // Wait for photo images to load (large viewport makes them all visible).
+    // Bandsintown proxies images via /_next/image, so match on that or the direct CDN URL.
+    await page.waitForSelector('img[src*="photos.bandsintown.com"], img[src*="/_next/image"]', { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(500);
+
+    return page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('a[href*="/e/"]'));
+      const seen = new Set<string>();
+      const results: Array<{
+        path: string;
+        imgPhotoId: string;
+        text: string;
+      }> = [];
+
+      for (const card of cards) {
+        const anchor = card as HTMLAnchorElement;
+        const path = anchor.pathname;
+        if (seen.has(path)) continue;
+        seen.add(path);
+
+        const parent =
+          anchor.closest("li") ??
+          anchor.closest("[data-testid]") ??
+          anchor.parentElement?.parentElement ??
+          anchor;
+
+        // Try to find photo ID from any img in the card
+        let photoId = "";
+        const imgs = (parent as Element).querySelectorAll("img");
+        for (const img of Array.from(imgs)) {
+          let src = img.getAttribute("src") ?? img.getAttribute("data-src") ?? "";
+          // Decode Next.js image proxy URLs: /_next/image?url=<encoded-url>
+          const nextImgParam = src.match(/[?&]url=([^&]+)/);
+          if (nextImgParam) src = decodeURIComponent(nextImgParam[1]);
+          const match = src.match(/\/(?:thumb|large)\/(\d+)\./);
+          if (match) { photoId = match[1]; break; }
+        }
+
+        const text = (parent as HTMLElement).innerText ?? "";
+        results.push({ path, imgPhotoId: photoId, text });
+      }
+      return results;
+    });
+  }
+
   private parseCard(
     path: string,
     imgSrc: string,
-    text: string
+    text: string,
+    genre: Genre
   ): ScrapedEvent | null {
     // Text format (lines after trimming):
     // ["Apr 6 - 7:00 pm", "563", "The Strokes", "Bill Graham Civic Auditorium", "Tickets"]
@@ -163,7 +205,8 @@ export class BandsintownScraper extends BaseScraper {
       venueName: venue ?? undefined,
       imageUrl,
       sourceUrl,
-      tags: ["music", "concert", "live"],
+      category: genre.category,
+      tags: genre.tags,
       performers: [artist],
     };
   }

@@ -387,17 +387,25 @@ async function scrapeSource(
     // Skip if already exists, but enrich with better data if available
     const LOW_QUALITY_DOMAINS = ["foopee.com", "19hz.info"];
 
-    async function enrichExisting(
-      existingId: string,
-      existingSourceUrl: string,
-      existingImageUrl: string | null,
-      existingDescription: string | null = null,
-    ) {
+    // The existing-row fields enrichExisting reads. A full Event row, a DayEvent
+    // cache entry, and the urlMatch select all satisfy this shape.
+    type ExistingRow = {
+      id: string;
+      sourceUrl: string;
+      imageUrl: string | null;
+      description: string | null;
+      title: string;
+      venueName: string | null;
+      startDate: Date;
+      allDay: boolean;
+    };
+
+    async function enrichExisting(existing: ExistingRow) {
       const enrichments: Record<string, unknown> = {};
-      if (!existingImageUrl && event.imageUrl) {
+      if (!existing.imageUrl && event.imageUrl) {
         enrichments.imageUrl = event.imageUrl;
       }
-      if (!existingDescription && event.description) {
+      if (!existing.description && event.description) {
         enrichments.description = event.description;
       }
       // Refresh the external popularity signal (e.g. RA "interested" count).
@@ -406,20 +414,49 @@ async function scrapeSource(
       if (event.externalInterest != null && event.externalInterest > 0) {
         enrichments.externalInterest = event.externalInterest;
       }
-      const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) => existingSourceUrl.includes(d));
+      const existingIsLowQuality = LOW_QUALITY_DOMAINS.some((d) => existing.sourceUrl.includes(d));
       const incomingIsHighQuality = !LOW_QUALITY_DOMAINS.some((d) => event.sourceUrl.includes(d));
       if (existingIsLowQuality && incomingIsHighQuality) {
         enrichments.sourceUrl = event.sourceUrl;
         enrichments.sourceId = sourceId;
       }
-      if (Object.keys(enrichments).length > 0) {
-        await prisma.event.update({ where: { id: existingId }, data: enrichments });
+
+      // Promote a date-only placeholder to a real start time. Date-only sources
+      // (e.g. JamBase) store events at the noon-SF placeholder with allDay=true;
+      // when a later source matches the same event with an actual showtime,
+      // upgrade startDate and clear allDay so the real time wins. Only ever in
+      // this direction — a placeholder incoming never overwrites a real time.
+      //
+      // The dedupe hash keys on SF *day*, not time (see computeDedupeHash), and
+      // every matcher that reaches here constrains the existing row to the
+      // incoming event's SF day, so the promotion stays within the same day and
+      // leaves the hash unchanged — there's no recompute and no unique-constraint
+      // collision to guard against.
+      const promoteTime =
+        isTimeUnknown(existing.startDate, existing.allDay) &&
+        !isTimeUnknown(event.startDate, event.allDay ?? false);
+      if (promoteTime) {
+        enrichments.startDate = event.startDate;
+        enrichments.allDay = false;
+      }
+
+      if (Object.keys(enrichments).length === 0) return;
+      await prisma.event.update({ where: { id: existing.id }, data: enrichments });
+
+      if (promoteTime) {
+        // Keep the in-run day cache consistent so later events in this batch
+        // compare against the promoted time, not the stale placeholder.
+        const cached = dayEventsCache.get(sfDayKey(existing.startDate))?.find((e) => e.id === existing.id);
+        if (cached) {
+          cached.startDate = event.startDate;
+          cached.allDay = false;
+        }
       }
     }
 
     const exactMatch = await prisma.event.findUnique({ where: { dedupeHash } });
     if (exactMatch) {
-      await enrichExisting(exactMatch.id, exactMatch.sourceUrl, exactMatch.imageUrl, exactMatch.description);
+      await enrichExisting(exactMatch);
       continue;
     }
 
@@ -435,11 +472,11 @@ async function scrapeSource(
           sourceUrl: event.sourceUrl,
           startDate: { gte: sfDayStartDate, lt: sfDayEndDate },
         },
-        select: { id: true, sourceUrl: true, imageUrl: true, description: true },
+        select: { id: true, sourceUrl: true, imageUrl: true, description: true, title: true, venueName: true, startDate: true, allDay: true },
       });
       if (urlMatch) {
         console.log(`[${slug}] Source URL duplicate: "${event.title}" (${event.sourceUrl})`);
-        await enrichExisting(urlMatch.id, urlMatch.sourceUrl, urlMatch.imageUrl, urlMatch.description);
+        await enrichExisting(urlMatch);
         continue;
       }
     }
@@ -470,7 +507,7 @@ async function scrapeSource(
 
         if (fuzzyMatch) {
           console.log(`[${slug}] Fuzzy duplicate: "${event.title}" ≈ "${fuzzyMatch.title}"`);
-          await enrichExisting(fuzzyMatch.id, fuzzyMatch.sourceUrl, fuzzyMatch.imageUrl, fuzzyMatch.description);
+          await enrichExisting(fuzzyMatch);
           continue;
         }
       }
@@ -504,7 +541,7 @@ async function scrapeSource(
         });
         if (sameTimeVenueMatch) {
           console.log(`[${slug}] Same-time+venue duplicate: "${event.title}" ≈ "${sameTimeVenueMatch.title}" at ${event.venueName}`);
-          await enrichExisting(sameTimeVenueMatch.id, sameTimeVenueMatch.sourceUrl, sameTimeVenueMatch.imageUrl, sameTimeVenueMatch.description);
+          await enrichExisting(sameTimeVenueMatch);
           continue;
         }
       }
@@ -530,7 +567,7 @@ async function scrapeSource(
           });
           if (venuePartialMatch) {
             console.log(`[${slug}] Venue+title duplicate: "${event.title}" ≈ "${venuePartialMatch.title}" at ${event.venueName}`);
-            await enrichExisting(venuePartialMatch.id, venuePartialMatch.sourceUrl, venuePartialMatch.imageUrl, venuePartialMatch.description);
+            await enrichExisting(venuePartialMatch);
             continue;
           }
         }
@@ -550,7 +587,7 @@ async function scrapeSource(
           );
           if (venueMatch) {
             console.log(`[${slug}] Venue-as-title duplicate: "${event.title}" skipped, existing: "${venueMatch.title}"`);
-            await enrichExisting(venueMatch.id, venueMatch.sourceUrl, venueMatch.imageUrl, venueMatch.description);
+            await enrichExisting(venueMatch);
             continue;
           }
         } else {

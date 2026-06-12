@@ -120,7 +120,7 @@ export const KNOWN_VENUES: Record<string, KnownVenue> = {
   independent: { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
   // foopee misspells it "Indpendent" and appends ", S.F." (also corrected in foopee.ts).
   indpendent: { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
-  "indpendent, s.f.": { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
+  "indpendent, s.f": { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
   "yerba buena center for the arts": { name: "Yerba Buena Center for the Arts", latitude: 37.78589, longitude: -122.40233, address: "701 Mission St, San Francisco, CA 94103" },
   ybca: { name: "Yerba Buena Center for the Arts", latitude: 37.78589, longitude: -122.40233, address: "701 Mission St, San Francisco, CA 94103" },
   // DNA Lounge — the dedicated dnalounge scraper hardcodes these coords, but the
@@ -129,6 +129,159 @@ export const KNOWN_VENUES: Record<string, KnownVenue> = {
   "dna lounge": { name: "DNA Lounge", latitude: 37.77101, longitude: -122.41269, address: "375 Eleventh Street, San Francisco, CA 94103" },
   "above dna lounge": { name: "DNA Lounge", latitude: 37.77101, longitude: -122.41269, address: "375 Eleventh Street, San Francisco, CA 94103" },
   "375 eleventh street, san francisco, ca": { name: "DNA Lounge", latitude: 37.77101, longitude: -122.41269, address: "375 Eleventh Street, San Francisco, CA 94103" },
+  // ── Ungeocoded triage batch (#177 follow-up) — recurring in-area venues that
+  //    arrive name-only (or with a city suffix Nominatim can't place) from
+  //    foopee, bandsintown, 19hz, funcheap, instagram, cityboxoffice. Coords were
+  //    geocoded once from each street address via Nominatim. Aliases capture the
+  //    exact spellings seen in the feed, including foopee's ", S.F." suffix and
+  //    common typos. ───────────────────────────────────────────────────────────
+  // Foopee tacks ", S.F." onto venue names; add suffixed aliases for venues
+  // already in the table above so those events resolve too.
+  "castro theater, s.f": { name: "The Castro Theatre", latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
+  "the castro theatre, s.f": { name: "The Castro Theatre", latitude: 37.76199, longitude: -122.43475, address: "429 Castro St, San Francisco, CA 94114", photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Castro%2C_San_Francisco%2C_CA.jpg?width=1200" },
+  "swedish american hall, s.f": { name: "Swedish American Hall", latitude: 37.76652, longitude: -122.43047, address: "2174 Market St, San Francisco, CA 94114" },
+  // UC Berkeley's Hearst Greek Theatre — the single biggest ungeocoded group.
+  "greek theater, uc berkeley campus": { name: "Hearst Greek Theatre", latitude: 37.87296, longitude: -122.25449, address: "2001 Gayley Rd, Berkeley, CA 94720" },
+  "the greek theatre at uc berkeley": { name: "Hearst Greek Theatre", latitude: 37.87296, longitude: -122.25449, address: "2001 Gayley Rd, Berkeley, CA 94720" },
+  "hearst greek theatre": { name: "Hearst Greek Theatre", latitude: 37.87296, longitude: -122.25449, address: "2001 Gayley Rd, Berkeley, CA 94720" },
+  // Sigmund Stern Grove (free summer festival meadow).
+  "stern grove festival, s.f": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
+  "stern grove concert meadow": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
+  "stern grove festival": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
+  "stern grove": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
+  // Chase Center — foopee/bandsintown call it "Warriors Stadium" with many typos.
+  "warriors stadium, s.f": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
+  "warriros stadium, s.f": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
+  "warrior's stadium, s.f": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
+  "warriors stadiom, s.f": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
+  "warriors stadium": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
+  "chase center": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
+  // The Back Room — Berkeley listening room (bandsintown "The Back Room Music").
+  "the back room music": { name: "The Back Room", latitude: 37.87208, longitude: -122.27205, address: "1984 Bonita Ave, Berkeley, CA 94704" },
+  "the back room": { name: "The Back Room", latitude: 37.87208, longitude: -122.27205, address: "1984 Bonita Ave, Berkeley, CA 94704" },
+  // Freight & Salvage — bandsintown/folkyeah shorten it to "The Freight".
+  "the freight": { name: "Freight & Salvage", latitude: 37.87076, longitude: -122.26953, address: "2020 Addison St, Berkeley, CA 94704" },
+  "freight & salvage": { name: "Freight & Salvage", latitude: 37.87076, longitude: -122.26953, address: "2020 Addison St, Berkeley, CA 94704" },
+  "freight and salvage": { name: "Freight & Salvage", latitude: 37.87076, longitude: -122.26953, address: "2020 Addison St, Berkeley, CA 94704" },
+  // Thee Stork Club — Oakland (foopee mislabels it ", S.F."). Matches the
+  // storkclub scraper's canonical "Thee Stork Club" so they share one Venue row.
+  "thee stork club, s.f": { name: "Thee Stork Club", latitude: 37.81314, longitude: -122.26838, address: "2330 Telegraph Ave, Oakland, CA 94612" },
+  "thee stork club": { name: "Thee Stork Club", latitude: 37.81314, longitude: -122.26838, address: "2330 Telegraph Ave, Oakland, CA 94612" },
+  "stork club": { name: "Thee Stork Club", latitude: 37.81314, longitude: -122.26838, address: "2330 Telegraph Ave, Oakland, CA 94612" },
+  // Rickshaw Stop (foopee "Ricksaw Stop, S.F." typo).
+  "rickshaw stop": { name: "Rickshaw Stop", latitude: 37.77599, longitude: -122.42048, address: "155 Fell St, San Francisco, CA 94102" },
+  "ricksaw stop, s.f": { name: "Rickshaw Stop", latitude: 37.77599, longitude: -122.42048, address: "155 Fell St, San Francisco, CA 94102" },
+  "ricksaw stop": { name: "Rickshaw Stop", latitude: 37.77599, longitude: -122.42048, address: "155 Fell St, San Francisco, CA 94102" },
+  // Mr. Tipple's Jazz Club.
+  "mr. tipple's jazz club": { name: "Mr. Tipple's Jazz Club", latitude: 37.77637, longitude: -122.41857, address: "39 Fell St, San Francisco, CA 94102" },
+  "mr tipple's jazz club": { name: "Mr. Tipple's Jazz Club", latitude: 37.77637, longitude: -122.41857, address: "39 Fell St, San Francisco, CA 94102" },
+  "mr. tipples jazz club": { name: "Mr. Tipple's Jazz Club", latitude: 37.77637, longitude: -122.41857, address: "39 Fell St, San Francisco, CA 94102" },
+  // The Midway (900 Marin St) — 19hz/instagram suffix it with room names.
+  "the midway": { name: "The Midway", latitude: 37.74953, longitude: -122.38609, address: "900 Marin St, San Francisco, CA 94124" },
+  "the midway - gods & monsters": { name: "The Midway", latitude: 37.74953, longitude: -122.38609, address: "900 Marin St, San Francisco, CA 94124" },
+  "the midway terrace": { name: "The Midway", latitude: 37.74953, longitude: -122.38609, address: "900 Marin St, San Francisco, CA 94124" },
+  "the midway patio": { name: "The Midway", latitude: 37.74953, longitude: -122.38609, address: "900 Marin St, San Francisco, CA 94124" },
+  // Public Works (161 Erie St) — 19hz "Public Works Loft (San Francisco)".
+  "public works": { name: "Public Works", latitude: 37.76889, longitude: -122.41927, address: "161 Erie St, San Francisco, CA 94103" },
+  "public works loft": { name: "Public Works", latitude: 37.76889, longitude: -122.41927, address: "161 Erie St, San Francisco, CA 94103" },
+  // SFJAZZ Center — matches the sfjazz scraper's canonical venueName.
+  "sfjazz center": { name: "SFJAZZ Center", latitude: 37.77638, longitude: -122.42157, address: "201 Franklin St, San Francisco, CA 94102" },
+  sfjazz: { name: "SFJAZZ Center", latitude: 37.77638, longitude: -122.42157, address: "201 Franklin St, San Francisco, CA 94102" },
+  "miner auditorium, sfjazz center": { name: "SFJAZZ Center", latitude: 37.77638, longitude: -122.42157, address: "201 Franklin St, San Francisco, CA 94102" },
+  "miner auditorium, sfjazz": { name: "SFJAZZ Center", latitude: 37.77638, longitude: -122.42157, address: "201 Franklin St, San Francisco, CA 94102" },
+  // Cow Palace (Daly City; foopee "Daily City" typo, 19hz "(San Francisco)").
+  "cow palace, daily city": { name: "Cow Palace", latitude: 37.70676, longitude: -122.41869, address: "2600 Geneva Ave, Daly City, CA 94014" },
+  "cow palace, daly city": { name: "Cow Palace", latitude: 37.70676, longitude: -122.41869, address: "2600 Geneva Ave, Daly City, CA 94014" },
+  "cow palace": { name: "Cow Palace", latitude: 37.70676, longitude: -122.41869, address: "2600 Geneva Ave, Daly City, CA 94014" },
+  // Oracle Park — foopee "Giants Ballpark" with assorted spellings.
+  "giants ballpark, s.f": { name: "Oracle Park", latitude: 37.77861, longitude: -122.38947, address: "24 Willie Mays Plaza, San Francisco, CA 94107" },
+  "giant's ball park, s.f": { name: "Oracle Park", latitude: 37.77861, longitude: -122.38947, address: "24 Willie Mays Plaza, San Francisco, CA 94107" },
+  "giants ball park, s.f": { name: "Oracle Park", latitude: 37.77861, longitude: -122.38947, address: "24 Willie Mays Plaza, San Francisco, CA 94107" },
+  "oracle park": { name: "Oracle Park", latitude: 37.77861, longitude: -122.38947, address: "24 Willie Mays Plaza, San Francisco, CA 94107" },
+  // Palace of Fine Arts (funcheap "SF's Palace of Fine Arts").
+  "palace of fine arts": { name: "Palace of Fine Arts", latitude: 37.80149, longitude: -122.44787, address: "3601 Lyon St, San Francisco, CA 94123" },
+  "sf's palace of fine arts": { name: "Palace of Fine Arts", latitude: 37.80149, longitude: -122.44787, address: "3601 Lyon St, San Francisco, CA 94123" },
+  "the palace of fine arts": { name: "Palace of Fine Arts", latitude: 37.80149, longitude: -122.44787, address: "3601 Lyon St, San Francisco, CA 94123" },
+  // Starline Social Club (Oakland).
+  "starline social club": { name: "Starline Social Club", latitude: 37.81228, longitude: -122.27255, address: "2236 Martin Luther King Jr Way, Oakland, CA 94612" },
+  // Mad Oak Bar N' Yard (Oakland).
+  "mad oak bar n' yard": { name: "Mad Oak Bar N' Yard", latitude: 37.79986, longitude: -122.26464, address: "135 12th St, Oakland, CA 94607" },
+  "mad oak bar n yard": { name: "Mad Oak Bar N' Yard", latitude: 37.79986, longitude: -122.26464, address: "135 12th St, Oakland, CA 94607" },
+  "mad oak bar": { name: "Mad Oak Bar N' Yard", latitude: 37.79986, longitude: -122.26464, address: "135 12th St, Oakland, CA 94607" },
+  // UC Botanical Garden at Berkeley.
+  "university of california botanical garden": { name: "UC Botanical Garden", latitude: 37.88045, longitude: -122.24679, address: "200 Centennial Dr, Berkeley, CA 94720" },
+  "uc botanical garden": { name: "UC Botanical Garden", latitude: 37.88045, longitude: -122.24679, address: "200 Centennial Dr, Berkeley, CA 94720" },
+  // 142 Throckmorton Theatre (Mill Valley).
+  "142 throckmorton theatre": { name: "142 Throckmorton Theatre", latitude: 37.90583, longitude: -122.54901, address: "142 Throckmorton Ave, Mill Valley, CA 94941" },
+  "throckmorton theatre": { name: "142 Throckmorton Theatre", latitude: 37.90583, longitude: -122.54901, address: "142 Throckmorton Ave, Mill Valley, CA 94941" },
+  // The Belrose (San Rafael).
+  "the belrose": { name: "The Belrose", latitude: 37.97446, longitude: -122.53216, address: "1415 5th Ave, San Rafael, CA 94901" },
+  // Down Home Music (El Cerrito).
+  "down home music, el cerrito": { name: "Down Home Music", latitude: 37.90684, longitude: -122.30593, address: "10341 San Pablo Ave, El Cerrito, CA 94530" },
+  "down home music": { name: "Down Home Music", latitude: 37.90684, longitude: -122.30593, address: "10341 San Pablo Ave, El Cerrito, CA 94530" },
+  // Cornerstone Berkeley (foopee "Cornerstone, Berkely" typo).
+  "cornerstone, berkely": { name: "Cornerstone Berkeley", latitude: 37.86656, longitude: -122.26693, address: "2367 Shattuck Ave, Berkeley, CA 94704" },
+  "cornerstone, berkeley": { name: "Cornerstone Berkeley", latitude: 37.86656, longitude: -122.26693, address: "2367 Shattuck Ave, Berkeley, CA 94704" },
+  "cornerstone berkeley": { name: "Cornerstone Berkeley", latitude: 37.86656, longitude: -122.26693, address: "2367 Shattuck Ave, Berkeley, CA 94704" },
+  // Presidio Theatre (cityboxoffice doubles the address so it won't geocode raw).
+  "presidio theatre performing arts center": { name: "Presidio Theatre", latitude: 37.79889, longitude: -122.46054, address: "99 Moraga Ave, San Francisco, CA 94129" },
+  "presidio theatre": { name: "Presidio Theatre", latitude: 37.79889, longitude: -122.46054, address: "99 Moraga Ave, San Francisco, CA 94129" },
+  // Herbst Theatre (War Memorial Veterans Building).
+  "herbst theatre": { name: "Herbst Theatre", latitude: 37.77953, longitude: -122.42103, address: "401 Van Ness Ave, San Francisco, CA 94102" },
+  // SVN West (10 South Van Ness; 19hz "Svn West Rooftop (San Francisco)").
+  "svn west": { name: "SVN West", latitude: 37.77409, longitude: -122.41945, address: "10 South Van Ness Ave, San Francisco, CA 94103" },
+  "svn west rooftop": { name: "SVN West", latitude: 37.77409, longitude: -122.41945, address: "10 South Van Ness Ave, San Francisco, CA 94103" },
+  // Fort Mason Center — matches the fortmason scraper's canonical venueName.
+  "festival pavilion at fort mason center": { name: "Fort Mason Center", latitude: 37.80689, longitude: -122.43221, address: "2 Marina Blvd, San Francisco, CA 94123" },
+  "fort mason center": { name: "Fort Mason Center", latitude: 37.80689, longitude: -122.43221, address: "2 Marina Blvd, San Francisco, CA 94123" },
+  "fort mason": { name: "Fort Mason Center", latitude: 37.80689, longitude: -122.43221, address: "2 Marina Blvd, San Francisco, CA 94123" },
+  // KQED headquarters (kqed scraper "The Commons at KQED").
+  "the commons at kqed": { name: "KQED", latitude: 37.76262, longitude: -122.40972, address: "2601 Mariposa St, San Francisco, CA 94110" },
+  kqed: { name: "KQED", latitude: 37.76262, longitude: -122.40972, address: "2601 Mariposa St, San Francisco, CA 94110" },
+  // Chinese Culture Center (inside the Hilton, 750 Kearny St).
+  "chinese culture center gallery": { name: "Chinese Culture Center", latitude: 37.79514, longitude: -122.40431, address: "750 Kearny St, San Francisco, CA 94108" },
+  "chinese culture center": { name: "Chinese Culture Center", latitude: 37.79514, longitude: -122.40431, address: "750 Kearny St, San Francisco, CA 94108" },
+  // Lanesplitter Pizza (Emeryville; foopee "Lane Splitters Pizza, Emeryville").
+  "lane splitters pizza, emeryville": { name: "Lanesplitter Pizza", latitude: 37.83203, longitude: -122.28041, address: "4031 San Pablo Ave, Emeryville, CA 94608" },
+  "lanesplitter pizza": { name: "Lanesplitter Pizza", latitude: 37.83203, longitude: -122.28041, address: "4031 San Pablo Ave, Emeryville, CA 94608" },
+  // Monarch (101 6th St; decentered stores the venue as bare "Monarch").
+  monarch: { name: "Monarch", latitude: 37.78097, longitude: -122.40833, address: "101 6th St, San Francisco, CA 94103" },
+  // Hotel VIA rooftop (19hz "Via Hotel Rooftop (San Francisco)").
+  "via hotel rooftop": { name: "Hotel VIA", latitude: 37.77929, longitude: -122.39064, address: "138 King St, San Francisco, CA 94107" },
+  "hotel via": { name: "Hotel VIA", latitude: 37.77929, longitude: -122.39064, address: "138 King St, San Francisco, CA 94107" },
+  // The Warfield's own Instagram handle (instagram scraper "thewarfield").
+  thewarfield: { name: "The Warfield", latitude: 37.78262, longitude: -122.41034, address: "982 Market St, San Francisco, CA 94102" },
+  // ── User-confirmed venues (second triage pass) — addresses supplied by hand. ──
+  // "Hedge Coffee" is a 19hz promoter name, not a venue; its shows are at 434 Shotwell.
+  "hedge coffee": { name: "434 Shotwell", latitude: 37.76143, longitude: -122.41613, address: "434 Shotwell St, San Francisco, CA 94110" },
+  // Gold Bar distillery/tasting room on Treasure Island.
+  "gold bar whiskey distillery tasting room": { name: "Gold Bar Distillery", latitude: 37.81751, longitude: -122.37138, address: "1 Avenue of the Palms, San Francisco, CA 94130" },
+  "goldbar distillery treasure island": { name: "Gold Bar Distillery", latitude: 37.81751, longitude: -122.37138, address: "1 Avenue of the Palms, San Francisco, CA 94130" },
+  // Now Place — Chinatown art gallery.
+  "now place 此间": { name: "Now Place", latitude: 37.79443, longitude: -122.40435, address: "679 Clay St, San Francisco, CA 94111" },
+  "now place": { name: "Now Place", latitude: 37.79443, longitude: -122.40435, address: "679 Clay St, San Francisco, CA 94111" },
+  // O'Reilly's Pub — Haight (curly apostrophe folded by normalize).
+  "o'reilly's pub": { name: "O'Reilly's Pub", latitude: 37.76951, longitude: -122.45262, address: "1840 Haight St, San Francisco, CA 94117" },
+  // Evolution Night Club — Portola/San Bruno Ave.
+  "evolution night club san francisco": { name: "Evolution Night Club", latitude: 37.7307, longitude: -122.4052, address: "2470 San Bruno Ave, San Francisco, CA 94134" },
+  "evolution night club": { name: "Evolution Night Club", latitude: 37.7307, longitude: -122.4052, address: "2470 San Bruno Ave, San Francisco, CA 94134" },
+  // Slim's — reopened as Buddha Night Club at the same 333 11th St address.
+  "slim's": { name: "Slim's", latitude: 37.77151, longitude: -122.41326, address: "333 11th St, San Francisco, CA 94103" },
+  slims: { name: "Slim's", latitude: 37.77151, longitude: -122.41326, address: "333 11th St, San Francisco, CA 94103" },
+  "buddha night club": { name: "Slim's", latitude: 37.77151, longitude: -122.41326, address: "333 11th St, San Francisco, CA 94103" },
+  // The Castro Room (97 Collingwood St).
+  "the castro room": { name: "The Castro Room", latitude: 37.76097, longitude: -122.43603, address: "97 Collingwood St, San Francisco, CA 94114" },
+  // XeX — bar/club on Polk.
+  xex: { name: "XeX", latitude: 37.78736, longitude: -122.42018, address: "1131 Polk St, San Francisco, CA 94109" },
+  // Bric-a-Brac — Visitacion Valley.
+  "bric-a-brac": { name: "Bric-a-Brac", latitude: 37.71263, longitude: -122.4069, address: "178 Leland Ave, San Francisco, CA 94134" },
+  // The Loom — Jingletown, Oakland.
+  "the loom": { name: "The Loom", latitude: 37.78098, longitude: -122.24011, address: "2220 Livingston St, Oakland, CA 94606" },
+  // Gold Bar Hangar — Alameda Point (distinct from the SF Gold Bar distillery).
+  "the gold bar hangar": { name: "Gold Bar Hangar", latitude: 37.7886, longitude: -122.30829, address: "2505 Monarch St, Alameda, CA 94501" },
+  "gold bar hangar": { name: "Gold Bar Hangar", latitude: 37.7886, longitude: -122.30829, address: "2505 Monarch St, Alameda, CA 94501" },
+  // 888 Garage — a room at The Midway (900 Marin St).
+  "888 garage": { name: "The Midway", latitude: 37.74953, longitude: -122.38609, address: "900 Marin St, San Francisco, CA 94124" },
 };
 
 /**
@@ -236,7 +389,17 @@ function normalize(s: string): string {
   return s
     .trim()
     .toLowerCase()
+    // Fold curly apostrophes/quotes to straight so feed spellings match the
+    // ASCII keys below — funcheap/instagram emit "Mr. Tipple’s", "SF’s …".
+    .replace(/[‘’]/g, "'")
     .replace(/\s+/g, " ")
+    // Drop a trailing parenthetical the aggregators tack onto an otherwise-clean
+    // venue name — 19hz appends the city ("Public Works Loft (San Francisco)"),
+    // funcheap appends a date ("Yerba Buena Center for the Arts (YBCA)" aside,
+    // "...Palace of Fine Arts (July 11-12)") — so the name still matches its base
+    // key. Leaves the placeholder path alone: "TBA (San Francisco)" → "tba",
+    // which matches no known venue, exactly as before.
+    .replace(/\s*\([^)]*\)\s*$/, "")
     // Strip surrounding punctuation so labels like "Castro Theater," match the
     // punctuation-free known-venue keys instead of falling through to Nominatim
     // (where they misgeocode — "Castro Theater," resolved to Castro *Valley*).

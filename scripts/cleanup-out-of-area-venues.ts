@@ -32,15 +32,20 @@ async function main() {
       id: true,
       title: true,
       venueName: true,
+      venueAddress: true,
       source: { select: { slug: true } },
     },
   });
 
-  const outOfArea = events.filter((e) => isOutOfAreaVenue(e.venueName));
+  // Check both the name and any locality string (folkyeah carries the city in
+  // venueAddress), mirroring the ingest filter in lib/scrapers/runner.ts.
+  const outOfArea = events.filter(
+    (e) => isOutOfAreaVenue(e.venueName) || isOutOfAreaVenue(e.venueAddress)
+  );
   console.log(`Found ${outOfArea.length} out-of-area events out of ${events.length} from these sources\n`);
 
   for (const e of outOfArea) {
-    console.log(`  [${dryRun ? "DRY" : "ARCHIVE"}] [${e.source.slug}] ${e.venueName} — "${e.title}"`);
+    console.log(`  [${dryRun ? "DRY" : "ARCHIVE"}] [${e.source.slug}] ${e.venueName ?? e.venueAddress} — "${e.title}"`);
   }
 
   if (!dryRun && outOfArea.length > 0) {

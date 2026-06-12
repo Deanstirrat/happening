@@ -33,6 +33,12 @@ async function main() {
   // Future, ungeocoded events that have something to geocode from.
   const events = await prisma.event.findMany({
     where: {
+      // Only live events need coords for the map. Skipping non-PUBLISHED rows
+      // means the prune scripts (hold-placeholder-venues, cleanup-far-events,
+      // cleanup-out-of-area-venues) — which move junk to PENDING/ARCHIVED —
+      // actually shrink this working set, instead of us re-grinding the same
+      // permanently-un-geocodable placeholders through Nominatim every run.
+      status: "PUBLISHED",
       startDate: { gte: now },
       geocoded: false,
       venueName: { not: null },

@@ -22,6 +22,12 @@ const FEED_URL = "https://cdn.dnalounge.com/calendar/dnalounge.ics";
 const VENUE_NAME = "DNA Lounge";
 const VENUE_ADDRESS = "375 Eleventh Street, San Francisco, CA 94103";
 
+// The real feed is ~240KB. DNA Lounge actively defends against bots and, from
+// datacenter IPs, can serve a multi-hundred-MB anti-scraper "tarpit" instead of
+// the calendar. Cap the body so a hostile response fails fast here rather than
+// OOM-crashing the whole scrape run (which would take down every other source).
+const MAX_FEED_BYTES = 5 * 1024 * 1024;
+
 /** Join RFC 5545 folded lines (continuations begin with a space or tab). */
 function unfoldLines(raw: string): string[] {
   const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -126,10 +132,23 @@ export class DnaLoungeScraper extends BaseScraper {
         },
         responseType: "text",
         timeout: 15_000,
+        maxContentLength: MAX_FEED_BYTES,
+        maxBodyLength: MAX_FEED_BYTES,
       });
       feed = data;
     } catch (err: any) {
       console.error("[dnalounge] failed to fetch iCal feed:", err.message);
+      return [];
+    }
+
+    // Validate this is the real calendar, not an anti-bot tarpit / error page.
+    // The feed always begins with the VCALENDAR header; anything else (garbage,
+    // HTML, a Markov-text stream) is rejected before we try to parse it.
+    if (!feed.startsWith("BEGIN:VCALENDAR")) {
+      console.error(
+        `[dnalounge] unexpected response (${feed.length} bytes, not an iCal feed) — ` +
+          `likely blocked from this IP. First bytes: ${JSON.stringify(feed.slice(0, 120))}`
+      );
       return [];
     }
 

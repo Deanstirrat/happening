@@ -201,7 +201,7 @@ const sources = [
     url: "https://www.dnalounge.com/calendar/",
     scrapeType: ScrapeType.API,
     category: SourceCategory.VENUE,
-    enabled: true,
+    enabled: false, // serves an anti-bot tarpit to datacenter IPs + tags the feed noai; published .ics returns 0 events from our server
   },
   {
     slug: "borderlandsbooks",

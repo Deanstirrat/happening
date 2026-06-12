@@ -97,7 +97,66 @@ export const KNOWN_VENUES: Record<string, KnownVenue> = {
   // F8 nightclub — some sources mis-parse "1192 Folsom St" as the city Folsom, CA (148 km away).
   f8sf: { name: "F8", latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
   f8: { name: "F8", latitude: 37.77313, longitude: -122.4099, address: "1192 Folsom St, San Francisco, CA 94103" },
+  // ── Recurring SF music venues (#158) — arrive name-only from bandsintown,
+  //    instagram, foopee and don't geocode by name through Nominatim. ──────
+  "brick & mortar music hall": { name: "Brick & Mortar Music Hall", latitude: 37.76974, longitude: -122.41985, address: "1710 Mission St, San Francisco, CA 94103" },
+  "brick & mortar": { name: "Brick & Mortar Music Hall", latitude: 37.76974, longitude: -122.41985, address: "1710 Mission St, San Francisco, CA 94103" },
+  "brick and mortar music hall": { name: "Brick & Mortar Music Hall", latitude: 37.76974, longitude: -122.41985, address: "1710 Mission St, San Francisco, CA 94103" },
+  "brick and mortar": { name: "Brick & Mortar Music Hall", latitude: 37.76974, longitude: -122.41985, address: "1710 Mission St, San Francisco, CA 94103" },
+  "the warfield": { name: "The Warfield", latitude: 37.78262, longitude: -122.41034, address: "982 Market St, San Francisco, CA 94102" },
+  warfield: { name: "The Warfield", latitude: 37.78262, longitude: -122.41034, address: "982 Market St, San Francisco, CA 94102" },
+  "the warfield theatre": { name: "The Warfield", latitude: 37.78262, longitude: -122.41034, address: "982 Market St, San Francisco, CA 94102" },
+  "warfield theatre": { name: "The Warfield", latitude: 37.78262, longitude: -122.41034, address: "982 Market St, San Francisco, CA 94102" },
+  "the great american music hall": { name: "Great American Music Hall", latitude: 37.78477, longitude: -122.41884, address: "859 O'Farrell St, San Francisco, CA 94109" },
+  "great american music hall": { name: "Great American Music Hall", latitude: 37.78477, longitude: -122.41884, address: "859 O'Farrell St, San Francisco, CA 94109" },
+  gamh: { name: "Great American Music Hall", latitude: 37.78477, longitude: -122.41884, address: "859 O'Farrell St, San Francisco, CA 94109" },
+  "bottom of the hill": { name: "Bottom of the Hill", latitude: 37.76496, longitude: -122.39641, address: "1233 17th St, San Francisco, CA 94107" },
+  "cafe du nord": { name: "Cafe Du Nord", latitude: 37.76652, longitude: -122.43047, address: "2174 Market St, San Francisco, CA 94114" },
+  "café du nord": { name: "Cafe Du Nord", latitude: 37.76652, longitude: -122.43047, address: "2174 Market St, San Francisco, CA 94114" },
+  // Swedish American Hall sits above Cafe Du Nord in the same building (2174 Market).
+  "swedish american hall": { name: "Swedish American Hall", latitude: 37.76652, longitude: -122.43047, address: "2174 Market St, San Francisco, CA 94114" },
+  "swedish american music hall": { name: "Swedish American Hall", latitude: 37.76652, longitude: -122.43047, address: "2174 Market St, San Francisco, CA 94114" },
+  "the independent": { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
+  independent: { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
+  // foopee misspells it "Indpendent" and appends ", S.F." (also corrected in foopee.ts).
+  indpendent: { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
+  "indpendent, s.f.": { name: "The Independent", latitude: 37.77553, longitude: -122.43764, address: "628 Divisadero St, San Francisco, CA 94117" },
+  "yerba buena center for the arts": { name: "Yerba Buena Center for the Arts", latitude: 37.78589, longitude: -122.40233, address: "701 Mission St, San Francisco, CA 94103" },
+  ybca: { name: "Yerba Buena Center for the Arts", latitude: 37.78589, longitude: -122.40233, address: "701 Mission St, San Francisco, CA 94103" },
+  // DNA Lounge — the dedicated dnalounge scraper hardcodes these coords, but the
+  // instagram variants ("DNA Lounge", "Above DNA Lounge", the bare address) miss
+  // the scraper and need the table to resolve.
+  "dna lounge": { name: "DNA Lounge", latitude: 37.77101, longitude: -122.41269, address: "375 Eleventh Street, San Francisco, CA 94103" },
+  "above dna lounge": { name: "DNA Lounge", latitude: 37.77101, longitude: -122.41269, address: "375 Eleventh Street, San Francisco, CA 94103" },
+  "375 eleventh street, san francisco, ca": { name: "DNA Lounge", latitude: 37.77101, longitude: -122.41269, address: "375 Eleventh Street, San Francisco, CA 94103" },
 };
+
+/**
+ * True when a venue string is a non-venue placeholder — a source's stand-in for
+ * an unannounced or non-physical location rather than a real place. 19hz uses
+ * "TBA (San Francisco)" for events whose venue isn't announced yet; funcheap
+ * emits bare city strings like "SF (7p + 9p)". These have no resolvable location
+ * and are held PENDING at ingest rather than published locationless (#158, see
+ * lib/scrapers/runner.ts). SFPL's mobile "Bookmobiles / MOS" is handled
+ * separately — the sfpl scraper skips it outright.
+ */
+export function isPlaceholderVenue(venueName: string | null | undefined): boolean {
+  if (!venueName) return false;
+  // Drop a trailing parenthetical annotation and trailing punctuation:
+  // "TBA (San Francisco)" → "tba", "SF (7p + 9p)" → "sf".
+  const base = venueName
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .replace(/[.,\s]+$/, "")
+    .trim();
+  if (!base) return true;
+  // "TBA"/"TBD", alone or as a prefix ("TBA - venue to be announced").
+  if (/^tba\b|^tbd\b/.test(base)) return true;
+  // A bare city name with no venue attached ("SF", "San Francisco, CA").
+  if (/^(sf|san francisco)(,?\s*(ca|california))?$/.test(base)) return true;
+  return false;
+}
 
 function normalize(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");

@@ -8,6 +8,7 @@ import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
+import { isPlaceholderVenue } from "@/lib/venues";
 import { SCRAPE_RUN_HISTORY } from "./health";
 import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue } from "@/lib/ingestFilters";
 
@@ -657,6 +658,14 @@ async function scrapeSource(
       console.log(`[${slug}] Ungeocoded — publishing, flagged for backfill: "${event.title}"`);
     }
 
+    // Non-venue placeholders (19hz "TBA (San Francisco)", funcheap bare-city
+    // strings) have no real location. Hold them PENDING rather than publish them
+    // locationless — they surface in the admin submissions tab, not on the site.
+    const isPlaceholder = isPlaceholderVenue(event.venueName);
+    if (isPlaceholder) {
+      console.log(`[${slug}] Placeholder venue — holding PENDING: "${event.title}" (${event.venueName})`);
+    }
+
     // Link to the normalized Venue table when the venue is known. Same matching
     // as geocodeEvent (pass slug so SFPL branch labels resolve for sfpl only).
     const venueId = await resolveVenueId(event.venueName, slug);
@@ -692,7 +701,7 @@ async function scrapeSource(
           performers: event.performers ?? [],
           externalInterest: event.externalInterest ?? 0,
           geocoded: geo.latitude != null,
-          status: "PUBLISHED",
+          status: isPlaceholder ? "PENDING" : "PUBLISHED",
           categorized: true,
           sourceId,
         },

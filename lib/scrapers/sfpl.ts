@@ -135,6 +135,11 @@ export class SfplScraper extends BaseScraper {
           }
         });
 
+        // "Bookmobiles / MOS" is SFPL's mobile-outreach service — no fixed
+        // location, so it has no entry in SFPL_BRANCHES and would publish
+        // ungeocoded. Skip it rather than list a locationless event (#158).
+        if (venueName && /^bookmobiles\b/i.test(venueName)) return;
+
         // Tags from audience/topic filter links
         const tags: string[] = ["library", "sfpl"];
         $el.find(".event-tags a, .event__tags a").each((_j, a) => {

@@ -108,6 +108,11 @@ import { ComedyCalendarScraper } from "./comedycalendar";
 import { OpenMicXScraper } from "./openmicx";
 import { SfStationScraper } from "./sfstation";
 import { KillingMyLobsterScraper } from "./killingmylobster";
+import { EndgamesScraper } from "./endgames";
+import { WnpScraper } from "./wnp";
+import { SternGroveScraper } from "./sterngrove";
+import { GoldenGateJamsScraper } from "./goldengatejams";
+import { BalboaScraper, VogueScraper, FourStarScraper } from "./cinemasf";
 export const SCRAPERS: Record<string, BaseScraper> = {
   // ── High-quality aggregators first — populate events with rich data so
   //    low-quality sources (foopee, 19hz) only fill gaps ──────────────────
@@ -161,12 +166,19 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   sfstation: new SfStationScraper(),
   killingmylobster: new KillingMyLobsterScraper(),
   folkyeah: new FolkYeahScraper(),
+  endgames: new EndgamesScraper(),
   // ── Thin-category venue sources (film, food & drink, galleries, outdoor) ──
   roxie: new RoxieScraper(),
   alamosf: new AlamoSfScraper(),
+  balboa: new BalboaScraper(),
+  vogue: new VogueScraper(),
+  fourstar: new FourStarScraper(),
   ferrybuilding: new FerryBuildingScraper(),
   parksconservancy: new ParksConservancyScraper(),
   minnesotastreet: new MinnesotaStreetScraper(),
+  sterngrove: new SternGroveScraper(),
+  goldengatejams: new GoldenGateJamsScraper(),
+  wnp: new WnpScraper(),
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;

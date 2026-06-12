@@ -57,35 +57,69 @@ export async function geocodeEvent(
 
   // Build query candidates, tried in order until one resolves.
   //
-  // When venueAddress already contains a street number it's a complete address.
-  // Geocode it ALONE: prepending the business name (rarely in OSM) and appending
-  // a redundant "San Francisco, CA" after an address that already ends in
-  // "…CA 94104, USA" makes Nominatim return nothing. The name + city form is kept
-  // only as a fallback when the clean address doesn't resolve.
+  // When venueAddress already contains a street number it's a complete address —
+  // geocode it ALONE, unbounded: prepending the business name (rarely in OSM) or
+  // appending a redundant city after an address that already ends in
+  // "…CA 94104, USA" makes Nominatim return nothing.
+  //
+  // Otherwise fall back to the venue name biased to the Bay Area via a bounded
+  // viewbox. We must NOT force "San Francisco, CA" onto the name: most scraped
+  // venues here are East-Bay/regional and many already carry their own city
+  // ("Fox Theater, Oakland", "Ivy Room, Albany"), so a hard SF suffix produced a
+  // self-contradictory query ("Fox Theater, Oakland, San Francisco, CA") that
+  // resolved to nothing. Appending only the *state* keeps an embedded city
+  // intact, and the viewbox stops a bare name ("Yoshi's", "Fox Theater") from
+  // matching Phoenix or LA. The service-area filter (lib/geo.ts, 30 km) makes the
+  // final keep/drop decision after a coordinate lands.
   const address = event.venueAddress?.trim() || null;
   const hasStreetNumber = address != null && /^\s*\d+\s+\S/.test(address);
 
-  const nameAndCity = [event.venueName, "San Francisco, CA"]
-    .filter(Boolean)
-    .join(", ");
-  const candidates = hasStreetNumber
-    ? [address!, nameAndCity]
+  // Bay Area bounding box (lon_min, lat_max, lon_max, lat_min). Covers SF + the
+  // whole near Bay with margin; generous on purpose — its only job is to reject
+  // far-away same-name matches, not to define the service area.
+  const BAY_AREA_VIEWBOX = "-122.75,38.25,-121.65,37.05";
+
+  interface Candidate {
+    q: string;
+    bounded: boolean;
+  }
+  const rawCandidates: Candidate[] = hasStreetNumber
+    ? [
+        { q: address!, bounded: false },
+        { q: [event.venueName, "CA"].filter(Boolean).join(", "), bounded: true },
+      ]
     : [
-        [event.venueName, event.venueAddress, "San Francisco, CA"]
-          .filter(Boolean)
-          .join(", "),
+        {
+          q: [event.venueName, address, "CA"].filter(Boolean).join(", "),
+          bounded: true,
+        },
+        { q: [event.venueName, "CA"].filter(Boolean).join(", "), bounded: true },
       ];
 
-  // Dedupe and drop empties (e.g. no venueName → nameAndCity is just the city).
-  const queries = [...new Set(candidates)].filter(
-    (q) => q && q !== "San Francisco, CA"
-  );
+  // Dedupe; drop empties and no-op queries that carry no venue signal.
+  const seen = new Set<string>();
+  const queries = rawCandidates.filter((c) => {
+    const q = c.q.trim();
+    if (!q || q === "CA" || seen.has(q)) return false;
+    seen.add(q);
+    return true;
+  });
   if (queries.length === 0) {
     return { latitude: null, longitude: null, neighborhood: null };
   }
 
-  for (const query of queries) {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&countrycodes=us&limit=1`;
+  for (const { q, bounded } of queries) {
+    const params = new URLSearchParams({
+      q,
+      format: "jsonv2",
+      countrycodes: "us",
+      limit: "1",
+    });
+    if (bounded) {
+      params.set("viewbox", BAY_AREA_VIEWBOX);
+      params.set("bounded", "1");
+    }
+    const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
 
     try {
       const results = await throttledFetch(url);

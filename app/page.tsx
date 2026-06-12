@@ -302,6 +302,9 @@ async function getEvents(
       endDate: event.endDate?.toISOString() ?? null,
       featuredAt: event.featuredAt?.toISOString() ?? null,
       interestCount: _count.interests + externalInterest,
+      // In-app votes only — drives the feed's hype boost (lib/ranking.ts),
+      // kept apart from the blended interestCount shown on the card.
+      localInterestCount: _count.interests,
       ...(spotifyArtist && { spotifyArtist }),
     } as EventSummary);
   }

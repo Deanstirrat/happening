@@ -21,6 +21,14 @@ export interface RankableEvent {
   latitude: number | null;
   longitude: number | null;
   interestCount?: number;
+  /**
+   * In-app "I'm interested" votes only (the {@link EventInterest} relation
+   * count), distinct from the blended {@link interestCount} which also folds in
+   * the source's external signal. This is the local demand signal the hype
+   * boost rewards — kept separate so a few real clicks aren't drowned out by RA
+   * "interested" counts that run into the hundreds.
+   */
+  localInterestCount?: number;
 }
 
 /**
@@ -97,21 +105,48 @@ export function eventQualityScore(e: RankableEvent): number {
   return score;
 }
 
+/**
+ * Per-vote and cap for the in-app hype boost. Sized against the quality signals
+ * (flyer +4, geocoded +2) so local demand interleaves with quality rather than
+ * steamrolling it: a couple of clicks nudges an event up, ~3 clears a flyer,
+ * and the cap (4 votes → +6) lets a genuinely hyped event clear flyer +
+ * geocoded while bounding how far any single event can run.
+ *
+ * Deliberately reads {@link RankableEvent.localInterestCount} (in-app votes
+ * only), not the blended {@link RankableEvent.interestCount}: the source's
+ * "interested" numbers run into the hundreds, so blending them in would let RA
+ * volume dominate the boost and bury exactly the homegrown demand it exists to
+ * surface.
+ */
+const HYPE_BOOST_PER_VOTE = 1.5;
+const HYPE_BOOST_CAP_VOTES = 4;
+
+/**
+ * Additive boost for events our own visitors are clicking "interested" on.
+ * Returns 0 for events with no in-app votes, so the feed degrades cleanly to
+ * the quality-only ordering before any community signal exists.
+ */
+export function hypeScore(e: RankableEvent): number {
+  const votes = e.localInterestCount ?? 0;
+  return Math.min(votes, HYPE_BOOST_CAP_VOTES) * HYPE_BOOST_PER_VOTE;
+}
+
 type SortableEvent = PersonalizableEvent & { startDate: string | Date };
 
 /**
- * Builds the per-day feed comparator. The primary key is quality + (optional)
- * personalization score, so a session's tastes boost matching events without
- * filtering anything out; ties fall back to most-interested, then earliest
- * start time for a stable chronological order within each tier.
+ * Builds the per-day feed comparator. The primary key is quality + in-app hype
+ * + (optional) personalization score, so both community demand and a session's
+ * tastes boost matching events without filtering anything out; ties fall back
+ * to most-interested, then earliest start time for a stable chronological order
+ * within each tier.
  *
  * Pass `null` (or omit) for the un-personalized feed — with no vector and no
- * Spotify match this reduces exactly to quality → interest → time.
+ * Spotify match this reduces to quality → hype → interest → time.
  */
 export function makeFeedComparator(vector: PreferenceVector | null = null) {
   return (a: SortableEvent, b: SortableEvent): number => {
-    const sb = eventQualityScore(b) + personalizationScore(b, vector);
-    const sa = eventQualityScore(a) + personalizationScore(a, vector);
+    const sb = eventQualityScore(b) + hypeScore(b) + personalizationScore(b, vector);
+    const sa = eventQualityScore(a) + hypeScore(a) + personalizationScore(a, vector);
     if (sb !== sa) return sb - sa;
     const interest = (b.interestCount ?? 0) - (a.interestCount ?? 0);
     if (interest !== 0) return interest;
@@ -131,8 +166,18 @@ export const compareByQualityThenTime = makeFeedComparator(null);
  * queries that can't sort in memory. Recurring is approximated by
  * `recurringType` (null = non-recurring) since the "recurring" tag lives in an
  * array column that can't be ordered on directly.
+ *
+ * Locally-hyped events lead: ordering by the in-app `interests` relation count
+ * floats events our visitors are clicking "interested" on to the top of the
+ * "load more" pages and the map. This is coarser than the in-memory
+ * {@link hypeScore} — a lexicographic orderBy can't express the per-vote cap,
+ * so any in-app vote sorts ahead here — but it pushes in the same direction:
+ * homegrown demand surfaces above the RA-sourced filler. The blended count
+ * shown on cards still folds in `externalInterest`; only the *ordering* signal
+ * is the local-vote count.
  */
 export const QUALITY_ORDER_BY: Prisma.EventOrderByWithRelationInput[] = [
+  { interests: { _count: "desc" } },
   { imageUrl: { sort: "desc", nulls: "last" } },
   { latitude: { sort: "desc", nulls: "last" } },
   { recurringType: { sort: "asc", nulls: "first" } },

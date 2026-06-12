@@ -46,7 +46,8 @@ Category guidance:
 - MUSIC_CLASSICAL: orchestral, chamber music, opera, contemporary classical
 - MUSIC_OTHER: concerts or music events that don't fit the above music genres
 - NIGHTLIFE: DJ parties, club nights, dance parties, bar events where the primary draw is the social/dance experience rather than a specific artist
-- ART_PERFORMANCE: art you WATCH — dance performances, circus, spoken word, immersive art, variety shows. NOT hands-on classes (use ART_WORKSHOP).
+- ART_GALLERY: visual art on display you VIEW — gallery and museum exhibitions, art shows, opening receptions, artist talks tied to a show, free museum days, public art and murals. Static visual art you look at, not a live performance.
+- ART_PERFORMANCE: art you WATCH happen live — dance performances, circus, spoken word, immersive performance, variety shows. NOT gallery exhibitions (use ART_GALLERY) and NOT hands-on classes (use ART_WORKSHOP).
 - ART_WORKSHOP: hands-on art/craft sessions where attendees MAKE something — painting and paint-and-sip nights, watercolor, drawing classes, ceramics/pottery, block/screen printing, candle or soap making, floral arranging, jewelry, knitting/crochet/sewing/fiber, collage, zine-making, life drawing. Pick this even if the title says "art" or the venue is a gallery, as long as the audience is making things.
 - THEATER: plays, musicals, improv, stand-up comedy shows at theaters, magic shows
 - COMEDY: comedy showcases, open mics, stand-up shows at bars/clubs

@@ -27,8 +27,13 @@ export interface EventSummary {
     name: string;
   };
   spotifyArtist?: string;
-  /** Anonymous "I'm interested" vote count. */
+  /** Anonymous "I'm interested" count shown on the card: in-app votes blended
+   * with the source's external interest signal. */
   interestCount?: number;
+  /** In-app votes only, used by the feed's hype boost (see lib/ranking.ts).
+   * Kept separate from {@link interestCount} so RA's external numbers don't
+   * drown out homegrown demand in the ranking. */
+  localInterestCount?: number;
 }
 
 export interface EventDetail extends EventSummary {

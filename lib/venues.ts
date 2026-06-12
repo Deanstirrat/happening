@@ -158,8 +158,89 @@ export function isPlaceholderVenue(venueName: string | null | undefined): boolea
   return false;
 }
 
+/**
+ * Cities inside the service area (lib/geo.ts, SERVICE_RADIUS_KM = 30): SF plus
+ * the ~20–30 min East Bay / peninsula towns. Used to decide whether a
+ * placeholder venue names a location we can confirm is local. Lowercased; "sf"
+ * is canonicalized to "san francisco" for display below.
+ */
+const SERVICE_AREA_CITY_LABELS: Record<string, string> = {
+  sf: "San Francisco",
+  "san francisco": "San Francisco",
+  oakland: "Oakland",
+  berkeley: "Berkeley",
+  alameda: "Alameda",
+  emeryville: "Emeryville",
+  richmond: "Richmond",
+  albany: "Albany",
+  "el cerrito": "El Cerrito",
+  "daly city": "Daly City",
+  "south san francisco": "South San Francisco",
+  brisbane: "Brisbane",
+  sausalito: "Sausalito",
+  "san mateo": "San Mateo",
+};
+
+/**
+ * City candidates a placeholder venue might name, lowercased. A placeholder can
+ * carry its city in a trailing parenthetical ("TBA (San Francisco)") OR as the
+ * base string ("San Francisco, CA", "SF"), and funcheap puts a *time* in the
+ * parenthetical ("SF (7p + 9p)") — so we consider both the parenthetical and the
+ * base and let the caller match against the service-area set.
+ */
+function placeholderCityCandidates(venueName: string): string[] {
+  const clean = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/^tb[ad]\b[\s,\-–—]*/, "") // strip a leading "TBA"/"TBD"
+      .replace(/,?\s*(ca|california)\s*$/, "") // strip a trailing state
+      .replace(/[.,\s]+$/, "")
+      .trim();
+  const out: string[] = [];
+  const paren = venueName.match(/\(([^)]+)\)\s*$/);
+  if (paren) out.push(clean(paren[1]));
+  out.push(clean(venueName.replace(/\s*\([^)]*\)\s*$/, "")));
+  return out.filter(Boolean);
+}
+
+/**
+ * For a placeholder venue we can confirm is inside the service area, the city's
+ * display label ("San Francisco", "Oakland"); otherwise null. Non-placeholder
+ * venues and placeholders we can't place — generic "Bay Area", out-of-area
+ * cities like "San Jose", bare "TBA" — return null.
+ */
+export function serviceAreaTBACity(
+  venueName: string | null | undefined
+): string | null {
+  if (!isPlaceholderVenue(venueName)) return null;
+  for (const c of placeholderCityCandidates(venueName!)) {
+    const label = SERVICE_AREA_CITY_LABELS[c];
+    if (label) return label;
+  }
+  return null;
+}
+
+/**
+ * A placeholder venue we can confirm is local — "TBA (San Francisco)",
+ * "TBA (Oakland)", "SF". These are intentionally locationless (secret-location
+ * raves, venue not yet set) but confirmed in-area, so they publish as
+ * "location TBA" events: visible in the feed, off the map (no coords), badged in
+ * the UI. Out-of-area / generic placeholders stay held PENDING at ingest.
+ */
+export function isServiceAreaTBA(venueName: string | null | undefined): boolean {
+  return serviceAreaTBACity(venueName) !== null;
+}
+
 function normalize(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ");
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    // Strip surrounding punctuation so labels like "Castro Theater," match the
+    // punctuation-free known-venue keys instead of falling through to Nominatim
+    // (where they misgeocode — "Castro Theater," resolved to Castro *Valley*).
+    .replace(/^[\s.,;:]+|[\s.,;:]+$/g, "");
 }
 
 /**

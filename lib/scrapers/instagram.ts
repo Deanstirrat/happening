@@ -17,8 +17,10 @@ import { prisma } from "@/lib/prisma";
  *
  * Venue accounts (tier: "venue") use Claude vision on the post image — event
  * flyers carry most of their info visually.
- * Promoter/DJ accounts (tier: "promoter") use Claude haiku on the caption
- * text only — cheaper and sufficient for caption-first posts.
+ * Promoter/DJ accounts (tier: "promoter") run a cheap-first cascade: Claude
+ * haiku on the caption first, escalating to Claude vision only when the caption
+ * is missing a key field (no date OR no time) and an image exists — recovering
+ * event times that are printed on the flyer graphic rather than the caption.
  *
  * Requires: APIFY_API_KEY environment variable.
  */
@@ -222,8 +224,13 @@ export class InstagramScraper extends BaseScraper {
     const sourceUrl = `https://www.instagram.com/p/${shortCode}/`;
 
     try {
-      // Venue tier → prefer vision; fall back to caption if image unavailable.
-      // Promoter tier → caption only (cheaper, sufficient for text-first posts).
+      // Venue tier → prefer vision (the flyer is authoritative; a caption can
+      // be confidently wrong). Fall back to caption if no usable image.
+      // Otherwise → caption-first with vision escalation: run haiku on the
+      // caption, then escalate to sonnet vision only when a key field is
+      // missing (no date OR no time) and an image exists. The missing detail
+      // — most often the start time — is frequently printed on the flyer
+      // graphic, invisible to a caption-only read.
       const imageUrl = this.bestImageUrl(post);
       let extracted;
       if (account.tier === "venue" && imageUrl) {
@@ -233,6 +240,13 @@ export class InstagramScraper extends BaseScraper {
           : await extractEventFromCaption(caption);
       } else {
         extracted = await extractEventFromCaption(caption);
+        const missingKeyField = !extracted.dateRaw || !extracted.timeRaw;
+        if (missingKeyField && imageUrl) {
+          const img = await this.fetchImageAsBase64(imageUrl);
+          if (img) {
+            extracted = await extractEventFromImage(img.base64, img.mediaType, caption);
+          }
+        }
       }
 
       if (!extracted.title || !extracted.dateRaw) return null;

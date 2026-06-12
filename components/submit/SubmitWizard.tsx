@@ -67,6 +67,7 @@ const CATEGORY_OPTIONS = [
   { value: "MUSIC_OTHER", label: "Music (Other)" },
   { value: "ART_GALLERY", label: "Art Gallery" },
   { value: "ART_PERFORMANCE", label: "Performance Art" },
+  { value: "ART_WORKSHOP", label: "Art Workshops" },
   { value: "COMEDY", label: "Comedy" },
   { value: "FOOD_DRINK", label: "Food & Drink" },
   { value: "NIGHTLIFE", label: "Nightlife" },

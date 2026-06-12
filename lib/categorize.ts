@@ -14,6 +14,7 @@ const CATEGORIES = [
   "MUSIC_OTHER",
   "ART_GALLERY",
   "ART_PERFORMANCE",
+  "ART_WORKSHOP",
   "COMEDY",
   "TRIVIA_BINGO",
   "FOOD_DRINK",
@@ -34,7 +35,7 @@ const CATEGORIES = [
 const GENERIC_SOURCE_TAGS = new Set(["punk", "rock", "diy"]);
 
 const CATEGORY_PROMPT = `Categorize the following SF Bay Area event into exactly one category from this list:
-MUSIC_ELECTRONIC, MUSIC_ROCK_PUNK, MUSIC_JAZZ_BLUES, MUSIC_HIPHOP, MUSIC_RNB_SOUL, MUSIC_CLASSICAL, MUSIC_OTHER, ART_GALLERY, ART_PERFORMANCE, COMEDY, TRIVIA_BINGO, FOOD_DRINK, NIGHTLIFE, COMMUNITY, TECH, TALKS_LECTURES, SPORTS_FITNESS, FILM, THEATER, OUTDOOR, FAMILY, OTHER
+MUSIC_ELECTRONIC, MUSIC_ROCK_PUNK, MUSIC_JAZZ_BLUES, MUSIC_HIPHOP, MUSIC_RNB_SOUL, MUSIC_CLASSICAL, MUSIC_OTHER, ART_GALLERY, ART_PERFORMANCE, ART_WORKSHOP, COMEDY, TRIVIA_BINGO, FOOD_DRINK, NIGHTLIFE, COMMUNITY, TECH, TALKS_LECTURES, SPORTS_FITNESS, FILM, THEATER, OUTDOOR, FAMILY, OTHER
 
 Category guidance:
 - MUSIC_ELECTRONIC: techno, house, ambient, EDM, industrial, synthwave, EBM, darkwave, noise, DJ sets
@@ -45,11 +46,12 @@ Category guidance:
 - MUSIC_CLASSICAL: orchestral, chamber music, opera, contemporary classical
 - MUSIC_OTHER: concerts or music events that don't fit the above music genres
 - NIGHTLIFE: DJ parties, club nights, dance parties, bar events where the primary draw is the social/dance experience rather than a specific artist
-- ART_PERFORMANCE: dance performances, circus, spoken word, immersive art, variety shows
+- ART_PERFORMANCE: art you WATCH — dance performances, circus, spoken word, immersive art, variety shows. NOT hands-on classes (use ART_WORKSHOP).
+- ART_WORKSHOP: hands-on art/craft sessions where attendees MAKE something — painting and paint-and-sip nights, watercolor, drawing classes, ceramics/pottery, block/screen printing, candle or soap making, floral arranging, jewelry, knitting/crochet/sewing/fiber, collage, zine-making, life drawing. Pick this even if the title says "art" or the venue is a gallery, as long as the audience is making things.
 - THEATER: plays, musicals, improv, stand-up comedy shows at theaters, magic shows
 - COMEDY: comedy showcases, open mics, stand-up shows at bars/clubs
-- TRIVIA_BINGO: pub trivia nights, bar trivia, bingo nights, trivia competitions
-- COMMUNITY: neighborhood events, social mixers, networking, activism, markets, volunteer events
+- TRIVIA_BINGO: games and trivia — pub/bar trivia, bingo, mahjong, chess, board game nights, card games, poker, dominoes, Scrabble, and other game socials or competitions
+- COMMUNITY: neighborhood events, social mixers, communal meals/dinners, networking, activism, markets, volunteer events
 - TECH: tech talks, hackathons, startup events, software/hardware demos
 - TALKS_LECTURES: talks, lectures, panels, cocktail-hour educational events (Nerd Nite, Curiosity Guild, Profs & Pints, Science on Tap), author readings, public lectures, history tours, astronomy events, science outreach
 - SPORTS_FITNESS: athletic events, fitness classes, recreational sports (not viewing parties)

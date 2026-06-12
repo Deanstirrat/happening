@@ -2,6 +2,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 import { prisma } from "@/lib/prisma";
 import { geocodeEvent } from "@/lib/geocode";
+import { isServiceAreaTBA } from "@/lib/venues";
 
 /**
  * Backfill coordinates/neighborhood for ungeocoded events.
@@ -66,6 +67,10 @@ async function main() {
   const bySource: Record<string, number> = {};
 
   for (const event of events) {
+    // Location-TBA events (e.g. "TBA (San Francisco)") are intentionally
+    // locationless — never spend a Nominatim request trying to geocode them.
+    if (isServiceAreaTBA(event.venueName)) continue;
+
     const geo = await geocodeEvent(
       {
         title: event.title,

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Repeat2, Star } from "lucide-react";
+import { Repeat2, Star, MapPin } from "lucide-react";
 import { formatCarouselDateSF, formatCarouselDateOnlySF, formatTimeSF } from "@/lib/sfDate";
 import type { EventSummary } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
+import { serviceAreaTBACity } from "@/lib/venues";
 import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { CategoryImage } from "@/components/events/CategoryImage";
 import InterestButton from "@/components/events/InterestButton";
@@ -57,6 +58,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     : null;
   const recLabel = recurringLabel(event);
   const imageUrl = proxiedImage(event.imageUrl);
+  const tbaCity = serviceAreaTBACity(event.venueName);
 
   if (featured) {
     return (
@@ -200,8 +202,16 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
           <h3 className="font-body font-semibold text-sm text-on-surface leading-tight truncate group-hover:text-primary transition-colors">
             {event.title}
           </h3>
-          <p className="text-on-surface-variant text-xs font-body mt-0.5">
-            {[time, event.venueName].filter(Boolean).join(" · ")}
+          <p className="text-on-surface-variant text-xs font-body mt-0.5 flex items-center gap-1 min-w-0">
+            {time && <span className="shrink-0">{time}</span>}
+            {time && (tbaCity || event.venueName) && <span className="shrink-0">·</span>}
+            {tbaCity ? (
+              <span className="inline-flex items-center gap-1 text-primary font-medium shrink-0">
+                <MapPin size={10} className="shrink-0" /> location tba
+              </span>
+            ) : (
+              event.venueName && <span className="truncate">{event.venueName}</span>
+            )}
           </p>
           {event.spotifyArtist && (
             <div className="flex items-center gap-1 mt-1">
@@ -261,6 +271,7 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
     : null;
   const recLabel = recurringLabel(event);
   const imageUrl = proxiedImage(event.imageUrl);
+  const tbaCity = serviceAreaTBACity(event.venueName);
 
   return (
     <Link href={`/events/${event.id}`} className="block group">
@@ -346,8 +357,16 @@ export function EventCardGrid({ event }: { event: EventSummary }) {
           <h3 className="font-body font-semibold text-sm text-on-surface leading-tight line-clamp-2 mb-0.5 group-hover:text-primary transition-colors">
             {event.title}
           </h3>
-          <p className="text-on-surface-variant text-xs font-body truncate">
-            {[time, event.venueName].filter(Boolean).join(" · ")}
+          <p className="text-on-surface-variant text-xs font-body truncate flex items-center gap-1 min-w-0">
+            {time && <span className="shrink-0">{time}</span>}
+            {time && (tbaCity || event.venueName) && <span className="shrink-0">·</span>}
+            {tbaCity ? (
+              <span className="inline-flex items-center gap-1 text-primary font-medium shrink-0">
+                <MapPin size={10} className="shrink-0" /> location tba
+              </span>
+            ) : (
+              event.venueName && <span className="truncate">{event.venueName}</span>
+            )}
           </p>
           <div className="flex items-center justify-between mt-auto">
             <span

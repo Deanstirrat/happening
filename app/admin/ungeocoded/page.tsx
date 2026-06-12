@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import AdminNav from "../_components/AdminNav";
 import { getAdminUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { isServiceAreaTBA } from "@/lib/venues";
 
 /**
  * Ungeocoded venues triage.
@@ -13,6 +14,10 @@ import { redirect } from "next/navigation";
  * future events by venue + source so reliable mappings can be added to
  * lib/venues.ts. After adding mappings, run `npm run backfill-geocode` to fill
  * in the existing rows.
+ *
+ * Location-TBA events (e.g. "TBA (San Francisco)") are excluded — they're
+ * intentionally locationless, not a geocoding failure, so there's no venue
+ * mapping to add.
  */
 export default async function UngeocodedPage() {
   if (!(await getAdminUser())) redirect("/login");
@@ -43,6 +48,7 @@ export default async function UngeocodedPage() {
   }
   const groups = new Map<string, Group>();
   for (const e of events) {
+    if (isServiceAreaTBA(e.venueName)) continue;
     const key = `${e.source.slug}::${(e.venueName ?? "").toLowerCase().trim()}`;
     let g = groups.get(key);
     if (!g) {

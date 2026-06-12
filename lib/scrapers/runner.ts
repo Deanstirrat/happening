@@ -8,7 +8,7 @@ import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
-import { isPlaceholderVenue } from "@/lib/venues";
+import { isPlaceholderVenue, isServiceAreaTBA } from "@/lib/venues";
 import { SCRAPE_RUN_HISTORY } from "./health";
 import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue } from "@/lib/ingestFilters";
 
@@ -665,11 +665,17 @@ async function scrapeSource(
     }
 
     // Non-venue placeholders (19hz "TBA (San Francisco)", funcheap bare-city
-    // strings) have no real location. Hold them PENDING rather than publish them
-    // locationless — they surface in the admin submissions tab, not on the site.
+    // strings) have no real location. Those we can confirm are local —
+    // "TBA (San Francisco)", "TBA (Oakland)", "SF" — publish as location-TBA
+    // events: visible in the feed, off the map (no coords), badged in the UI.
+    // Placeholders we can't place (generic "Bay Area", out-of-area cities, bare
+    // "TBA") stay held PENDING and surface only in the admin submissions tab.
     const isPlaceholder = isPlaceholderVenue(event.venueName);
-    if (isPlaceholder) {
-      console.log(`[${slug}] Placeholder venue — holding PENDING: "${event.title}" (${event.venueName})`);
+    const holdPending = isPlaceholder && !isServiceAreaTBA(event.venueName);
+    if (holdPending) {
+      console.log(`[${slug}] Unplaceable placeholder — holding PENDING: "${event.title}" (${event.venueName})`);
+    } else if (isPlaceholder) {
+      console.log(`[${slug}] Location-TBA (local) — publishing off-map: "${event.title}" (${event.venueName})`);
     }
 
     // Link to the normalized Venue table when the venue is known. Same matching
@@ -707,7 +713,7 @@ async function scrapeSource(
           performers: event.performers ?? [],
           externalInterest: event.externalInterest ?? 0,
           geocoded: geo.latitude != null,
-          status: isPlaceholder ? "PENDING" : "PUBLISHED",
+          status: holdPending ? "PENDING" : "PUBLISHED",
           categorized: true,
           sourceId,
         },

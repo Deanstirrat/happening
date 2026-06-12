@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { isServiceAreaTBA } from "@/lib/venues";
 
 interface Props {
   current: string;
@@ -24,25 +25,31 @@ const navItems = [
 const reportsKeys = new Set(["reports", "feature-requests", "bug-reports", "event-reports"]);
 
 export default async function AdminNav({ current }: Props) {
-  const [pendingCount, ungeocodedCount, newRequestCount, eventReportCount, bugReportCount] =
+  const [pendingCount, ungeocodedRows, newRequestCount, eventReportCount, bugReportCount] =
     await Promise.all([
       prisma.event.count({ where: { status: "PENDING" } }),
       // Future events live without coordinates — surfaced for venue-mapping triage.
       // Match the Ungeocoded page's own filter (PUBLISHED|PENDING) so the badge
       // counts what the page actually shows; ARCHIVED/REJECTED rows are hidden
-      // there and shouldn't inflate the count.
-      prisma.event.count({
+      // there and shouldn't inflate the count. Fetch venueNames so we can drop
+      // location-TBA events (intentionally locationless, not a geocoding failure)
+      // the same way the page does.
+      prisma.event.findMany({
         where: {
           geocoded: false,
           startDate: { gte: new Date() },
           status: { in: ["PUBLISHED", "PENDING"] },
         },
+        select: { venueName: true },
       }),
       prisma.featuredRequest.count({ where: { status: "NEW" } }),
       // Badges count only unresolved reports (issue #104).
       prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),
       prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
     ]);
+  const ungeocodedCount = ungeocodedRows.filter(
+    (e) => !isServiceAreaTBA(e.venueName)
+  ).length;
 
   const badges: Record<string, number> = {
     submissions: pendingCount,

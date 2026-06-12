@@ -18,6 +18,7 @@ import EventFlyerContainer from "./EventFlyerContainer";
 import VenueMiniMapWrapper from "@/components/map/VenueMiniMapWrapper";
 import EventEditPanel from "./EventEditPanel";
 import { getSessionUser } from "@/lib/auth";
+import { serviceAreaTBACity } from "@/lib/venues";
 import { Prisma } from "@prisma/client";
 
 /** Extract a venue hint from a title like "...at Ocean Beach" or "...in Golden Gate Park" */
@@ -156,8 +157,15 @@ export default async function EventDetailPage({
   const dateLabel = formatDateLongSF(event.startDate);
   const timeLabel = event.allDay ? null : formatTimeSF(event.startDate);
   const endTimeLabel = !event.allDay && event.endDate ? formatTimeSF(event.endDate) : null;
+  // Location-TBA events (secret-location raves, venue not yet announced) carry a
+  // placeholder venueName and no coords. Show a "location TBA" callout instead of
+  // the raw placeholder, and suppress the maps link (it would just search the
+  // placeholder string).
+  const tbaCity = serviceAreaTBACity(event.venueName);
   const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
-  const mapsQuery = event.venueAddress ?? (venueDisplayName ? `${venueDisplayName}, San Francisco, CA` : null);
+  const mapsQuery = tbaCity
+    ? null
+    : event.venueAddress ?? (venueDisplayName ? `${venueDisplayName}, San Francisco, CA` : null);
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://happeningsf.now";
 
@@ -406,15 +414,29 @@ export default async function EventDetailPage({
               <div className="flex items-start gap-3">
                 <MapPin size={16} className="text-primary mt-0.5 shrink-0" />
                 <div>
-                  {venueDisplayName && (
-                    <p className="font-body font-semibold text-on-surface text-sm">
-                      {venueDisplayName}
-                    </p>
-                  )}
-                  {event.venueAddress && (
-                    <p className="font-body text-on-surface-variant text-xs mt-0.5">
-                      {event.venueAddress}
-                    </p>
+                  {tbaCity ? (
+                    <>
+                      <p className="font-body font-semibold text-primary text-sm">
+                        Location TBA
+                      </p>
+                      <p className="font-body text-on-surface-variant text-xs mt-0.5">
+                        {tbaCity} · exact address revealed by the organizer closer
+                        to the event.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {venueDisplayName && (
+                        <p className="font-body font-semibold text-on-surface text-sm">
+                          {venueDisplayName}
+                        </p>
+                      )}
+                      {event.venueAddress && (
+                        <p className="font-body text-on-surface-variant text-xs mt-0.5">
+                          {event.venueAddress}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

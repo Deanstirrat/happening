@@ -356,6 +356,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "sfstation",
+    name: "SF Station Comedy",
+    url: "https://www.sfstation.com/comedy/calendar",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
     slug: "folkyeah",
     name: "(((folkYEAH!)))",
     url: "https://folkyeah.com/",

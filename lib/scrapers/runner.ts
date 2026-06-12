@@ -9,7 +9,15 @@ import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
 import { SCRAPE_RUN_HISTORY } from "./health";
-import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent } from "@/lib/ingestFilters";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue } from "@/lib/ingestFilters";
+
+// Name-only music sources that scrape the whole Bay Area. Their out-of-area
+// venues carry no street address (just "Venue, City"), so they never geocode and
+// the coordinate distance filter can't drop them — apply the venue-city deny-list
+// (isOutOfAreaVenue) at ingest instead. Scoped to these sources because their
+// venue strings reliably carry the city as a token; broader sources provide real
+// addresses that the distance filter already handles (issue #157).
+const OUT_OF_AREA_VENUE_FILTER_SOURCES = new Set(["foopee", "bandsintown", "19hz", "folkyeah"]);
 
 // Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
 const GENERIC_SOURCE_URL_PATTERNS = [
@@ -381,6 +389,13 @@ async function scrapeSource(
     // Skip events the source has marked cancelled/postponed
     if (isCanceledEvent(event)) {
       console.log(`[${slug}] Canceled (skipped): "${event.title}"`);
+      continue;
+    }
+
+    // Skip clearly out-of-area venues from the name-only music sources, which
+    // arrive without a street address and so escape the coordinate distance filter
+    if (OUT_OF_AREA_VENUE_FILTER_SOURCES.has(slug) && isOutOfAreaVenue(event.venueName)) {
+      console.log(`[${slug}] Out-of-area venue (skipped): "${event.title}" @ ${event.venueName}`);
       continue;
     }
 

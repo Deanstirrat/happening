@@ -105,3 +105,54 @@ export function isBabyOrSeniorLibraryEvent(event: {
   const haystack = `${event.title} ${tagText}`;
   return BABY_AUDIENCE_RE.test(haystack) || SENIOR_AUDIENCE_RE.test(haystack);
 }
+
+// Out-of-area venue filter for the name-only music scrapers (foopee, bandsintown,
+// 19hz, folkyeah — see runner.ts). These sources list the entire Bay Area and
+// beyond; their out-of-area venues arrive as a bare name + city ("Mountain Winery,
+// Saratoga", "Hopmonk Tavern, Novato") with no street address, so they never
+// geocode and the coordinate-based distance filter (isTooFarFromSf in lib/geo.ts)
+// can't catch them — they'd otherwise publish locationless (issue #157).
+//
+// We drop them by matching the city token in the venue string against a deny-list
+// of cities OUTSIDE our ~30 km service area (lib/geo.ts). Cities inside the radius
+// — San Francisco, Oakland, Berkeley, Daly City, Alameda, Emeryville, Albany,
+// Richmond, Sausalito, Mill Valley, San Rafael, San Mateo, … — are deliberately
+// absent from the list and kept. Matching is on comma/paren/dash-delimited tokens
+// (where these sources put the city) with exact whole-token equality, so a venue
+// whose *name* merely contains a city word (e.g. "Mountain View Cemetery, Oakland")
+// is not mistaken for that city.
+const OUT_OF_AREA_CITIES = new Set([
+  // South Bay & lower Peninsula (south of San Mateo)
+  "san jose", "san jose ca", "santa clara", "sunnyvale", "mountain view",
+  "palo alto", "east palo alto", "menlo park", "redwood city", "san carlos",
+  "belmont", "foster city", "atherton", "woodside", "portola valley",
+  "los altos", "los altos hills", "saratoga", "cupertino", "campbell",
+  "los gatos", "milpitas", "gilroy", "morgan hill", "half moon bay", "stanford",
+  // East Bay (beyond the inner Oakland/Berkeley/Alameda ring)
+  "hayward", "union city", "newark", "fremont", "dublin", "pleasanton",
+  "livermore", "sunol", "walnut creek", "concord", "pleasant hill", "martinez",
+  "danville", "san ramon", "alamo", "clayton", "brentwood", "antioch",
+  "pittsburg", "bay point", "oakley",
+  // North Bay (beyond inner Marin)
+  "novato", "petaluma", "santa rosa", "sonoma", "napa", "american canyon",
+  "sebastopol", "healdsburg", "windsor", "rohnert park", "cotati", "vallejo",
+  "benicia", "fairfield", "vacaville", "suisun city", "guerneville",
+  "bodega bay", "point reyes", "point reyes station", "olema",
+  // Farther afield (Central Valley, Sacramento, Santa Cruz, Monterey, Tahoe, …)
+  "sacramento", "west sacramento", "davis", "stockton", "modesto", "tracy",
+  "manteca", "roseville", "folsom", "elk grove", "santa cruz", "capitola",
+  "scotts valley", "watsonville", "aptos", "felton", "ben lomond",
+  "boulder creek", "monterey", "carmel", "pacific grove", "seaside", "salinas",
+  "truckee", "south lake tahoe", "tahoe city", "reno", "fresno",
+]);
+
+// Split a venue string into the chunks where these sources put the city — last
+// comma token in "Venue, City", a parenthetical "Venue (City)", or a dash-suffix
+// "Venue - City" — then normalize each for exact comparison against the deny-list.
+export function isOutOfAreaVenue(venueName?: string | null): boolean {
+  if (!venueName) return false;
+  return venueName
+    .split(/[,()\-–—]/)
+    .map((tok) => tok.trim().toLowerCase().replace(/\.$/, ""))
+    .some((tok) => OUT_OF_AREA_CITIES.has(tok));
+}

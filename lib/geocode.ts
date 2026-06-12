@@ -55,29 +55,55 @@ export async function geocodeEvent(
     };
   }
 
-  // Build query
-  const parts = [event.venueName, event.venueAddress, "San Francisco, CA"].filter(
-    Boolean
+  // Build query candidates, tried in order until one resolves.
+  //
+  // When venueAddress already contains a street number it's a complete address.
+  // Geocode it ALONE: prepending the business name (rarely in OSM) and appending
+  // a redundant "San Francisco, CA" after an address that already ends in
+  // "…CA 94104, USA" makes Nominatim return nothing. The name + city form is kept
+  // only as a fallback when the clean address doesn't resolve.
+  const address = event.venueAddress?.trim() || null;
+  const hasStreetNumber = address != null && /^\s*\d+\s+\S/.test(address);
+
+  const nameAndCity = [event.venueName, "San Francisco, CA"]
+    .filter(Boolean)
+    .join(", ");
+  const candidates = hasStreetNumber
+    ? [address!, nameAndCity]
+    : [
+        [event.venueName, event.venueAddress, "San Francisco, CA"]
+          .filter(Boolean)
+          .join(", "),
+      ];
+
+  // Dedupe and drop empties (e.g. no venueName → nameAndCity is just the city).
+  const queries = [...new Set(candidates)].filter(
+    (q) => q && q !== "San Francisco, CA"
   );
-  if (parts.length === 0) return { latitude: null, longitude: null, neighborhood: null };
-
-  const query = parts.join(", ");
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&countrycodes=us&limit=1`;
-
-  try {
-    const results = await throttledFetch(url);
-    if (!results?.length) return { latitude: null, longitude: null, neighborhood: null };
-
-    const { lat, lon } = results[0];
-    const latitude = parseFloat(lat);
-    const longitude = parseFloat(lon);
-
-    return {
-      latitude,
-      longitude,
-      neighborhood: detectNeighborhood(latitude, longitude),
-    };
-  } catch {
+  if (queries.length === 0) {
     return { latitude: null, longitude: null, neighborhood: null };
   }
+
+  for (const query of queries) {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&countrycodes=us&limit=1`;
+
+    try {
+      const results = await throttledFetch(url);
+      if (!results?.length) continue;
+
+      const { lat, lon } = results[0];
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lon);
+
+      return {
+        latitude,
+        longitude,
+        neighborhood: detectNeighborhood(latitude, longitude),
+      };
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return { latitude: null, longitude: null, neighborhood: null };
 }

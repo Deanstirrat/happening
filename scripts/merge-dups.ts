@@ -47,6 +47,24 @@ const DRY_RUN = process.argv.includes("--dry-run") || process.env.MERGE_DRY_RUN 
 // in a prior run, so re-judging them every night is wasted spend. `--all` (or
 // MERGE_ALL=1) reprocesses every pair, for the one-time backlog backfill.
 const REPROCESS_ALL = process.argv.includes("--all") || process.env.MERGE_ALL === "1";
+
+// Footgun guard: `npm run merge-dups --all` (or `--dry-run`) does NOT pass the
+// flag to argv — npm parses the unknown flag into an `npm_config_<name>` env var
+// and the script silently runs incremental + LIVE. That looks like a successful
+// backfill while reprocessing nothing (and a swallowed --dry-run writes to prod
+// when you meant to preview). Detect the swallowed flag and fail loudly.
+const SWALLOWED: string[] = [];
+if (process.env.npm_config_all !== undefined && !REPROCESS_ALL) SWALLOWED.push("--all (use MERGE_ALL=1)");
+if (process.env.npm_config_dry_run !== undefined && !DRY_RUN) SWALLOWED.push("--dry-run (use MERGE_DRY_RUN=1)");
+if (SWALLOWED.length > 0) {
+  console.error(
+    `✘ npm swallowed a flag, so it never reached this script: ${SWALLOWED.join(", ")}.\n` +
+      `  \`npm run merge-dups --all\` runs INCREMENTAL + LIVE — not what you meant.\n` +
+      `  Use env vars (MERGE_ALL=1 / MERGE_DRY_RUN=1) or the \`--\` separator: \`npm run merge-dups -- --all\`.`
+  );
+  process.exit(1);
+}
+
 const NEW_SINCE_HOURS = Number(process.env.MERGE_NEW_SINCE_HOURS ?? "26");
 const MERGE_MAX_PAIRS = Number(process.env.MERGE_MAX_PAIRS ?? "2000");
 // Lower bound on which events form the comparison universe (default: from

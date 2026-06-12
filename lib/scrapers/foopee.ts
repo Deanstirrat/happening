@@ -8,6 +8,9 @@ const BASE = "http://www.foopee.com/punk/the-list/";
 // Known venue name corrections for foopee's HTML (which sometimes has typos)
 const VENUE_NAME_CORRECTIONS: Record<string, string> = {
   "rickshaw shop": "Rickshaw Stop",
+  // foopee misspells The Independent and tacks on ", S.F." (#158).
+  "indpendent, s.f.": "The Independent",
+  indpendent: "The Independent",
 };
 
 /**

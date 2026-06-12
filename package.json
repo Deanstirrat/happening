@@ -20,6 +20,7 @@
     "db:backfill-venues": "tsx scripts/backfill-venues.ts",
     "backfill-geocode": "tsx scripts/backfill-geocode.ts",
     "db:backfill-venue-fk": "tsx scripts/backfill-venue-fk.ts",
+    "db:hold-placeholder-venues": "tsx scripts/backfill-hold-placeholder-venues.ts",
     "db:cleanup-far-events": "tsx scripts/cleanup-far-events.ts",
     "archive-past-events": "tsx scripts/archive-past-events.ts",
     "purge-trashed": "tsx scripts/purge-trashed-events.ts",

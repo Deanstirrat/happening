@@ -348,6 +348,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "openmicx",
+    name: "OpenMicX",
+    url: "https://openmicx.com/shows/san-francisco",
+    scrapeType: ScrapeType.API,
+    category: SourceCategory.AGGREGATOR,
+    enabled: true,
+  },
+  {
     slug: "folkyeah",
     name: "(((folkYEAH!)))",
     url: "https://folkyeah.com/",

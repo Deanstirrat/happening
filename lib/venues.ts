@@ -149,6 +149,10 @@ export const KNOWN_VENUES: Record<string, KnownVenue> = {
   "stern grove concert meadow": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
   "stern grove festival": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
   "stern grove": { name: "Sigmund Stern Grove", latitude: 37.73592, longitude: -122.47503, address: "2750 19th Ave, San Francisco, CA 94116" },
+  // Embarcadero Plaza (formerly Justin Herman Plaza) — Nominatim resolves the
+  // bare name "Embarcadero Plaza (San Francisco)" to Union Square, ~1 km off.
+  "embarcadero plaza": { name: "Embarcadero Plaza", latitude: 37.7949, longitude: -122.39495, address: "Embarcadero Plaza, San Francisco, CA 94111" },
+  "justin herman plaza": { name: "Embarcadero Plaza", latitude: 37.7949, longitude: -122.39495, address: "Embarcadero Plaza, San Francisco, CA 94111" },
   // Chase Center — foopee/bandsintown call it "Warriors Stadium" with many typos.
   "warriors stadium, s.f": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },
   "warriros stadium, s.f": { name: "Chase Center", latitude: 37.7679, longitude: -122.38742, address: "1 Warriors Way, San Francisco, CA 94158" },

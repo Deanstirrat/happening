@@ -15,22 +15,29 @@ async function main() {
   const dryRun = process.argv.includes("--dry");
   const now = new Date();
 
-  // Future events that are ungeocoded or missing a neighborhood, with a venue.
+  // All future events with a venue. The static table (lib/venues.ts) is
+  // authoritative for any venue it lists, so we re-resolve every event against
+  // it — not just the ungeocoded ones. This also corrects events that WERE
+  // geocoded but landed on the wrong spot because Nominatim mis-resolved the
+  // bare venue name (e.g. "Embarcadero Plaza" → Union Square, ~1 km off) before
+  // the venue was added to the table.
   const events = await prisma.event.findMany({
     where: {
       startDate: { gte: now },
       venueName: { not: null },
-      OR: [{ geocoded: false }, { neighborhood: null }],
     },
     select: {
       id: true,
       venueName: true,
       venueAddress: true,
+      latitude: true,
+      longitude: true,
+      neighborhood: true,
       source: { select: { slug: true } },
     },
   });
 
-  console.log(`Scanning ${events.length} future ungeocoded/un-neighborhooded events${dryRun ? " (dry run)" : ""}`);
+  console.log(`Scanning ${events.length} future events with a venue${dryRun ? " (dry run)" : ""}`);
 
   let updated = 0;
   const bySource: Record<string, number> = {};
@@ -40,6 +47,18 @@ async function main() {
     if (!known) continue;
 
     const neighborhood = detectNeighborhood(known.latitude, known.longitude);
+
+    // Skip if the event already matches the canonical venue data — keeps the
+    // backfill idempotent and avoids rewriting the ~thousands already correct.
+    if (
+      event.latitude === known.latitude &&
+      event.longitude === known.longitude &&
+      event.neighborhood === neighborhood &&
+      event.venueAddress === known.address
+    ) {
+      continue;
+    }
+
     bySource[event.source.slug] = (bySource[event.source.slug] ?? 0) + 1;
     updated++;
 

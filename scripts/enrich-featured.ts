@@ -3,9 +3,14 @@ dotenv.config({ path: ".env.local", override: true });
 
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
+import {
+  fetchPageMeta,
+  pickStoredDescription,
+  generateDescription,
+  DESC_MIN_LENGTH,
+} from "../lib/enrichDescription";
 
 const CONCURRENCY = 3;
-const DESC_MIN_LENGTH = 120;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -50,68 +55,10 @@ function canonicalTitle(s: string): string {
 // Case-insensitive key for detecting a genuine event-identity mismatch.
 const compareKey = (s: string) => canonicalTitle(s).toLowerCase();
 
-// ─── Page scraping ────────────────────────────────────────────────────────────
-
-interface PageMeta {
-  ok: boolean;
-  status: number;
-  finalUrl: string | null;
-  ogTitle: string | null;
-  ogDescription: string | null;
-  ogImage: string | null;
-  bodyText: string;
-}
-
-function parseMeta(html: string): Pick<PageMeta, "ogTitle" | "ogDescription" | "ogImage" | "bodyText"> {
-  const attr = (tag: string, prop: string) => {
-    const m =
-      html.match(new RegExp(`<meta[^>]+${prop}=["'][^"']*og:${tag}["'][^>]+content=["']([^"']+)["']`, "i")) ??
-      html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${prop}=["'][^"']*og:${tag}["']`, "i"));
-    return m?.[1] ? decodeEntities(m[1]) : null;
-  };
-
-  const plainTitle =
-    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
-    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i)?.[1] ??
-    null;
-
-  const bodyText = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 3000);
-
-  return {
-    ogTitle: attr("title", "property"),
-    ogDescription: attr("description", "property") ?? (plainTitle ? decodeEntities(plainTitle) : null),
-    ogImage: attr("image", "property"),
-    bodyText,
-  };
-}
-
-async function fetchPageMeta(url: string): Promise<PageMeta> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
-      signal: AbortSignal.timeout(12_000),
-      redirect: "follow",
-    });
-    if (!res.ok) {
-      return { ok: false, status: res.status, finalUrl: res.url, ogTitle: null, ogDescription: null, ogImage: null, bodyText: "" };
-    }
-    const html = await res.text();
-    return { ok: true, status: res.status, finalUrl: res.url, ...parseMeta(html) };
-  } catch {
-    return { ok: false, status: 0, finalUrl: null, ogTitle: null, ogDescription: null, ogImage: null, bodyText: "" };
-  }
-}
+// Page fetching + description extraction/generation now live in
+// lib/enrichDescription.ts (shared with the ingest backfill and the candidate
+// enrichment job). This script keeps the featured-only image cascade and title
+// cleanup below.
 
 // ─── Image validation ─────────────────────────────────────────────────────────
 
@@ -157,43 +104,6 @@ function resolveImageUrl(raw: string): string {
     return inner.split("?")[0];
   }
   return raw;
-}
-
-// ─── AI description ───────────────────────────────────────────────────────────
-
-async function generateDescription(
-  title: string,
-  venueName: string | null,
-  startDate: Date,
-  pageText: string
-): Promise<string | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  try {
-    const msg = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 200,
-      messages: [
-        {
-          role: "user",
-          content: `Write a 2-3 sentence description for this San Francisco event. Be specific: mention genre, vibe, performers, or what makes it worth attending. No marketing fluff.
-
-Event: ${title}
-Venue: ${venueName ?? "unknown"}
-Date: ${startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-
-Page content (for context):
-${pageText.slice(0, 1800)}
-
-Reply with only the description text. No quotes, no label prefix.`,
-        },
-      ],
-    });
-    const text = ((msg.content[0] as Anthropic.TextBlock).text ?? "").trim();
-    return text.length > 30 ? text : null;
-  } catch (e) {
-    console.error(`    [ai] error: ${(e as Error).message}`);
-    return null;
-  }
 }
 
 // ─── AI title cleanup ──────────────────────────────────────────────────────────
@@ -450,15 +360,20 @@ async function enrichEvent(event: EventRow): Promise<EnrichResult> {
   const needsDesc = existingDesc.length < DESC_MIN_LENGTH;
 
   if (needsDesc) {
-    // Try og:description first
-    const ogDesc = meta.ogDescription;
-    if (ogDesc && ogDesc.length >= DESC_MIN_LENGTH) {
-      updates.description = ogDesc.slice(0, 500);
+    // Free metadata first (JSON-LD Event copy → og: → meta description).
+    const metaDesc = pickStoredDescription(meta);
+    if (metaDesc && metaDesc.length >= DESC_MIN_LENGTH) {
+      updates.description = metaDesc;
       result.descriptionEnriched = true;
       result.descriptionSource = "og";
     } else if (meta.ok && meta.bodyText.length > 100) {
       // Fall back to AI using page body content
-      const aiDesc = await generateDescription(event.title, event.venueName, event.startDate, meta.bodyText);
+      const aiDesc = await generateDescription({
+        title: event.title,
+        venueName: event.venueName,
+        startDate: event.startDate,
+        pageText: meta.bodyText,
+      });
       if (aiDesc) {
         updates.description = aiDesc;
         result.descriptionEnriched = true;

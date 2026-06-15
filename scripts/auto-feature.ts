@@ -134,7 +134,7 @@ async function main() {
       const cat = e.category ? CATEGORY_LABELS[e.category] : null;
       const venue = clean(e.venueName ?? e.neighborhood ?? "");
       const price = e.isFree ? "Free" : clean(e.price ?? "");
-      const desc = e.description ? clean(e.description).slice(0, 180) : "";
+      const desc = e.description ? clean(e.description).slice(0, 450) : "";
       const dayKey = sfDayKey(e.startDate);
       const budget = dayBudgets.find((b) => b.key === dayKey);
       const [y, m, d] = dayKey.split("-").map(Number);

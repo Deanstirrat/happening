@@ -7,7 +7,7 @@ import { tokenize, isFuzzyMatch, areLikelyDifferentEvents, isVenueFuzzyMatch, MI
 import { tagRecurringEvents } from "@/lib/recurring";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
-import { decodeHtmlEntities } from "@/lib/decodeEntities";
+import { parseMeta, pickStoredDescription } from "@/lib/enrichDescription";
 import { isPlaceholderVenue, isServiceAreaTBA } from "@/lib/venues";
 import { SCRAPE_RUN_HISTORY } from "./health";
 import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue } from "@/lib/ingestFilters";
@@ -182,22 +182,6 @@ export const SCRAPERS: Record<string, BaseScraper> = {
 };
 
 const IMAGE_BACKFILL_CONCURRENCY = 5;
-const DESCRIPTION_MAX_LENGTH = 500;
-
-function extractOgDescription(html: string): string | undefined {
-  const match =
-    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ??
-    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i) ??
-    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ??
-    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-  if (!match?.[1]) return undefined;
-  let desc = decodeHtmlEntities(match[1]);
-  if (!desc) return undefined;
-  if (desc.length > DESCRIPTION_MAX_LENGTH) {
-    desc = desc.slice(0, DESCRIPTION_MAX_LENGTH).replace(/\s+\S*$/, "") + "…";
-  }
-  return desc;
-}
 
 async function fetchMetaFromSourceUrl(url: string): Promise<{ imageUrl?: string; description?: string }> {
   try {
@@ -211,7 +195,10 @@ async function fetchMetaFromSourceUrl(url: string): Promise<{ imageUrl?: string;
     });
     const html = await res.text();
 
-    const description = extractOgDescription(html);
+    // Best storable description from page metadata (JSON-LD Event copy → og: →
+    // meta description). No AI here — the page-body + Haiku fallback runs later,
+    // scoped to upcoming candidates (scripts/enrich-descriptions.ts).
+    const description = pickStoredDescription(parseMeta(html));
 
     // OG image meta tag (try both attribute orderings)
     const match =

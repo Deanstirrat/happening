@@ -78,6 +78,21 @@ export function isCanceledEvent(event: {
   return false;
 }
 
+// Spam filter — a phone number in the event TITLE is a near-certain spam signal.
+// Legitimate event titles never carry a customer-service line; SEO spammers post
+// fake "events" (seen on posh.vip) whose titles are help-desk bait, e.g.
+// "How Do I Add Guest in Princess Cruise Call +1-(833)-624-0944 ...". We match the
+// title only — descriptions of real events occasionally print a box-office number —
+// and require NANP structure (10 digits as 3-3-4) with parens or separators between
+// the groups, so plain digit runs (years, ranges, times, catalog numbers) are left
+// alone.
+const PHONE_IN_TITLE_RE =
+  /(?:\+?\d{1,2}[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|(?:\+?\d{1,2}[\s.\-])?\d{3}[\s.\-]\d{3}[\s.\-]\d{4}/;
+
+export function isSpamEvent(event: { title: string }): boolean {
+  return PHONE_IN_TITLE_RE.test(event.title);
+}
+
 // Library audience filter — babies/toddlers and seniors/older-adults programming.
 // These recurring library programs (storytime, lapsit, senior tech help, etc.) are
 // off-vibe for the app. SFPL tags each event with audience labels (e.g.

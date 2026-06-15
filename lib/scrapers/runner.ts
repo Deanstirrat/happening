@@ -10,7 +10,7 @@ import { isTooFarFromSf } from "@/lib/geo";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
 import { isPlaceholderVenue, isServiceAreaTBA } from "@/lib/venues";
 import { SCRAPE_RUN_HISTORY } from "./health";
-import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue } from "@/lib/ingestFilters";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue, isSpamEvent } from "@/lib/ingestFilters";
 
 // Name-only music sources that scrape the whole Bay Area. Their out-of-area
 // venues carry no street address (just "Venue, City"), so they never geocode and
@@ -392,6 +392,12 @@ async function scrapeSource(
     // Skip blocklisted events (by hash, URL, or title)
     if (blockedHashes.has(dedupeHash) || blockedUrls.has(event.sourceUrl) || blockedTitles.has(event.title.toLowerCase().trim())) {
       console.log(`[${slug}] Blocked: "${event.title}"`);
+      continue;
+    }
+
+    // Skip spam (e.g. posh.vip SEO bait with a phone number in the title)
+    if (isSpamEvent(event)) {
+      console.log(`[${slug}] Spam (skipped): "${event.title}"`);
       continue;
     }
 

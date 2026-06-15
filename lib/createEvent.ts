@@ -6,7 +6,7 @@ import { resolveVenueId } from "@/lib/venueLink";
 import { categorizeEvent } from "@/lib/categorize";
 import { sfDayStart, sfDateFromLocal } from "@/lib/sfDate";
 import { decodeHtmlEntities } from "@/lib/decodeEntities";
-import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent } from "@/lib/ingestFilters";
+import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isSpamEvent } from "@/lib/ingestFilters";
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -135,7 +135,7 @@ export interface EventFields {
   recurringType?: string | null;
 }
 
-export type RejectionReason = "virtual" | "baby-senior" | "canceled";
+export type RejectionReason = "virtual" | "baby-senior" | "canceled" | "spam";
 
 export type CreateEventResult =
   | { success: true; eventId: string; title: string }
@@ -151,6 +151,8 @@ export function rejectionMessage(reason: RejectionReason): string {
       return "This looks like library programming for babies/toddlers or seniors, which Happening doesn't list.";
     case "canceled":
       return "This event appears to be cancelled or postponed, so Happening won't list it.";
+    case "spam":
+      return "This looks like spam (it carries a phone number in the title), so Happening won't list it.";
   }
 }
 
@@ -181,6 +183,9 @@ export async function createEvent(fields: EventFields): Promise<CreateEventResul
 
   // 2. Reject virtual/online-only events and off-vibe baby/senior library programming.
   const filterEvent = { title, description: description ?? null, venueName: venueName ?? null, sourceUrl: sourceUrl ?? null, tags: tags ?? [] };
+  if (isSpamEvent(filterEvent)) {
+    return { rejected: true, reason: "spam" };
+  }
   if (isVirtualEvent(filterEvent)) {
     return { rejected: true, reason: "virtual" };
   }

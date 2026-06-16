@@ -10,6 +10,7 @@
  * falls back to deterministic best-of-each values).
  */
 import Anthropic from "@anthropic-ai/sdk";
+import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 /** Model used for adjudication + synthesis. Exported so callers can record which
@@ -20,8 +21,23 @@ const MODEL = ADJUDICATE_MODEL;
 export interface AdjudicationInput {
   title: string;
   startDate: Date;
+  allDay: boolean;
   venueName: string | null;
   description: string | null;
+}
+
+/**
+ * True when an event has no reliable start time: flagged allDay, or sitting at
+ * the noon-SF placeholder several scrapers assign when a source gives a date but
+ * no time (mirrors isTimeUnknown in lib/scrapers/runner.ts). Such a time is
+ * meaningless for matching — feeding it to the adjudicator as a real start makes
+ * Haiku read a placeholder noon vs a real 8pm as two different time slots and
+ * wrongly split a genuine duplicate.
+ */
+function isTimeUnknown(startDate: Date, allDay: boolean): boolean {
+  if (allDay) return true;
+  const noonSf = sfDayStart(sfDayKey(startDate)).getTime() + 12 * 60 * 60 * 1000;
+  return startDate.getTime() === noonSf;
 }
 
 export interface AdjudicationResult {
@@ -31,9 +47,12 @@ export interface AdjudicationResult {
 }
 
 function fmt(e: AdjudicationInput): string {
+  const start = isTimeUnknown(e.startDate, e.allDay)
+    ? `${sfDayKey(e.startDate)} (date only — start time unknown)`
+    : e.startDate.toISOString();
   return [
     `Title: ${e.title}`,
-    `Start: ${e.startDate.toISOString()}`,
+    `Start: ${start}`,
     `Venue: ${e.venueName ?? "(unknown)"}`,
     `Description: ${(e.description ?? "").slice(0, 300) || "(none)"}`,
   ].join("\n");
@@ -61,6 +80,8 @@ const ADJUDICATE_PROMPT = `You decide whether two San Francisco event listings d
 Two listings are the SAME event when they refer to one occurrence — even if titles are reworded, one drops the headliner or promoter, abbreviations differ, or descriptions are paraphrased.
 
 They are DIFFERENT events when they are separate occurrences: different shows at the same venue, different time slots of a recurring series (e.g. "Early Show" vs "Late Show"), different artists, or merely the same venue on the same night with unrelated programming.
+
+If a listing's start is marked "date only — start time unknown", treat its time as missing: do NOT use a time difference against it as evidence the two are different time slots.
 
 Listing A:
 {a}

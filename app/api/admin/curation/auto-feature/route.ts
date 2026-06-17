@@ -100,7 +100,6 @@ async function runAutoFeature() {
       NOT: [{ tags: { has: "recurring" } }, { tags: { has: "sfpl" } }],
     },
     orderBy: { startDate: "asc" },
-    take: 500,
     select: {
       id: true,
       title: true,
@@ -210,6 +209,7 @@ SKIP entirely:
 - Generic mainstream club nights with no distinct scene or identity
 - Marina/frat/bottle-service nightlife, Top-40 bro bars, bar crawls, and anything aspiring to be a Vegas-style club
 - Tech meetups, startup networking, corporate events
+- Speed dating, singles mixers, matchmaking, and generic dating/social-meet events
 - Standard gallery openings, generic fitness/wellness, book readings from unknown authors
 - TECH category events
 - Anything that could happen in any American city

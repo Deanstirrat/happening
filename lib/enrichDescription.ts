@@ -242,13 +242,14 @@ export async function generateDescription(args: {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const { title, venueName, startDate, pageText } = args;
   try {
-    const msg = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 400,
-      messages: [
-        {
-          role: "user",
-          content: `Write an informative description for this San Francisco event so a reader can decide whether to go WITHOUT clicking through to another site. Aim for 3-5 sentences. Be specific: genre/format, vibe, who's performing or hosting, and what actually happens. Use only facts present in the page content below — do not invent details. No marketing fluff, no hype.
+    const msg = await client.messages.create(
+      {
+        model: "claude-haiku-4-5",
+        max_tokens: 400,
+        messages: [
+          {
+            role: "user",
+            content: `Write an informative description for this San Francisco event so a reader can decide whether to go WITHOUT clicking through to another site. Aim for 3-5 sentences. Be specific: genre/format, vibe, who's performing or hosting, and what actually happens. Use only facts present in the page content below — do not invent details. No marketing fluff, no hype.
 
 Event: ${title}
 Venue: ${venueName ?? "unknown"}
@@ -258,9 +259,14 @@ Page content (for context):
 ${pageText.slice(0, 2400)}
 
 Reply with only the description text. No quotes, no label prefix.`,
-        },
-      ],
-    });
+          },
+        ],
+      },
+      // Bound the call so one slow generation can't stall a batch. The SDK
+      // default is no request timeout + 2 retries, which under a stall means a
+      // single event could hang for minutes; cap the request and allow one retry.
+      { timeout: 20_000, maxRetries: 1 }
+    );
     const text = ((msg.content[0] as Anthropic.TextBlock).text ?? "").trim();
     return text.length > 30 ? clampDescription(text) : null;
   } catch (e) {

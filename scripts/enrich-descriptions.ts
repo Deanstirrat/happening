@@ -44,6 +44,55 @@ const TIME_BUDGET_MS = 8 * 60 * 1000; // 8 minutes
 // runner's low-quality-domain handling).
 const SKIP_SOURCE_SLUGS = new Set(["foopee", "19hz"]);
 
+// Anti-bot ticketing/listing hosts that reliably refuse automated fetches (403)
+// — they yield nothing from the Railway datacenter IP and only waste the time
+// budget (and can be tarpitted to the fetch timeout). Skip them outright rather
+// than re-fetch every night. See #193. Matched against the sourceUrl host so it
+// catches these regardless of which scraper surfaced the event.
+const SKIP_HOSTS = [
+  "bandsintown.com",
+  "jambase.com",
+  "sfjazz.org",
+  "ra.co",
+  "ticketmaster.com",
+  "ticketmaster.evyy.net",
+  "seetickets.us",
+  "tickettailor.com",
+  "drafthouse.com",
+];
+
+function hostBlocked(url: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return SKIP_HOSTS.some((d) => host === d || host.endsWith(`.${d}`));
+}
+
+// Hard per-event ceiling. fetchPageMeta already times out at 12s and the AI call
+// is now bounded too, but this guarantees a single pathological event (slow
+// fetch followed by a slow generation) can't hold up its whole batch.
+const PER_EVENT_BUDGET_MS = 30 * 1000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    timer.unref?.();
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      }
+    );
+  });
+}
+
 type DescSource = "meta" | "ai";
 
 interface EnrichRow {
@@ -121,7 +170,8 @@ async function main() {
   const eligible = candidates.filter(
     (e) =>
       (e.description ?? "").length < DESC_MIN_LENGTH &&
-      !SKIP_SOURCE_SLUGS.has(e.source?.slug ?? "")
+      !SKIP_SOURCE_SLUGS.has(e.source?.slug ?? "") &&
+      !hostBlocked(e.sourceUrl)
   );
 
   console.log(
@@ -152,7 +202,11 @@ async function main() {
     const results = await Promise.all(
       chunk.map(async (event) => {
         const n = ++i;
-        const r = await enrichOne(event);
+        const r = await withTimeout(enrichOne(event), PER_EVENT_BUDGET_MS, {
+          enriched: false as const,
+          source: null,
+          from: (event.description ?? "").length,
+        });
         if (r.enriched) {
           if (r.source === "ai") viaAi++;
           else viaMeta++;

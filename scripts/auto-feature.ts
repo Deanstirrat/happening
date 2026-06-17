@@ -15,9 +15,7 @@ import { prisma } from "../lib/prisma";
 import { CATEGORY_LABELS } from "../lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd } from "../lib/sfDate";
 import { addDays } from "date-fns";
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic();
+import { runCurator } from "../lib/curatorPicks";
 
 // Target featured event count per day-of-week (0=Sun … 6=Sat)
 const DAY_TARGETS: Record<number, number> = {
@@ -158,13 +156,7 @@ async function main() {
 
   console.log("   🤖 Asking Claude to review events...\n");
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 16000,
-    messages: [
-      {
-        role: "user",
-        content: `You are the automated curator for "happening", a San Francisco events discovery platform. Review these upcoming events and perform two actions:
+  const prompt = `You are the automated curator for "happening", a San Francisco events discovery platform. Review these upcoming events and perform two actions:
 
 ---
 PART 1 — BLOCK (permanent removal from platform)
@@ -217,7 +209,7 @@ SKIP entirely:
 - TECH category events
 - Anything that could happen in any American city
 
-Aim to fill the per-day slots shown above. Prioritize Friday/Saturday/Sunday with more picks, Mon-Thu with 1-2 each. Stay within the ${remainingWeeklyBudget} total budget.
+Aim to fill the per-day slots shown above. Prioritize Friday/Saturday/Sunday with more picks, Mon-Thu with 1-2 each. Return AT MOST ${remainingWeeklyBudget} feature picks total — do not exceed the weekly budget.
 
 Return ONLY a valid JSON object — no prose before or after:
 {
@@ -227,23 +219,9 @@ Return ONLY a valid JSON object — no prose before or after:
 
 Events to review (${candidates.length} total, next 7 days):
 
-${eventList}`,
-      },
-    ],
-  });
+${eventList}`;
 
-  const text = message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error(`Failed to parse AI response:\n${text.slice(0, 400)}`);
-  }
-
-  let picks: { block: { id: string; reason: string }[]; feature: { id: string; reason: string }[] };
-  try {
-    picks = JSON.parse(jsonMatch[0]);
-  } catch {
-    throw new Error(`Invalid JSON from AI:\n${jsonMatch[0].slice(0, 400)}`);
-  }
+  const picks = await runCurator(prompt);
 
   const candidateIds = new Set(candidates.map((c) => c.id));
   const candidateMap = new Map(candidates.map((c) => [c.id, c]));

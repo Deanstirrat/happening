@@ -33,6 +33,12 @@ import {
 
 const CONCURRENCY = 5;
 
+// Hard wall-clock budget. This step is best-effort polish that runs BEFORE
+// auto-feature in the cron chain; it must never run long enough — or hang on a
+// pile of timed-out source-page fetches — to delay or block the featuring job.
+// Whatever isn't enriched in time is simply left thin for this run.
+const TIME_BUDGET_MS = 8 * 60 * 1000; // 8 minutes
+
 // Listing-page sources whose URL is shared across all of a day's events, so the
 // page carries no event-specific description worth fetching (matches the dedup
 // runner's low-quality-domain handling).
@@ -131,9 +137,17 @@ async function main() {
   let viaMeta = 0;
   let viaAi = 0;
   let failed = 0;
+  let skipped = 0;
   let i = 0;
 
+  const deadline = Date.now() + TIME_BUDGET_MS;
+
   for (let batch = 0; batch < eligible.length; batch += CONCURRENCY) {
+    if (Date.now() >= deadline) {
+      skipped = eligible.length - batch;
+      console.log(`\n   ⏱  Time budget (${TIME_BUDGET_MS / 60000}m) reached — leaving ${skipped} unenriched this run.`);
+      break;
+    }
     const chunk = eligible.slice(batch, batch + CONCURRENCY);
     const results = await Promise.all(
       chunk.map(async (event) => {
@@ -160,11 +174,20 @@ async function main() {
   console.log(`   Enriched (meta): ${viaMeta}`);
   console.log(`   Enriched (AI):   ${viaAi}`);
   console.log(`   Could not fix:   ${failed}`);
+  if (skipped) console.log(`   Skipped (budget):${skipped}`);
 
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // Force a clean exit so the cron chain always advances to auto-feature.
+    // Timed-out source-page fetches can leave sockets that keep the event loop
+    // alive; without this the `&&`/`;` chain could hang here and auto-feature
+    // would never run (the bug that stopped all featuring after #185).
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });

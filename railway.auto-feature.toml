@@ -5,11 +5,13 @@ dockerfilePath = "Dockerfile.scrape"
 # Daily curation, in order:
 #   1. enrich-descriptions — fill thin descriptions on the next 7 days of
 #      candidates (JSON-LD/og free extraction → Haiku from page body) so step 2
-#      judges events on real content, not just titles.
+#      judges events on real content, not just titles. BEST-EFFORT and time-boxed
+#      (see TIME_BUDGET_MS): separated by `;`, not `&&`, so a slow/failed enrich
+#      pass can never block the featuring job — the #185 regression that stopped
+#      all featuring. It force-exits on completion so the chain always advances.
 #   2. auto-feature — block spam, pick the week's featured events.
-#   3. enrich-featured — clean titles, resolve images via og: → web search, and
-#      un-feature any left without a usable image.
-# Each step runs only if the previous succeeded.
-startCommand = "npm run enrich-descriptions && npm run auto-feature && npm run enrich-featured"
+#   3. enrich-featured — clean titles, resolve images via og: → web search.
+#      Runs only if auto-feature succeeded.
+startCommand = "npm run enrich-descriptions ; npm run auto-feature && npm run enrich-featured"
 # Cron schedule: 0 5 * * * (5am UTC = 10pm PT — 1h after scrape's 4h hard limit)
 # Set this in the Railway dashboard under the service's Settings → Cron Schedule.

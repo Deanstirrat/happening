@@ -27,6 +27,8 @@ async function main() {
       venueName: true,
       city: true,
       startDate: true,
+      category: true,
+      source: { select: { slug: true } },
     },
     orderBy: { featuredAt: "desc" },
   });
@@ -48,7 +50,8 @@ async function main() {
       chunk.map(async (event) => {
         i++;
         console.log(`[${i}/${events.length}] ${event.title}`);
-        const r = await enrichEvent(event);
+        const { source, ...row } = event;
+        const r = await enrichEvent({ ...row, sourceSlug: source.slug });
 
         const sourceLabel = r.sourceOk ? `${r.sourceStatus} OK` : `${r.sourceStatus || "ERR"} ⚠`;
         console.log(`  source:      ${event.sourceUrl.slice(0, 70)} → ${sourceLabel}`);
@@ -57,8 +60,8 @@ async function main() {
           const via = r.imageSource === "websearch" ? "web search" : "og:image";
           const from = event.imageUrl ? `${event.imageUrl.slice(0, 50)} → ` : "none → ";
           console.log(`  image:       ${from}found via ${via} ✓`);
-        } else if (r.unfeatured) {
-          console.log(`  image:       no usable image found → un-featured ⚑`);
+        } else if (r.usedFallbackImage) {
+          console.log(`  image:       no real image found → using fallback placeholder ⚑`);
         } else if (event.imageUrl) {
           console.log(`  image:       ${event.imageUrl.slice(0, 70)} → OK`);
         } else {
@@ -92,7 +95,7 @@ async function main() {
   const brokenSources = results.filter((r) => !r.sourceOk).length;
   const imagesFixed = results.filter((r) => r.imageFixed).length;
   const imagesFromSearch = results.filter((r) => r.imageSource === "websearch").length;
-  const unfeatured = results.filter((r) => r.unfeatured).length;
+  const usedFallback = results.filter((r) => r.usedFallbackImage).length;
   const descsEnriched = results.filter((r) => r.descriptionEnriched).length;
   const titlesRenamed = results.filter((r) => r.titleRenamed).length;
   const titleMismatches = results.filter((r) => r.titleMismatch).length;
@@ -101,7 +104,7 @@ async function main() {
   console.log(`  Events processed:    ${results.length}`);
   console.log(`  Broken source URLs:  ${brokenSources}`);
   console.log(`  Images fixed:        ${imagesFixed} (${imagesFromSearch} via web search)`);
-  console.log(`  Un-featured:         ${unfeatured} (no usable image)`);
+  console.log(`  Fallback images:     ${usedFallback} (no real image — kept featured)`);
   console.log(`  Descriptions added:  ${descsEnriched}`);
   console.log(`  Titles renamed:      ${titlesRenamed}`);
   console.log(`  Title mismatches:    ${titleMismatches} (review manually)`);
@@ -114,9 +117,9 @@ async function main() {
     });
   }
 
-  if (unfeatured > 0) {
-    console.log("\n  Un-featured (no usable image):");
-    results.filter((r) => r.unfeatured).forEach((r) => {
+  if (usedFallback > 0) {
+    console.log("\n  Using fallback image (no real image — kept featured):");
+    results.filter((r) => r.usedFallbackImage).forEach((r) => {
       console.log(`    "${r.title}"`);
     });
   }

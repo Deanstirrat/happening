@@ -7,8 +7,8 @@ interface EnrichResult {
   processed: number;
   imagesFixed: number;
   imagesFromSearch: number;
-  unfeatured: number;
-  unfeaturedDetails: { id: string; title: string }[];
+  usedFallback: number;
+  usedFallbackDetails: { id: string; title: string }[];
   descriptionsAdded: number;
   titlesRenamed: number;
   titlesRenamedDetails: { id: string; from: string; to: string }[];
@@ -48,7 +48,7 @@ export default function EnrichFeatured() {
           <div>
             <p className="font-body text-sm font-semibold text-on-surface">enrich featured</p>
             <p className="font-body text-xs text-on-surface-variant mt-0.5">
-              Fix images (og: → web search), fill descriptions; un-feature if no image found
+              Fix images (og: → web search), fill descriptions; use a placeholder if no image found (kept featured)
             </p>
           </div>
           <button
@@ -94,7 +94,7 @@ export default function EnrichFeatured() {
             { label: "processed", value: result.processed },
             { label: "images fixed", value: result.imagesFixed },
             { label: "via web search", value: result.imagesFromSearch },
-            { label: "un-featured", value: result.unfeatured },
+            { label: "fallback image", value: result.usedFallback },
             { label: "descriptions added", value: result.descriptionsAdded },
             { label: "titles renamed", value: result.titlesRenamed },
             { label: "broken sources", value: result.brokenSources },
@@ -130,10 +130,10 @@ export default function EnrichFeatured() {
           ))}
         </div>
       )}
-      {result && result.unfeatured > 0 && (
+      {result && result.usedFallback > 0 && (
         <div className="flex flex-col gap-1 mt-1">
-          <p className="font-body text-xs font-semibold text-on-surface-variant">un-featured — no usable image found</p>
-          {result.unfeaturedDetails.map((u) => (
+          <p className="font-body text-xs font-semibold text-on-surface-variant">using fallback image — no real image found (kept featured)</p>
+          {result.usedFallbackDetails.map((u) => (
             <div key={u.id} className="font-body text-xs text-on-surface-variant">
               <span className="text-on-surface">{u.title}</span>
             </div>

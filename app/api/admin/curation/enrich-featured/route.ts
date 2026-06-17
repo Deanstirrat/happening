@@ -39,6 +39,8 @@ async function runEnrichFeatured() {
         venueName: true,
         city: true,
         startDate: true,
+        category: true,
+        source: { select: { slug: true } },
       },
       orderBy: { featuredAt: "desc" },
     }),
@@ -55,8 +57,8 @@ async function runEnrichFeatured() {
       processed: 0,
       imagesFixed: 0,
       imagesFromSearch: 0,
-      unfeatured: 0,
-      unfeaturedDetails: [],
+      usedFallback: 0,
+      usedFallbackDetails: [],
       descriptionsAdded: 0,
       titlesRenamed: 0,
       titlesRenamedDetails: [],
@@ -77,8 +79,9 @@ async function runEnrichFeatured() {
         i++;
         console.log(`[enrich-featured] [${i}/${events.length}] ${event.title}`);
         const EVENT_TIMEOUT_MS = 60_000;
+        const { source, ...row } = event;
         const r = await Promise.race([
-          enrichEvent(event),
+          enrichEvent({ ...row, sourceSlug: source.slug }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("event timeout")), EVENT_TIMEOUT_MS)
           ),
@@ -91,7 +94,7 @@ async function runEnrichFeatured() {
             sourceStatus: 0,
             imageFixed: false,
             imageSource: null,
-            unfeatured: false,
+            usedFallbackImage: false,
             descriptionEnriched: false,
             descriptionSource: null,
             titleRenamed: null,
@@ -105,8 +108,8 @@ async function runEnrichFeatured() {
         if (r.imageFixed) {
           const via = r.imageSource === "websearch" ? "web search" : "og:image";
           console.log(`[enrich-featured]   image:       found via ${via} ✓`);
-        } else if (r.unfeatured) {
-          console.log(`[enrich-featured]   image:       no usable image found → un-featured ⚑`);
+        } else if (r.usedFallbackImage) {
+          console.log(`[enrich-featured]   image:       no real image found → using fallback placeholder ⚑`);
         } else if (event.imageUrl) {
           console.log(`[enrich-featured]   image:       ${event.imageUrl.slice(0, 70)} → OK`);
         } else {
@@ -141,12 +144,12 @@ async function runEnrichFeatured() {
     .map((r) => ({ id: r.id, from: r.title, to: r.titleRenamed! }));
 
   const imagesFromSearch = results.filter((r) => r.imageSource === "websearch").length;
-  const unfeatured = results.filter((r) => r.unfeatured).map((r) => ({ id: r.id, title: r.title }));
+  const usedFallback = results.filter((r) => r.usedFallbackImage).map((r) => ({ id: r.id, title: r.title }));
 
   console.log(`\n[enrich-featured] === Summary ===`);
   console.log(`[enrich-featured]   Processed:           ${results.length}`);
   console.log(`[enrich-featured]   Images fixed:        ${results.filter((r) => r.imageFixed).length} (${imagesFromSearch} via web search)`);
-  console.log(`[enrich-featured]   Un-featured:         ${unfeatured.length} (no usable image)`);
+  console.log(`[enrich-featured]   Fallback images:     ${usedFallback.length} (no real image — kept featured)`);
   console.log(`[enrich-featured]   Descriptions added:  ${results.filter((r) => r.descriptionEnriched).length}`);
   console.log(`[enrich-featured]   Titles renamed:      ${titlesRenamedDetails.length}`);
   console.log(`[enrich-featured]   Broken sources:      ${brokenSources.length}`);
@@ -157,8 +160,8 @@ async function runEnrichFeatured() {
     processed: results.length,
     imagesFixed: results.filter((r) => r.imageFixed).length,
     imagesFromSearch,
-    unfeatured: unfeatured.length,
-    unfeaturedDetails: unfeatured,
+    usedFallback: usedFallback.length,
+    usedFallbackDetails: usedFallback,
     descriptionsAdded: results.filter((r) => r.descriptionEnriched).length,
     titlesRenamed: titlesRenamedDetails.length,
     titlesRenamedDetails,

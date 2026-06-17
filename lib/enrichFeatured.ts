@@ -2,8 +2,11 @@
  * Shared per-event enrichment for *featured* events.
  *
  * One source of truth for the featured-event polish pass: clean up the title,
- * resolve a usable image (existing → og:image → web search → un-feature), and
- * fill a thin description. Both the nightly Railway cron
+ * resolve a usable image (existing → og:image → web search → category/venue
+ * placeholder), and fill a thin description. A featured event is NEVER dropped
+ * from the rail for lack of an image (#191): when no real image resolves we
+ * fall back to a tasteful placeholder and keep it featured. Both the nightly
+ * Railway cron
  * (scripts/enrich-featured.ts) and the admin-triggered API route
  * (app/api/admin/curation/enrich-featured/route.ts) call enrichEvent() here, so
  * the two paths can't drift.
@@ -14,8 +17,10 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import type { EventCategory } from "@prisma/client";
 import { prisma } from "./prisma";
 import { decodeHtmlEntities } from "./decodeEntities";
+import { resolveFallbackImage } from "./eventImage";
 import {
   fetchPageMeta,
   pickStoredDescription,
@@ -241,6 +246,9 @@ export interface EnrichEventRow {
   venueName: string | null;
   city: string;
   startDate: Date;
+  // For the placeholder fallback when no real image resolves (see step 3c).
+  category: EventCategory | null;
+  sourceSlug: string;
 }
 
 export interface EnrichResult {
@@ -250,7 +258,10 @@ export interface EnrichResult {
   sourceStatus: number;
   imageFixed: boolean;
   imageSource: "og" | "websearch" | null;
-  unfeatured: boolean;
+  // True when the image cascade found nothing real and the event is now relying
+  // on a category/venue placeholder (or a UI gradient). It stays featured — this
+  // flags the gap for the run summary, it does NOT mean the event was dropped.
+  usedFallbackImage: boolean;
   descriptionEnriched: boolean;
   descriptionSource: "og" | "ai" | null;
   titleRenamed: string | null;
@@ -265,7 +276,7 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
     sourceStatus: 200,
     imageFixed: false,
     imageSource: null,
-    unfeatured: false,
+    usedFallbackImage: false,
     descriptionEnriched: false,
     descriptionSource: null,
     titleRenamed: null,
@@ -277,7 +288,7 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
   result.sourceOk = meta.ok;
   result.sourceStatus = meta.status;
 
-  const updates: Partial<{ description: string; imageUrl: string | null; title: string; featured: boolean }> = {};
+  const updates: Partial<{ description: string; imageUrl: string | null; title: string }> = {};
 
   // 2. Title: clean up wording/length/formatting via AI (preserves identity).
   //    Runs even when the source is blocked — a wordy title can be fixed without the page.
@@ -298,7 +309,7 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
     }
   }
 
-  // 3. Image cascade: keep a usable real image → og:image → web search → un-feature.
+  // 3. Image cascade: keep a usable real image → og:image → web search → placeholder.
   //    A `/`-rooted default (e.g. sfrecpark placeholder) counts as "no real image".
   let haveUsableImage = false;
   if (event.imageUrl && !isDefaultImage(event.imageUrl)) {
@@ -331,12 +342,24 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
     }
   }
 
-  // 3c. Still nothing usable → a featured event with no image isn't worth featuring.
-  //     Leave a `/`-rooted default in place as a display placeholder; only drop it
-  //     from the featured rail.
+  // 3c. Still nothing real → keep the event featured and fall back to a
+  //     category/venue placeholder so the rail always renders something (#191).
+  //     A featured event is never un-featured just for missing an image — the
+  //     curator's underground/Instagram-sourced picks are exactly the ones that
+  //     fail the image cascade, and dropping them defeats the point.
   if (!haveUsableImage) {
-    updates.featured = false;
-    result.unfeatured = true;
+    const fallback = resolveFallbackImage({
+      venueName: event.venueName,
+      sourceSlug: event.sourceSlug,
+      category: event.category,
+    });
+    // Write the placeholder only if it improves on what's stored; a null
+    // fallback (no venue photo, no category tile) leaves imageUrl as-is and the
+    // UI renders a gradient. Either way the event stays featured.
+    if (fallback && fallback !== event.imageUrl) {
+      updates.imageUrl = fallback;
+    }
+    result.usedFallbackImage = true;
   }
 
   // 4. Description: enrich if missing or too short

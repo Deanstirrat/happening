@@ -10,6 +10,8 @@ interface EnrichResult {
   unfeatured: number;
   unfeaturedDetails: { id: string; title: string }[];
   descriptionsAdded: number;
+  titlesRenamed: number;
+  titlesRenamedDetails: { id: string; from: string; to: string }[];
   brokenSources: number;
   titleMismatches: { id: string; stored: string; page: string }[];
 }
@@ -94,11 +96,24 @@ export default function EnrichFeatured() {
             { label: "via web search", value: result.imagesFromSearch },
             { label: "un-featured", value: result.unfeatured },
             { label: "descriptions added", value: result.descriptionsAdded },
+            { label: "titles renamed", value: result.titlesRenamed },
             { label: "broken sources", value: result.brokenSources },
           ].map(({ label, value }) => (
             <div key={label} className="bg-surface-container-high rounded-xl px-3 py-2 text-center">
               <p className="font-headline font-black text-xl text-on-surface">{value}</p>
               <p className="font-body text-[0.65rem] text-on-surface-variant">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {result && result.titlesRenamedDetails.length > 0 && (
+        <div className="flex flex-col gap-1 mt-1">
+          <p className="font-body text-xs font-semibold text-on-surface-variant">titles renamed</p>
+          {result.titlesRenamedDetails.map((t) => (
+            <div key={t.id} className="font-body text-xs text-on-surface-variant">
+              <span className="line-through">{t.from}</span>
+              <span className="mx-1">→</span>
+              <span className="text-on-surface">{t.to}</span>
             </div>
           ))}
         </div>

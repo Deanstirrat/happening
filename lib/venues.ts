@@ -286,6 +286,52 @@ export const KNOWN_VENUES: Record<string, KnownVenue> = {
   "gold bar hangar": { name: "Gold Bar Hangar", latitude: 37.7886, longitude: -122.30829, address: "2505 Monarch St, Alameda, CA 94501" },
   // 888 Garage — a room at The Midway (900 Marin St).
   "888 garage": { name: "The Midway", latitude: 37.74953, longitude: -122.38609, address: "900 Marin St, San Francisco, CA 94124" },
+  // ── User-confirmed venues (third triage pass) — addresses supplied by hand,
+  //    coords geocoded once from each street address via Nominatim. ────────────
+  // Golden Gate National Parks — a multi-site parks brand, not one place; events
+  // listed under it are at the Presidio, so resolve to the Presidio centroid.
+  "golden gate national parks": { name: "Presidio of San Francisco", latitude: 37.79875, longitude: -122.46459, address: "Presidio of San Francisco, CA 94129" },
+  // The Chapel (777 Valencia) — foopee tacks ", S.F." onto "Chapel".
+  "the chapel": { name: "The Chapel", latitude: 37.76049, longitude: -122.4212, address: "777 Valencia St, San Francisco, CA 94110" },
+  chapel: { name: "The Chapel", latitude: 37.76049, longitude: -122.4212, address: "777 Valencia St, San Francisco, CA 94110" },
+  "chapel, s.f": { name: "The Chapel", latitude: 37.76049, longitude: -122.4212, address: "777 Valencia St, San Francisco, CA 94110" },
+  "the chapel, s.f": { name: "The Chapel", latitude: 37.76049, longitude: -122.4212, address: "777 Valencia St, San Francisco, CA 94110" },
+  // Cobb's Comedy Club (North Beach).
+  "cobb's comedy club": { name: "Cobb's Comedy Club", latitude: 37.80292, longitude: -122.4142, address: "915 Columbus Ave, San Francisco, CA 94133" },
+  "cobbs comedy club": { name: "Cobb's Comedy Club", latitude: 37.80292, longitude: -122.4142, address: "915 Columbus Ave, San Francisco, CA 94133" },
+  // 3rd & Army — warehouse space; user-supplied address is on Treasure Island.
+  "3rd & army": { name: "3rd & Army", latitude: 37.82541, longitude: -122.36697, address: "600 Avenue M, San Francisco, CA 94130" },
+  "3rd and army": { name: "3rd & Army", latitude: 37.82541, longitude: -122.36697, address: "600 Avenue M, San Francisco, CA 94130" },
+  // Outside Lands — the Polo Field in Golden Gate Park.
+  "outside lands": { name: "Outside Lands (Golden Gate Park)", latitude: 37.7686, longitude: -122.4934, address: "Polo Fields, Golden Gate Park, San Francisco, CA 94121" },
+  "outside lands, golden gate par, sf": { name: "Outside Lands (Golden Gate Park)", latitude: 37.7686, longitude: -122.4934, address: "Polo Fields, Golden Gate Park, San Francisco, CA 94121" },
+  // Ellis Street block party (Powell–Stockton) — geocoded to 63 Ellis St.
+  "ellis street between powell and stockton, s.f": { name: "Ellis Street (Powell–Stockton)", latitude: 37.78546, longitude: -122.40715, address: "63 Ellis St, San Francisco, CA 94102" },
+  // ── Out-of-area touring venues (well beyond the 30 km service area) — supplied
+  //    by hand so they geocode instead of sitting ungeocoded; they place far off
+  //    the SF map and may be filtered downstream by service radius. ─────────────
+  // Deer Lodge — Ojai (Ventura County); Nominatim placed only the road, so coords
+  // are the supplied street address on Maricopa Hwy.
+  "deer lodge": { name: "Deer Lodge", latitude: 34.48385, longitude: -119.2967, address: "2261 Maricopa Hwy, Ojai, CA 93023" },
+  // Pappy & Harriet's — Pioneertown (San Bernardino County, high desert).
+  "pappy & harriet's": { name: "Pappy & Harriet's", latitude: 34.1564, longitude: -116.49305, address: "53688 Pioneertown Rd, Pioneertown, CA 92268" },
+  "pappy and harriet's": { name: "Pappy & Harriet's", latitude: 34.1564, longitude: -116.49305, address: "53688 Pioneertown Rd, Pioneertown, CA 92268" },
+  "pappy & harriets": { name: "Pappy & Harriet's", latitude: 34.1564, longitude: -116.49305, address: "53688 Pioneertown Rd, Pioneertown, CA 92268" },
+  "pappy and harriets": { name: "Pappy & Harriet's", latitude: 34.1564, longitude: -116.49305, address: "53688 Pioneertown Rd, Pioneertown, CA 92268" },
+  // The Phoenix Theater — Petaluma (Sonoma County).
+  "the phoenix theater": { name: "The Phoenix Theater", latitude: 38.23486, longitude: -122.64308, address: "201 Washington St, Petaluma, CA 94952" },
+  "phoenix theater": { name: "The Phoenix Theater", latitude: 38.23486, longitude: -122.64308, address: "201 Washington St, Petaluma, CA 94952" },
+  "phoenix theater, petaluma": { name: "The Phoenix Theater", latitude: 38.23486, longitude: -122.64308, address: "201 Washington St, Petaluma, CA 94952" },
+  // Las Positas Vineyards — Livermore (Alameda County).
+  "las positas vineyards": { name: "Las Positas Vineyards", latitude: 37.64527, longitude: -121.77163, address: "1828 Wetmore Rd, Livermore, CA 94550" },
+  "las positas vineyard": { name: "Las Positas Vineyards", latitude: 37.64527, longitude: -121.77163, address: "1828 Wetmore Rd, Livermore, CA 94550" },
+  // Blue Note Napa Summer Sessions — at the Meritage Resort (850 Bordeaux Way),
+  // distinct from the year-round Blue Note Napa on Main St.
+  "blue note napa summer sessions": { name: "Blue Note Napa Summer Sessions", latitude: 38.24718, longitude: -122.27205, address: "850 Bordeaux Way, Napa, CA 94558" },
+  "blue note napa": { name: "Blue Note Napa Summer Sessions", latitude: 38.24718, longitude: -122.27205, address: "850 Bordeaux Way, Napa, CA 94558" },
+  // Arlene Francis Center for Spirit, Art, and Politics — Santa Rosa (Sonoma).
+  "arlene francis center for spirit, art, and politics": { name: "Arlene Francis Center", latitude: 38.43894, longitude: -122.72208, address: "99 6th St, Santa Rosa, CA 95401" },
+  "arlene francis center": { name: "Arlene Francis Center", latitude: 38.43894, longitude: -122.72208, address: "99 6th St, Santa Rosa, CA 95401" },
 };
 
 /**

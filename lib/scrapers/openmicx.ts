@@ -11,8 +11,13 @@ import { sfDateFromLocal, sfDayKey } from "@/lib/sfDate";
  * consume the same JSON the SPA fetches from its `/api` backend:
  *
  *   GET /api/shows/upcoming?city=san-francisco&limit=200
- *     → concrete dated stand-up shows (full ISO `date_time` with TZ offset, so
- *       there is no month/day year-invention problem — see #148 / #150). Includes
+ *     → concrete dated stand-up shows. The `date_time` is a literal SF wall-clock
+ *       time mislabeled with a `Z`/UTC suffix (e.g. "2026-06-18T19:45:00.000Z" is
+ *       really 7:45 PM SF — the page JSON-LD renders it as "…19:45:00-07:00").
+ *       Parsing it as UTC shifts every show 7-8h earlier (#196), so we read the
+ *       literal fields and reinterpret them as SF local via sfDateFromLocal. There
+ *       is no month/day year-invention problem because the year is explicit (#148 /
+ *       #150). Includes
  *       small rooms (The Function, Shelton Theater) the ticketed feeds lack, plus
  *       the big names that overlap comedycalendar (dedup handles the overlap).
  *
@@ -57,9 +62,10 @@ export class OpenMicXScraper extends BaseScraper {
       const title = String(s.title ?? "").trim();
       if (!title || !s.date_time) continue;
 
-      const startDate = new Date(s.date_time);
+      const startDate = this.parseLocalAsSF(s.date_time);
+      if (!startDate) continue;
       const ms = startDate.getTime();
-      if (isNaN(ms) || ms < oneDayAgo || ms > oneYearOut) continue;
+      if (ms < oneDayAgo || ms > oneYearOut) continue;
 
       const venueName = String(s.venue_name ?? "").trim() || undefined;
       const street = String(s.venue_address ?? "").trim();
@@ -176,6 +182,22 @@ export class OpenMicXScraper extends BaseScraper {
       console.error(`[openmicx] fetch error (${path}):`, err.message);
       return null;
     }
+  }
+
+  /**
+   * Parse the feed's `date_time` (e.g. "2026-06-18T19:45:00.000Z") by reading its
+   * literal Y/M/D/H/M fields and reinterpreting them as SF local time. The feed's
+   * `Z` suffix is a lie — the wall-clock fields are already SF local — so parsing
+   * with `new Date()` would treat them as UTC and shift the show 7-8h early. Returns
+   * null if the string is missing or unparseable.
+   */
+  private parseLocalAsSF(value: unknown): Date | null {
+    const m = String(value ?? "").match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/
+    );
+    if (!m) return null;
+    const [, y, mo, d, h, min] = m.map(Number);
+    return sfDateFromLocal(y, mo, d, h, min);
   }
 
   /** Parse "13:00:00" or "19:30" → { hour, minute }; null if unparseable. */

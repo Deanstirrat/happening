@@ -144,9 +144,16 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
             </div>
 
             {/* Title */}
-            <h3 className="font-headline font-bold text-2xl text-white leading-tight mb-3 lowercase">
+            <h3 className="font-headline font-bold text-2xl text-white leading-tight mb-2 lowercase">
               {event.title}
             </h3>
+
+            {/* Why we featured it — the snappy one-liner */}
+            {event.featuredBlurb && (
+              <p className="text-white/85 text-sm font-body leading-snug mb-3 line-clamp-2">
+                {event.featuredBlurb}
+              </p>
+            )}
 
             {/* Date/time + interest */}
             <div className="flex items-center justify-between gap-4">

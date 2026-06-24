@@ -28,6 +28,7 @@ async function main() {
       city: true,
       startDate: true,
       category: true,
+      featuredBlurb: true,
       source: { select: { slug: true } },
     },
     orderBy: { featuredAt: "desc" },
@@ -77,6 +78,10 @@ async function main() {
           console.log(`  description: ${descLen} chars OK`);
         }
 
+        if (r.blurbAdded) {
+          console.log(`  blurb:       added ✓`);
+        }
+
         if (r.titleRenamed) {
           console.log(`  title:       "${event.title.slice(0, 55)}"`);
           console.log(`               → "${r.titleRenamed.slice(0, 55)}" ✓`);
@@ -97,6 +102,7 @@ async function main() {
   const imagesFromSearch = results.filter((r) => r.imageSource === "websearch").length;
   const usedFallback = results.filter((r) => r.usedFallbackImage).length;
   const descsEnriched = results.filter((r) => r.descriptionEnriched).length;
+  const blurbsAdded = results.filter((r) => r.blurbAdded).length;
   const titlesRenamed = results.filter((r) => r.titleRenamed).length;
   const titleMismatches = results.filter((r) => r.titleMismatch).length;
 
@@ -106,6 +112,7 @@ async function main() {
   console.log(`  Images fixed:        ${imagesFixed} (${imagesFromSearch} via web search)`);
   console.log(`  Fallback images:     ${usedFallback} (no real image — kept featured)`);
   console.log(`  Descriptions added:  ${descsEnriched}`);
+  console.log(`  Blurbs added:        ${blurbsAdded}`);
   console.log(`  Titles renamed:      ${titlesRenamed}`);
   console.log(`  Title mismatches:    ${titleMismatches} (review manually)`);
 

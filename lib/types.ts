@@ -22,6 +22,10 @@ export interface EventSummary {
   longitude: number | null;
   featured: boolean;
   featuredAt: string | null;
+  /** One-line "why we picked it" hook for featured events. Only selected on the
+   * surfaces that render featured cards (homepage carousel, feed); absent
+   * elsewhere, so it's optional. */
+  featuredBlurb?: string | null;
   source: {
     slug: string;
     name: string;

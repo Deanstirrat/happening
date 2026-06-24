@@ -148,6 +148,65 @@ Reply with ONLY the final title text — no quotes, no labels, no explanation.`,
   }
 }
 
+// ─── AI featured blurb ────────────────────────────────────────────────────────
+
+// A one-line "why this is worth your time" hook for a featured event, shown on
+// the featured card and in a highlighted block on the detail page. The prompt is
+// deliberately strict about voice: short, concrete, and stripped of the
+// breathless marketing/AI clichés that make a blurb read as filler. Returns null
+// on failure or if the model can't say anything specific — the caller keeps any
+// existing blurb rather than overwriting a good line with a worse one.
+async function generateFeaturedBlurb(args: {
+  title: string;
+  description: string | null;
+  venueName: string | null;
+  category: EventCategory | null;
+  startDate: Date;
+}): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const { title, description, venueName, category, startDate } = args;
+  const dateStr = startDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  try {
+    const msg = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 90,
+      temperature: 0.7, // a little range so blurbs don't all read identically
+      messages: [
+        {
+          role: "user",
+          content: `Write ONE short sentence (max 18 words) telling a San Francisco local why this event is worth going to. It sits on a "featured" card, so it has to earn the pick — name the specific thing that makes it good (the artist, the format, the room, the one-off occasion), not a vague mood.
+
+Hard rules:
+- Sound like a sharp friend with good taste texting you, not a brochure and not an AI.
+- No hype clichés. BANNED words/phrases: "don't miss", "must-see", "must-attend", "immerse", "vibrant", "unforgettable", "experience the magic", "vibes", "perfect for", "whether you're", "something for everyone", "dive into", "elevate", "curated", "a celebration of", "join us", "nestled", "boasts", "lineup of".
+- No exclamation marks, no emoji, no Title Case. Don't just restate the event title.
+- Be concrete. If you lack a specific reason, lead with the single most interesting real detail.
+
+Event: ${title}
+Venue: ${venueName ?? "unknown"}
+Date: ${dateStr}
+Category: ${category ?? "n/a"}
+${description ? `Details: ${description.slice(0, 500)}` : ""}
+
+Reply with ONLY the sentence — no quotes, no label.`,
+        },
+      ],
+    });
+    let text = ((msg.content[0] as Anthropic.TextBlock).text ?? "").trim();
+    text = text.replace(/^["'“”]+|["'“”]+$/g, "").trim(); // strip wrapping quotes
+    // Reject empties, multi-line answers (not a one-liner), or runaway length.
+    if (!text || text.length < 15 || text.length > 180 || /[\r\n]/.test(text)) return null;
+    return text;
+  } catch (e) {
+    console.error(`    [ai-blurb] error: ${(e as Error).message}`);
+    return null;
+  }
+}
+
 // ─── Web image search ───────────────────────────────────────────────────────
 
 // Pull http(s) URLs out of the model's free-text reply.
@@ -249,6 +308,8 @@ export interface EnrichEventRow {
   // For the placeholder fallback when no real image resolves (see step 3c).
   category: EventCategory | null;
   sourceSlug: string;
+  // Existing blurb (if any) so we only generate one when it's missing.
+  featuredBlurb: string | null;
 }
 
 export interface EnrichResult {
@@ -264,6 +325,9 @@ export interface EnrichResult {
   usedFallbackImage: boolean;
   descriptionEnriched: boolean;
   descriptionSource: "og" | "ai" | null;
+  // True when a "why we featured it" blurb was generated this run (it was
+  // previously missing). Existing blurbs are left untouched.
+  blurbAdded: boolean;
   titleRenamed: string | null;
   titleMismatch: string | null;
 }
@@ -279,6 +343,7 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
     usedFallbackImage: false,
     descriptionEnriched: false,
     descriptionSource: null,
+    blurbAdded: false,
     titleRenamed: null,
     titleMismatch: null,
   };
@@ -288,7 +353,12 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
   result.sourceOk = meta.ok;
   result.sourceStatus = meta.status;
 
-  const updates: Partial<{ description: string; imageUrl: string | null; title: string }> = {};
+  const updates: Partial<{
+    description: string;
+    imageUrl: string | null;
+    title: string;
+    featuredBlurb: string;
+  }> = {};
 
   // 2. Title: clean up wording/length/formatting via AI (preserves identity).
   //    Runs even when the source is blocked — a wordy title can be fixed without the page.
@@ -386,6 +456,23 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
         result.descriptionEnriched = true;
         result.descriptionSource = "ai";
       }
+    }
+  }
+
+  // 4b. Featured blurb: a one-line "why we picked it" hook. Generate once and
+  //     keep it stable across nightly runs (fill only when missing) so the card
+  //     copy doesn't churn. Uses the freshest title/description from this pass.
+  if (!event.featuredBlurb || event.featuredBlurb.trim().length === 0) {
+    const blurb = await generateFeaturedBlurb({
+      title: updates.title ?? event.title,
+      description: updates.description ?? event.description,
+      venueName: event.venueName,
+      category: event.category,
+      startDate: event.startDate,
+    });
+    if (blurb) {
+      updates.featuredBlurb = blurb;
+      result.blurbAdded = true;
     }
   }
 

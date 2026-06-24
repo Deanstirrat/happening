@@ -27,6 +27,7 @@ const EVENT_CARD_SELECT = {
   longitude: true,
   featured: true,
   featuredAt: true,
+  featuredBlurb: true,
   source: { select: { slug: true, name: true } },
   externalInterest: true,
   _count: { select: { interests: true } },

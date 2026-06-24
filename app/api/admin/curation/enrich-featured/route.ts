@@ -40,6 +40,7 @@ async function runEnrichFeatured() {
         city: true,
         startDate: true,
         category: true,
+        featuredBlurb: true,
         source: { select: { slug: true } },
       },
       orderBy: { featuredAt: "desc" },
@@ -97,6 +98,7 @@ async function runEnrichFeatured() {
             usedFallbackImage: false,
             descriptionEnriched: false,
             descriptionSource: null,
+            blurbAdded: false,
             titleRenamed: null,
             titleMismatch: null,
           } satisfies EnrichResult;
@@ -151,6 +153,7 @@ async function runEnrichFeatured() {
   console.log(`[enrich-featured]   Images fixed:        ${results.filter((r) => r.imageFixed).length} (${imagesFromSearch} via web search)`);
   console.log(`[enrich-featured]   Fallback images:     ${usedFallback.length} (no real image — kept featured)`);
   console.log(`[enrich-featured]   Descriptions added:  ${results.filter((r) => r.descriptionEnriched).length}`);
+  console.log(`[enrich-featured]   Blurbs added:        ${results.filter((r) => r.blurbAdded).length}`);
   console.log(`[enrich-featured]   Titles renamed:      ${titlesRenamedDetails.length}`);
   console.log(`[enrich-featured]   Broken sources:      ${brokenSources.length}`);
   console.log(`[enrich-featured]   Title mismatches:    ${titleMismatches.length}`);
@@ -163,6 +166,7 @@ async function runEnrichFeatured() {
     usedFallback: usedFallback.length,
     usedFallbackDetails: usedFallback,
     descriptionsAdded: results.filter((r) => r.descriptionEnriched).length,
+    blurbsAdded: results.filter((r) => r.blurbAdded).length,
     titlesRenamed: titlesRenamedDetails.length,
     titlesRenamedDetails,
     brokenSources: brokenSources.length,

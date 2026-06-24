@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate";
-import { ArrowLeft, Clock, MapPin, ExternalLink, CalendarPlus } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, ExternalLink, CalendarPlus, Star } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
@@ -349,6 +349,21 @@ export default async function EventDetailPage({
               variant="detail"
             />
           </div>
+
+          {/* Why we featured it — highlighted one-liner for featured events */}
+          {event.featured && event.featuredBlurb && (
+            <div className="mb-8 rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Star size={14} className="text-primary shrink-0" fill="currentColor" />
+                <h2 className="font-headline font-bold text-sm text-primary lowercase">
+                  why we featured it
+                </h2>
+              </div>
+              <p className="font-body text-on-surface text-base leading-relaxed">
+                {event.featuredBlurb}
+              </p>
+            </div>
+          )}
 
           {/* Vibe / description */}
           {event.description && (

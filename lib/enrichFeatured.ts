@@ -150,6 +150,20 @@ Reply with ONLY the final title text — no quotes, no labels, no explanation.`,
 
 // ─── AI featured blurb ────────────────────────────────────────────────────────
 
+// Tells that out a blurb as machine-written. The big one is the "…, but actually
+// …" / "and actually …" twist — a setup-then-correction cadence that reads as
+// backhanded and showed up across a suspicious number of blurbs. Also catches the
+// related contrarian comparison tic ("beats any …", "more than your average …").
+// Used both as a post-generation reject and as a regenerate trigger so existing
+// blurbs that carry the tell get rewritten on the next enrichment pass.
+const AI_TELL_PATTERNS: RegExp[] = [
+  /\bactually\b/i,
+  /\b(beats|better than|more than your average|unlike most)\b/i,
+];
+function blurbHasAiTell(text: string): boolean {
+  return AI_TELL_PATTERNS.some((re) => re.test(text));
+}
+
 // A one-line "why this is worth your time" hook for a featured event, shown on
 // the featured card and in a highlighted block on the detail page. The prompt is
 // deliberately strict about voice: short, concrete, and stripped of the
@@ -182,7 +196,9 @@ async function generateFeaturedBlurb(args: {
 
 Hard rules:
 - Sound like a sharp friend with good taste texting you, not a brochure and not an AI.
-- No hype clichés. BANNED words/phrases: "don't miss", "must-see", "must-attend", "immerse", "vibrant", "unforgettable", "experience the magic", "vibes", "perfect for", "whether you're", "something for everyone", "dive into", "elevate", "curated", "a celebration of", "join us", "nestled", "boasts", "lineup of".
+- State the appeal straight. Do NOT use the "X, but actually Y" / "and actually Z" setup-then-twist — it reads as backhanded and is a dead AI giveaway. The word "actually" is banned.
+- Don't sell it by putting other things down. No backhanded comparisons ("beats any indoor venue", "better than your average DJ night", "unlike most warehouse parties"). Just say what's good about THIS one.
+- No hype clichés. BANNED words/phrases: "actually", "don't miss", "must-see", "must-attend", "immerse", "vibrant", "unforgettable", "experience the magic", "vibes", "perfect for", "whether you're", "something for everyone", "dive into", "elevate", "curated", "a celebration of", "join us", "nestled", "boasts", "lineup of".
 - No exclamation marks, no emoji, no Title Case. Don't just restate the event title.
 - Be concrete. If you lack a specific reason, lead with the single most interesting real detail.
 
@@ -200,6 +216,10 @@ Reply with ONLY the sentence — no quotes, no label.`,
     text = text.replace(/^["'“”]+|["'“”]+$/g, "").trim(); // strip wrapping quotes
     // Reject empties, multi-line answers (not a one-liner), or runaway length.
     if (!text || text.length < 15 || text.length > 180 || /[\r\n]/.test(text)) return null;
+    // Reject the AI tells (the "actually" twist, backhanded comparisons) even when
+    // the model slips past the prompt — better no blurb than an obvious one; the
+    // next run retries with fresh sampling.
+    if (blurbHasAiTell(text)) return null;
     return text;
   } catch (e) {
     console.error(`    [ai-blurb] error: ${(e as Error).message}`);
@@ -459,10 +479,13 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
     }
   }
 
-  // 4b. Featured blurb: a one-line "why we picked it" hook. Generate once and
-  //     keep it stable across nightly runs (fill only when missing) so the card
-  //     copy doesn't churn. Uses the freshest title/description from this pass.
-  if (!event.featuredBlurb || event.featuredBlurb.trim().length === 0) {
+  // 4b. Featured blurb: a one-line "why we picked it" hook. Normally generated
+  //     once and kept stable across nightly runs (fill only when missing) so the
+  //     card copy doesn't churn — but we also rewrite a blurb that carries an AI
+  //     tell (the "actually" twist, backhanded comparisons) so bad ones self-heal
+  //     on the next pass. Uses the freshest title/description from this pass.
+  const existingBlurb = event.featuredBlurb?.trim() ?? "";
+  if (!existingBlurb || blurbHasAiTell(existingBlurb)) {
     const blurb = await generateFeaturedBlurb({
       title: updates.title ?? event.title,
       description: updates.description ?? event.description,

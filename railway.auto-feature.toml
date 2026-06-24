@@ -2,7 +2,7 @@
 dockerfilePath = "Dockerfile.scrape"
 
 [deploy]
-# Daily curation, in order:
+# Daily curation chain, defined as the single `cron:feature` npm script:
 #   1. enrich-descriptions — fill thin descriptions on the next 7 days of
 #      candidates (JSON-LD/og free extraction → Haiku from page body) so step 2
 #      judges events on real content, not just titles. BEST-EFFORT and time-boxed
@@ -12,6 +12,14 @@ dockerfilePath = "Dockerfile.scrape"
 #   2. auto-feature — block spam, pick the week's featured events.
 #   3. enrich-featured — clean titles, resolve images via og: → web search.
 #      Runs only if auto-feature succeeded.
-startCommand = "npm run enrich-descriptions ; npm run auto-feature && npm run enrich-featured"
+#
+# Why a single npm script and not the `;`/`&&` chain inline here: Railway does
+# NOT run this startCommand through a shell, so inline `;`/`&&` operators are
+# never interpreted — only the FIRST command runs. That silently killed
+# auto-feature when #185 prepended enrich-descriptions to the chain (auto-feature
+# had been the first command, so it kept working until then). npm runs a script's
+# *body* through a shell, so the operators are honored inside `cron:feature`
+# while this startCommand stays a single operator-free invocation.
+startCommand = "npm run cron:feature"
 # Cron schedule: 0 5 * * * (5am UTC = 10pm PT — 1h after scrape's 4h hard limit)
 # Set this in the Railway dashboard under the service's Settings → Cron Schedule.

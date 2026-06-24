@@ -28,6 +28,7 @@
     "purge-trashed": "tsx scripts/purge-trashed-events.ts",
     "enrich-descriptions": "tsx scripts/enrich-descriptions.ts",
     "enrich-featured": "tsx scripts/enrich-featured.ts",
+    "cron:feature": "npm run enrich-descriptions ; npm run auto-feature && npm run enrich-featured",
     "health-alert": "tsx scripts/scraper-health-alert.ts",
     "merge-dups": "tsx scripts/merge-dups.ts",
     "send-digest": "tsx scripts/send-weekly-digest.ts"

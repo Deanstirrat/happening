@@ -24,6 +24,10 @@ const grotesk = Space_Grotesk({
 
 export const viewport: Viewport = {
   themeColor: "#131211",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export const metadata: Metadata = {

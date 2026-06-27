@@ -78,6 +78,10 @@ export default function MapView({ events }: { events: EventSummary[] }) {
 
       L.control.zoom({ position: "topright" }).addTo(map);
 
+      // Tap anywhere on the map (not a marker — those clicks don't propagate)
+      // to dismiss the selected-event popup.
+      map.on("click", () => setSelectedEvent(null));
+
       // CartoDB Dark Matter — native dark tiles, no CSS filter needed
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',

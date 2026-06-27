@@ -8,8 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 import { proxiedImage, resolveFallbackImage } from "@/lib/eventImage";
 import { formatDateLongSF, formatTimeSF, formatDateShortSF } from "@/lib/sfDate";
-import { ArrowLeft, Clock, MapPin, ExternalLink, CalendarPlus, Star } from "lucide-react";
+import { Clock, MapPin, ExternalLink, CalendarPlus, Star } from "lucide-react";
 import FeaturedToggle from "@/app/admin/submissions/FeaturedToggle";
+import BackButton from "./BackButton";
 import ShareButton from "./ShareButton";
 import ReportButton from "./ReportButton";
 import InterestButton from "@/components/events/InterestButton";
@@ -238,13 +239,7 @@ export default async function EventDetailPage({
 
       {/* Back nav */}
       <div className="flex items-center justify-between mb-8">
-        <Link
-          href="/events"
-          className="flex items-center gap-2 text-on-surface-variant hover:text-on-surface text-xs font-body uppercase tracking-widest transition-colors"
-        >
-          <ArrowLeft size={13} />
-          Back to explore
-        </Link>
+        <BackButton />
         <ShareButton title={event.title} />
       </div>
 

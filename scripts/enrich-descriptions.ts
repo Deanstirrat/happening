@@ -30,8 +30,12 @@ import {
   generateDescription,
   DESC_MIN_LENGTH,
 } from "../lib/enrichDescription";
+import { mapPool } from "../lib/aiConcurrency";
 
-const CONCURRENCY = 5;
+const CONCURRENCY = Math.max(
+  1,
+  Number(process.env.ENRICH_DESCRIPTIONS_CONCURRENCY ?? "8")
+);
 
 // Hard wall-clock budget. This step is best-effort polish that runs BEFORE
 // auto-feature in the cron chain; it must never run long enough — or hang on a
@@ -188,39 +192,44 @@ async function main() {
   let viaAi = 0;
   let failed = 0;
   let skipped = 0;
-  let i = 0;
 
   const deadline = Date.now() + TIME_BUDGET_MS;
 
-  for (let batch = 0; batch < eligible.length; batch += CONCURRENCY) {
-    if (Date.now() >= deadline) {
-      skipped = eligible.length - batch;
-      console.log(`\n   ⏱  Time budget (${TIME_BUDGET_MS / 60000}m) reached — leaving ${skipped} unenriched this run.`);
-      break;
-    }
-    const chunk = eligible.slice(batch, batch + CONCURRENCY);
-    const results = await Promise.all(
-      chunk.map(async (event) => {
-        const n = ++i;
-        const r = await withTimeout(enrichOne(event), PER_EVENT_BUDGET_MS, {
-          enriched: false as const,
-          source: null,
-          from: (event.description ?? "").length,
-        });
-        if (r.enriched) {
-          if (r.source === "ai") viaAi++;
-          else viaMeta++;
-          console.log(
-            `[${n}/${eligible.length}] ${event.title.slice(0, 60)} — ${r.from} → enriched via ${r.source} ✓`
-          );
-        } else {
-          failed++;
-          console.log(`[${n}/${eligible.length}] ${event.title.slice(0, 60)} — could not enrich`);
-        }
-        return r;
-      })
+  // Concurrency-bounded run. The time budget is enforced inside the worker:
+  // once the deadline passes, remaining items short-circuit as "skipped" rather
+  // than starting new fetch/AI work, so in-flight events finish but no new ones
+  // begin — same guarantee the old serial-batch deadline check gave.
+  await mapPool(
+    eligible,
+    async (event, index) => {
+      if (Date.now() >= deadline) {
+        skipped++;
+        return;
+      }
+      const n = index + 1;
+      const r = await withTimeout(enrichOne(event), PER_EVENT_BUDGET_MS, {
+        enriched: false as const,
+        source: null,
+        from: (event.description ?? "").length,
+      });
+      if (r.enriched) {
+        if (r.source === "ai") viaAi++;
+        else viaMeta++;
+        console.log(
+          `[${n}/${eligible.length}] ${event.title.slice(0, 60)} — ${r.from} → enriched via ${r.source} ✓`
+        );
+      } else {
+        failed++;
+        console.log(`[${n}/${eligible.length}] ${event.title.slice(0, 60)} — could not enrich`);
+      }
+    },
+    { concurrency: CONCURRENCY }
+  );
+
+  if (skipped > 0) {
+    console.log(
+      `\n   ⏱  Time budget (${TIME_BUDGET_MS / 60000}m) reached — left ${skipped} unenriched this run.`
     );
-    void results;
   }
 
   console.log("\n=== Summary ===");

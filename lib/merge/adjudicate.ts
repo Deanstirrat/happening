@@ -11,8 +11,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { sfDayKey, sfDayStart } from "@/lib/sfDate";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { anthropic as client } from "@/lib/anthropic";
 /** Model used for adjudication + synthesis. Exported so callers can record which
  * model produced a persisted verdict (see DuplicateVerdict). */
 export const ADJUDICATE_MODEL = "claude-haiku-4-5";

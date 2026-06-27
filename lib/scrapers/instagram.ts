@@ -6,6 +6,7 @@ import { sfDayStart } from "@/lib/sfDate";
 import { extractEventFromImage, extractEventFromCaption } from "@/lib/extract";
 import { INSTAGRAM_ACCOUNTS, type InstagramAccount } from "./instagram-accounts";
 import { prisma } from "@/lib/prisma";
+import { mapPool } from "@/lib/aiConcurrency";
 
 /**
  * Instagram venue scraper for SF events.
@@ -26,10 +27,16 @@ import { prisma } from "@/lib/prisma";
  */
 
 const LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000; // 2 days (scraper runs daily)
-// Vision calls use ~1,600 input tokens per image. At concurrency 3 with a 15s
-// inter-batch delay we stay well under Claude's 30k input-token/min rate limit.
-const EXTRACT_CONCURRENCY = 3;
-const EXTRACT_DELAY_MS = 15_000;
+// Per-post extraction concurrency. Each post does a vision/caption Claude call
+// plus an image download + Blob upload, so this also bounds concurrent image
+// fetches — kept at 8 (not the global AI default) to stay polite to Instagram's
+// CDN. The old 3-concurrent + 15s-inter-batch-delay throttle existed only to
+// stay under the old 30k input-tok/min Claude limit, which the Scale tier lifts;
+// the delay is gone. Override with INSTAGRAM_EXTRACT_CONCURRENCY.
+const EXTRACT_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.INSTAGRAM_EXTRACT_CONCURRENCY ?? "8")
+);
 
 // Minimum number of heuristic signals a caption must hit to be worth sending to Claude.
 const MIN_EVENT_SIGNALS = 2;
@@ -119,31 +126,25 @@ export class InstagramScraper extends BaseScraper {
       `[instagram] ${allPosts.length} posts fetched, ${seenShortCodes.size} already in DB, ${qualifying.length} new and pass heuristic filter`
     );
 
-    // Process in batches of EXTRACT_CONCURRENCY with a delay between batches
-    // to stay under Claude's 30k input-token/min rate limit for vision calls.
-    const events: ScrapedEvent[] = [];
-    for (let i = 0; i < qualifying.length; i += EXTRACT_CONCURRENCY) {
-      const batch = qualifying.slice(i, i + EXTRACT_CONCURRENCY);
-      const results = await Promise.all(
-        batch.map((post) => {
-          // Co-authored posts may have a different ownerUsername than the account
-          // we queried. Fall back to a venue-tier placeholder so the post still
-          // gets processed — Claude will extract the real venue name from the flyer.
-          const account = accountMap.get(post.ownerUsername?.toLowerCase() ?? "") ?? {
-            handle: post.ownerUsername ?? "unknown",
-            venueName: post.ownerUsername ?? "Unknown Venue",
-            tier: "venue" as const,
-          };
-          return this.processPost(post, account);
-        })
-      );
-      for (const r of results) {
-        if (r) events.push(r);
-      }
-      if (i + EXTRACT_CONCURRENCY < qualifying.length) {
-        await new Promise((r) => setTimeout(r, EXTRACT_DELAY_MS));
-      }
-    }
+    // Run extraction over qualifying posts with bounded concurrency.
+    const results = await mapPool(
+      qualifying,
+      (post) => {
+        // Co-authored posts may have a different ownerUsername than the account
+        // we queried. Fall back to a venue-tier placeholder so the post still
+        // gets processed — Claude will extract the real venue name from the flyer.
+        const account = accountMap.get(post.ownerUsername?.toLowerCase() ?? "") ?? {
+          handle: post.ownerUsername ?? "unknown",
+          venueName: post.ownerUsername ?? "Unknown Venue",
+          tier: "venue" as const,
+        };
+        return this.processPost(post, account);
+      },
+      { concurrency: EXTRACT_CONCURRENCY }
+    );
+    const events: ScrapedEvent[] = results.filter(
+      (r): r is ScrapedEvent => r !== null
+    );
 
     // Mark all qualifying posts as seen so they're never re-sent to Claude,
     // regardless of whether they became events or not.

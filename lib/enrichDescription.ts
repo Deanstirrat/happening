@@ -15,6 +15,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { decodeHtmlEntities } from "./decodeEntities";
+import { anthropic as client } from "./anthropic";
 
 // Stored descriptions can run long now — the in-app event view is meant to be a
 // one-stop-shop, so users don't have to click through to the source.
@@ -23,8 +24,6 @@ export const DESCRIPTION_MAX_LENGTH = 1500;
 // Below this, a description is "thin" — vague enough that we should try to do
 // better (JSON-LD, a longer og:description, or an AI-written summary).
 export const DESC_MIN_LENGTH = 120;
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";

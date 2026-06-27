@@ -1,8 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { EventCategory } from "@prisma/client";
 import type { ScrapedEvent } from "./types";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { anthropic as client } from "./anthropic";
+import { mapPool } from "./aiConcurrency";
 
 const CATEGORIES = [
   "MUSIC_ELECTRONIC",
@@ -94,22 +93,17 @@ export async function categorizeEvent(event: ScrapedEvent): Promise<EventCategor
   }
 }
 
-/** Batch categorize — 5 concurrent, 1.5s delay between batches to stay under 50 req/min */
+/**
+ * Batch categorize. Runs with bounded concurrency (see lib/aiConcurrency.ts) —
+ * the categorizer makes one short Haiku call per event with no DB work in the
+ * map, so it's safe to run at the global AI_CONCURRENCY default. Override with
+ * CATEGORIZE_CONCURRENCY for an unusually large scrape.
+ */
 export async function categorizeEvents(
   events: ScrapedEvent[]
 ): Promise<EventCategory[]> {
-  const BATCH = 5;
-  const DELAY_MS = 6000; // 5 req per 6s = 50 req/min
-  const results: EventCategory[] = [];
-
-  for (let i = 0; i < events.length; i += BATCH) {
-    const batch = events.slice(i, i + BATCH);
-    const cats = await Promise.all(batch.map(categorizeEvent));
-    results.push(...cats);
-    if (i + BATCH < events.length) {
-      await new Promise((r) => setTimeout(r, DELAY_MS));
-    }
-  }
-
-  return results;
+  const concurrency = process.env.CATEGORIZE_CONCURRENCY
+    ? Number(process.env.CATEGORIZE_CONCURRENCY)
+    : undefined;
+  return mapPool(events, categorizeEvent, { concurrency });
 }

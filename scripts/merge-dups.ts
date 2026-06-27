@@ -36,6 +36,7 @@ import {
 import { adjudicatePair, synthesizeCluster, ADJUDICATE_MODEL } from "../lib/merge/adjudicate";
 import { pairKey } from "../lib/merge/executeMerge";
 import { MERGE_CONFIDENCE } from "../lib/merge/thresholds";
+import { mapPool } from "../lib/aiConcurrency";
 
 // Flags can be set via argv (--dry-run / --all) or env (MERGE_DRY_RUN=1 /
 // MERGE_ALL=1). Env is the safer path on Railway: `npm run merge-dups --all`
@@ -72,16 +73,17 @@ const MERGE_MAX_PAIRS = Number(process.env.MERGE_MAX_PAIRS ?? "2000");
 // we don't care about deduping.
 const WINDOW_DAYS = Number(process.env.MERGE_WINDOW_DAYS ?? "1");
 
-// Haiku throughput. Defaults are conservative (5 concurrent / 50 req/min) for
-// nightly runs; raise both via env for a one-off backlog backfill if your
-// Anthropic tier allows (e.g. MERGE_CONCURRENCY=20 MERGE_RPM=1000).
+// Haiku throughput. Defaults sized for the Anthropic Scale tier (10k req/min):
+// 16 in-flight calls with a 3000 req/min backstop finishes a nightly run in
+// seconds and stays an order of magnitude under the request ceiling. The
+// synthesis pass writes one DB transaction per cluster at this concurrency, but
+// clusters are few (single digits to low tens) so the pool never overruns the
+// Postgres connection pool. Lower MERGE_CONCURRENCY if you ever see pool
+// exhaustion; raise MERGE_RPM toward 10000 for a one-off backlog backfill.
 //   MERGE_CONCURRENCY — how many calls run at once
-//   MERGE_RPM         — ceiling on calls per minute
-const CONCURRENCY = Math.max(1, Number(process.env.MERGE_CONCURRENCY ?? "5"));
-const RPM = Math.max(1, Number(process.env.MERGE_RPM ?? "50"));
-// Delay between batches so we stay at/under RPM (a floor — actual pace is also
-// bounded by API latency, which only makes us slower/safer).
-const BATCH_DELAY_MS = Math.ceil((CONCURRENCY / RPM) * 60000);
+//   MERGE_RPM         — backstop ceiling on calls per minute
+const CONCURRENCY = Math.max(1, Number(process.env.MERGE_CONCURRENCY ?? "16"));
+const RPM = Math.max(1, Number(process.env.MERGE_RPM ?? "3000"));
 
 type LoadedEvent = MergeableEvent & BlockEvent & { sourceId: string; externalInterest: number };
 
@@ -128,7 +130,7 @@ async function loadEvents(): Promise<LoadedEvent[]> {
 }
 
 /**
- * Run async work over items with bounded concurrency + rate-limit delay.
+ * Run async work over items at MERGE_CONCURRENCY / MERGE_RPM (see lib/aiConcurrency.ts).
  * When `label` is set, emits a throttled progress heartbeat (≤ every 2s) so a
  * long phase visibly advances instead of going silent.
  */
@@ -137,32 +139,26 @@ async function rateLimitedMap<I, O>(
   fn: (item: I, index: number) => Promise<O>,
   label?: string
 ): Promise<O[]> {
-  const out: O[] = [];
   const total = items.length;
   const startedAt = Date.now();
   let lastLog = 0;
-  for (let i = 0; i < total; i += CONCURRENCY) {
-    const batch = items.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(batch.map((item, k) => fn(item, i + k)));
-    out.push(...results);
-
-    const done = out.length;
-    const now = Date.now();
-    if (label && (now - lastLog >= 2000 || done === total)) {
-      const secs = (now - startedAt) / 1000;
-      const rate = done / Math.max(secs, 0.001);
-      const etaSecs = rate > 0 ? Math.round((total - done) / rate) : 0;
-      console.log(
-        `[${label}] ${done}/${total} (${Math.round((done / total) * 100)}%) · ${Math.round(secs)}s elapsed · ${rate.toFixed(1)}/s · eta ${etaSecs}s`
-      );
-      lastLog = now;
-    }
-
-    if (i + CONCURRENCY < total) {
-      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
-    }
-  }
-  return out;
+  return mapPool(items, fn, {
+    concurrency: CONCURRENCY,
+    rpm: RPM,
+    onProgress: label
+      ? (done) => {
+          const now = Date.now();
+          if (now - lastLog < 2000 && done !== total) return;
+          const secs = (now - startedAt) / 1000;
+          const rate = done / Math.max(secs, 0.001);
+          const etaSecs = rate > 0 ? Math.round((total - done) / rate) : 0;
+          console.log(
+            `[${label}] ${done}/${total} (${Math.round((done / total) * 100)}%) · ${Math.round(secs)}s elapsed · ${rate.toFixed(1)}/s · eta ${etaSecs}s`
+          );
+          lastLog = now;
+        }
+      : undefined,
+  });
 }
 
 async function main() {
@@ -170,9 +166,7 @@ async function main() {
   console.log(
     `Confidence ≥ ${MERGE_CONFIDENCE}, max pairs ${MERGE_MAX_PAIRS}, window ${WINDOW_DAYS}d`
   );
-  console.log(
-    `Throughput: ${CONCURRENCY} concurrent, ≤${RPM} req/min (~${BATCH_DELAY_MS}ms/batch)\n`
-  );
+  console.log(`Throughput: ${CONCURRENCY} concurrent, ≤${RPM} req/min\n`);
 
   const events = await loadEvents();
   console.log(`Loaded ${events.length} upcoming events`);

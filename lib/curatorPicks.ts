@@ -1,9 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-// Bump retries above the SDK default (2) so a transient overload/rate-limit
-// blip doesn't take down the whole nightly run. The SDK backs off automatically
-// on 408/409/429/5xx and connection errors.
-const anthropic = new Anthropic({ maxRetries: 4 });
+// Shared client carries maxRetries=4 (above the SDK default of 2) so a transient
+// overload/rate-limit blip doesn't take down the whole nightly run. The SDK
+// backs off automatically on 408/409/429/5xx and connection errors.
+import { anthropic } from "./anthropic";
 
 export interface CuratorPick {
   id: string;

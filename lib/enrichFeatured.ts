@@ -27,8 +27,7 @@ import {
   generateDescription,
   DESC_MIN_LENGTH,
 } from "./enrichDescription";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { anthropic as client } from "./anthropic";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";

@@ -4,8 +4,15 @@ dotenv.config({ path: ".env.local", override: true });
 import { prisma } from "../lib/prisma";
 import { DESC_MIN_LENGTH } from "../lib/enrichDescription";
 import { enrichEvent, type EnrichResult } from "../lib/enrichFeatured";
+import { mapPool } from "../lib/aiConcurrency";
 
-const CONCURRENCY = 3;
+// Each featured event runs several sequential Claude calls (title, blurb,
+// description) plus a web-search image lookup and DB writes, so this is heavier
+// per item than the categorizer — kept at 8 rather than the global AI default.
+const CONCURRENCY = Math.max(
+  1,
+  Number(process.env.ENRICH_FEATURED_CONCURRENCY ?? "8")
+);
 
 // The per-event enrichment (title cleanup, image cascade, description) lives in
 // lib/enrichFeatured.ts — shared with the admin-triggered API route so the two
@@ -42,15 +49,10 @@ async function main() {
     return;
   }
 
-  const results: EnrichResult[] = [];
-  let i = 0;
-
-  for (let batch = 0; batch < events.length; batch += CONCURRENCY) {
-    const chunk = events.slice(batch, batch + CONCURRENCY);
-    const chunkResults = await Promise.all(
-      chunk.map(async (event) => {
-        i++;
-        console.log(`[${i}/${events.length}] ${event.title}`);
+  const results: EnrichResult[] = await mapPool(
+    events,
+    async (event, index) => {
+        console.log(`[${index + 1}/${events.length}] ${event.title}`);
         const { source, ...row } = event;
         const r = await enrichEvent({ ...row, sourceSlug: source.slug });
 
@@ -91,10 +93,9 @@ async function main() {
 
         console.log();
         return r;
-      })
-    );
-    results.push(...chunkResults);
-  }
+    },
+    { concurrency: CONCURRENCY }
+  );
 
   // Summary
   const brokenSources = results.filter((r) => !r.sourceOk).length;

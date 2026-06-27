@@ -3,9 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminUser } from "@/lib/auth";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { subDays } from "date-fns";
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic();
+import { anthropic } from "@/lib/anthropic";
 
 // Machine callers (Vercel cron) authenticate with the CRON_SECRET bearer token;
 // human admins authenticate with their session cookie + ADMIN role.

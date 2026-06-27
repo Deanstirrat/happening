@@ -4,9 +4,7 @@ import { getAdminUser } from "@/lib/auth";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 import { addDays } from "date-fns";
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic();
+import { anthropic } from "@/lib/anthropic";
 
 export async function POST(req: NextRequest) {
   if (!(await getAdminUser(req))) {

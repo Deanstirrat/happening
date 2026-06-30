@@ -17,20 +17,57 @@ const MODEL = "claude-sonnet-4-6";
 // headroom so the JSON never truncates mid-array.
 const MAX_TOKENS = 16000;
 
+// Structured-outputs schema. With output_config.format the API constrains
+// generation to valid JSON matching this shape, so a free-text reason that
+// happens to contain an unescaped quote, newline, or control character can no
+// longer produce an unparseable blob — which is exactly what was crashing the
+// nightly auto-feature run ("Curator returned invalid JSON"). Note the schema's
+// own constraints (additionalProperties:false, required) are all that
+// structured outputs supports — no min/maxLength.
+const CURATOR_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    block: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { id: { type: "string" }, reason: { type: "string" } },
+        required: ["id", "reason"],
+      },
+    },
+    feature: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { id: { type: "string" }, reason: { type: "string" } },
+        required: ["id", "reason"],
+      },
+    },
+  },
+  required: ["block", "feature"],
+} as const;
+
 /**
  * Run the curator model on a prepared prompt and return its block/feature
  * verdict. Hardened against the failure modes that silently featured nothing:
+ *   - the output is constrained to CURATOR_SCHEMA via structured outputs, so the
+ *     model can't emit JSON that fails to parse (the old free-text path crashed
+ *     the whole run whenever a reason string broke JSON escaping)
  *   - transient API errors are retried by the SDK (maxRetries above)
  *   - a truncated (max_tokens) response throws a clear, actionable error
  *     instead of crashing later on a half-written JSON blob
- *   - ```json fences and surrounding prose are stripped before parsing
- *   - missing/!array keys degrade to [] rather than throwing
+ *   - parseCuratorJson still runs as a defensive fallback (fences/prose strip,
+ *     missing/!array keys degrade to [])
  */
 export async function runCurator(prompt: string): Promise<CuratorPicks> {
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     messages: [{ role: "user", content: prompt }],
+    output_config: { format: { type: "json_schema", schema: CURATOR_SCHEMA } },
   });
 
   if (message.stop_reason === "max_tokens") {

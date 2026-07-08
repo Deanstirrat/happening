@@ -131,6 +131,44 @@ export function hypeScore(e: RankableEvent): number {
   return Math.min(votes, HYPE_BOOST_CAP_VOTES) * HYPE_BOOST_PER_VOTE;
 }
 
+/**
+ * Weighting for the curation demand signal — the number trending, the digest,
+ * and feed tiebreaks rank on. Real in-app votes dominate; the source's external
+ * "interested" count is deliberately down-weighted.
+ *
+ * Why: only ~1% of events carry an external signal and it's almost entirely
+ * Resident Advisor / dance-venue counts, so ranking on the raw blended count
+ * (which runs into the hundreds) made electronic shows monopolize every curated
+ * surface. Here external is log-compressed and hard-capped into a narrow band
+ * (0..{@link EXTERNAL_CREDIT_CAP}), so it only ever *breaks ties* — while a
+ * single real vote is worth {@link LOCAL_INTEREST_WEIGHT}, enough to outrank the
+ * biggest external count on the site. As homegrown votes accumulate they take
+ * over the ordering on their own; the two knobs tune that ratio without touching
+ * any call site.
+ */
+export const LOCAL_INTEREST_WEIGHT = 10; // one in-app vote = 10 curation points
+const EXTERNAL_CREDIT_SCALE = 2; // log compression of the source's count
+const EXTERNAL_CREDIT_CAP = 8; // most any external count can ever contribute
+
+/**
+ * Blends local votes and the source's external interest into a single curation
+ * score, with local weighted far above external (see the constants above). Both
+ * inputs default to 0, so callers can pass whichever signal they have.
+ */
+export function curationInterest(
+  localVotes: number,
+  externalInterest: number
+): number {
+  const ext =
+    externalInterest > 0
+      ? Math.min(
+          EXTERNAL_CREDIT_CAP,
+          Math.round(EXTERNAL_CREDIT_SCALE * Math.log1p(externalInterest))
+        )
+      : 0;
+  return localVotes * LOCAL_INTEREST_WEIGHT + ext;
+}
+
 type SortableEvent = PersonalizableEvent & { startDate: string | Date };
 
 /**
@@ -148,8 +186,19 @@ export function makeFeedComparator(vector: PreferenceVector | null = null) {
     const sb = eventQualityScore(b) + hypeScore(b) + personalizationScore(b, vector);
     const sa = eventQualityScore(a) + hypeScore(a) + personalizationScore(a, vector);
     if (sb !== sa) return sb - sa;
-    const interest = (b.interestCount ?? 0) - (a.interestCount ?? 0);
-    if (interest !== 0) return interest;
+    // Tie-break on the curation signal (real votes weighted far above the
+    // source's external count), not the raw blended interestCount — otherwise a
+    // few hundred RA "interested" marks would decide the order. External is
+    // interestCount minus the local votes already folded into it.
+    const cb = curationInterest(
+      b.localInterestCount ?? 0,
+      (b.interestCount ?? 0) - (b.localInterestCount ?? 0)
+    );
+    const ca = curationInterest(
+      a.localInterestCount ?? 0,
+      (a.interestCount ?? 0) - (a.localInterestCount ?? 0)
+    );
+    if (cb !== ca) return cb - ca;
     return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
   };
 }
@@ -175,12 +224,17 @@ export const compareByQualityThenTime = makeFeedComparator(null);
  * homegrown demand surfaces above the RA-sourced filler. The blended count
  * shown on cards still folds in `externalInterest`; only the *ordering* signal
  * is the local-vote count.
+ *
+ * `externalInterest` is deliberately *not* an ordering key here: it's almost
+ * entirely Resident Advisor / dance-venue counts, so sorting on it floated
+ * electronic shows to the top of every "load more" page. Real votes lead;
+ * everything else falls back to quality signals then start time. (See
+ * {@link curationInterest} for how the in-memory surfaces weight the two.)
  */
 export const QUALITY_ORDER_BY: Prisma.EventOrderByWithRelationInput[] = [
   { interests: { _count: "desc" } },
   { imageUrl: { sort: "desc", nulls: "last" } },
   { latitude: { sort: "desc", nulls: "last" } },
   { recurringType: { sort: "asc", nulls: "first" } },
-  { externalInterest: "desc" },
   { startDate: "asc" },
 ];

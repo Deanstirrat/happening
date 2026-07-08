@@ -107,6 +107,7 @@ async function main() {
       dedupeHash: true,
       sourceUrl: true,
       externalInterest: true,
+      _count: { select: { interests: true } },
     },
   });
 
@@ -144,7 +145,14 @@ async function main() {
         cat ? `Category: ${cat}` : null,
         price ? `Price: ${price}` : null,
         e.tags.length ? `Tags: ${e.tags.map(clean).join(", ")}` : null,
-        e.externalInterest > 0 ? `Interest: ${e.externalInterest} people interested on source` : null,
+        // Our own users' saves are the demand signal to trust. The source
+        // "interested" count is a weak, biased hint — it's only pulled for a few
+        // sources (Resident Advisor / dance venues) so it skews heavily
+        // electronic, and should not on its own justify a feature.
+        e._count.interests > 0 ? `Saved by ${e._count.interests} of our own users` : null,
+        e.externalInterest > 0
+          ? `Source interest: ${e.externalInterest} (weak external signal, skews electronic — do not over-weight)`
+          : null,
         desc ? `Desc: ${desc}` : null,
         budget ? `DaySlots: ${budget.remaining} slots remaining for this day` : null,
       ]

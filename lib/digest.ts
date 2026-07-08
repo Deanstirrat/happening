@@ -14,6 +14,7 @@
  *      for readers with no history, who still get the featured picks.
  */
 import { CATEGORY_LABELS } from "@/lib/types";
+import { curationInterest } from "@/lib/ranking";
 import { formatTimeSF, formatDateShortSF, sfDayKey, sfDayStart, sfDayEnd } from "@/lib/sfDate";
 
 const SF_TZ = "America/Los_Angeles";
@@ -59,7 +60,11 @@ export interface ReaderPrefs {
   neighborhoods: Set<string>;
 }
 
-const interestOf = (e: DigestEvent) => e._count.interests + e.externalInterest;
+// Real in-app votes weighted far above the source's external count (see
+// curationInterest), so the digest's "highest-interest" fallback and ordering
+// aren't dominated by high-RA electronic shows the way the raw blended count was.
+const interestOf = (e: DigestEvent) =>
+  curationInterest(e._count.interests, e.externalInterest);
 
 // 0=Sun … 6=Sat in SF local time.
 function sfWeekday(date: Date): number {

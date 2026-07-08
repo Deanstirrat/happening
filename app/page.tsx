@@ -15,7 +15,11 @@ import type { EventSummary } from "@/lib/types";
 import { NON_MUSIC_CATEGORIES } from "@/lib/types";
 import { addDays } from "date-fns";
 import { sfDayKey, sfDayStart, sfDayEnd, matchesTimeOfDay } from "@/lib/sfDate";
-import { makeFeedComparator, type PreferenceVector } from "@/lib/ranking";
+import {
+  curationInterest,
+  makeFeedComparator,
+  type PreferenceVector,
+} from "@/lib/ranking";
 import { buildSessionPreferences } from "@/lib/preferences";
 import { matchesArtists } from "@/lib/artistMatch";
 import { getEditorUser } from "@/lib/auth";
@@ -326,20 +330,27 @@ async function getEvents(
   }
 
   // "Trending this week": the highest-interest events in the next week, ranked
-  // purely by interest count (not the per-day quality order). Computed from the
+  // by the curation signal (real votes weighted far above the source's external
+  // count — see curationInterest) rather than the raw blended count, so the row
+  // isn't monopolized by a handful of high-RA electronic shows. Computed from the
   // already-fetched set so it costs no extra query. Returned as candidates —
   // the page dedupes against the featured carousel and applies the display cap.
   const weekEnd = sfDayEnd(sfDayKey(addDays(now, TRENDING_WINDOW_DAYS - 1)));
+  const trendingScore = (e: EventSummary) =>
+    curationInterest(
+      e.localInterestCount ?? 0,
+      (e.interestCount ?? 0) - (e.localInterestCount ?? 0)
+    );
   const trending = Object.values(allGrouped)
     .flat()
     .filter(
       (e) =>
-        (e.interestCount ?? 0) >= MIN_TRENDING_INTEREST &&
+        trendingScore(e) >= MIN_TRENDING_INTEREST &&
         new Date(e.startDate) <= weekEnd
     )
     .sort(
       (a, b) =>
-        (b.interestCount ?? 0) - (a.interestCount ?? 0) ||
+        trendingScore(b) - trendingScore(a) ||
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 

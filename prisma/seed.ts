@@ -405,6 +405,14 @@ const sources = [
     enabled: true,
   },
   {
+    slug: "presidio",
+    name: "Presidio Theatre",
+    url: "https://www.presidiotheatre.org/shows",
+    scrapeType: ScrapeType.CHEERIO,
+    category: SourceCategory.VENUE,
+    enabled: true,
+  },
+  {
     slug: "balboa",
     name: "Balboa Theatre",
     url: "https://www.balboamovies.com/calendar",

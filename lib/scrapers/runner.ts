@@ -99,6 +99,7 @@ import { SfDesignWeekScraper } from "./sfdesignweek";
 import { FolkYeahScraper } from "./folkyeah";
 import { RoxieScraper } from "./roxie";
 import { AlamoSfScraper } from "./alamosf";
+import { PresidioTheatreScraper } from "./presidio";
 import { FerryBuildingScraper } from "./ferrybuilding";
 import { ParksConservancyScraper } from "./parksconservancy";
 import { MinnesotaStreetScraper } from "./minnesotastreet";
@@ -170,6 +171,7 @@ export const SCRAPERS: Record<string, BaseScraper> = {
   // ── Thin-category venue sources (film, food & drink, galleries, outdoor) ──
   roxie: new RoxieScraper(),
   alamosf: new AlamoSfScraper(),
+  presidio: new PresidioTheatreScraper(),
   balboa: new BalboaScraper(),
   vogue: new VogueScraper(),
   fourstar: new FourStarScraper(),

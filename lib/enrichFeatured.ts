@@ -149,15 +149,26 @@ Reply with ONLY the final title text — no quotes, no labels, no explanation.`,
 
 // ─── AI featured blurb ────────────────────────────────────────────────────────
 
-// Tells that out a blurb as machine-written. The big one is the "…, but actually
-// …" / "and actually …" twist — a setup-then-correction cadence that reads as
-// backhanded and showed up across a suspicious number of blurbs. Also catches the
-// related contrarian comparison tic ("beats any …", "more than your average …").
-// Used both as a post-generation reject and as a regenerate trigger so existing
-// blurbs that carry the tell get rewritten on the next enrichment pass.
+// Tells that out a blurb as machine-written. The big ones are the "…, but
+// actually …" twist (a setup-then-correction cadence that reads as backhanded),
+// the "it's not just X, it's Y" negation-elevation move, the contrarian
+// comparison tic ("beats any …", "more than your average …"), and the stock
+// hype adjectives that no friend texting you would ever use. Used both as a
+// post-generation reject (which triggers a regenerate — see the retry loop in
+// generateFeaturedBlurb) and as a trigger to rewrite an existing blurb that
+// carries the tell on the next enrichment pass, so bad ones self-heal.
 const AI_TELL_PATTERNS: RegExp[] = [
   /\bactually\b/i,
   /\b(beats|better than|more than your average|unlike most)\b/i,
+  /\bit'?s not just\b/i,
+  /\bimmers(e|ive|ion)\b/i,
+  /\b(unforgettable|vibrant|electrifying|magical|breathtaking)\b/i,
+  /\bvibes\b/i,
+  /\bdon'?t miss\b/i,
+  /\bmust-(see|attend|visit|do|experience)\b/i,
+  /\bwhether you'?re\b/i,
+  /\bsomething for everyone\b/i,
+  /\b(dive into|perfect for|elevate|a celebration of|experience the magic)\b/i,
 ];
 function blurbHasAiTell(text: string): boolean {
   return AI_TELL_PATTERNS.some((re) => re.test(text));
@@ -183,23 +194,31 @@ async function generateFeaturedBlurb(args: {
     month: "long",
     day: "numeric",
   });
-  try {
-    const msg = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 90,
-      temperature: 0.7, // a little range so blurbs don't all read identically
-      messages: [
-        {
-          role: "user",
-          content: `Write ONE short sentence (max 18 words) telling a San Francisco local why this event is worth going to. It sits on a "featured" card, so it has to earn the pick — name the specific thing that makes it good (the artist, the format, the room, the one-off occasion), not a vague mood.
+  // Voice is taught by example, not by a banned-word list: a wall of "don't say
+  // X" only pushes the model to the next cliché and never shows it what good
+  // sounds like. A few real good/bad blurbs steer it far better. Lowercase,
+  // texting-a-friend register matches the rest of the rail.
+  const prompt = `You write the one-line hook shown on a "featured" event card for happening, a San Francisco events site. It has to earn the pick: name the specific thing that makes THIS event worth someone's night — the artist, the format, the room, the one-off occasion.
 
-Hard rules:
-- Sound like a sharp friend with good taste texting you, not a brochure and not an AI.
-- State the appeal straight. Do NOT use the "X, but actually Y" / "and actually Z" setup-then-twist — it reads as backhanded and is a dead AI giveaway. The word "actually" is banned.
-- Don't sell it by putting other things down. No backhanded comparisons ("beats any indoor venue", "better than your average DJ night", "unlike most warehouse parties"). Just say what's good about THIS one.
-- No hype clichés. BANNED words/phrases: "actually", "don't miss", "must-see", "must-attend", "immerse", "vibrant", "unforgettable", "experience the magic", "vibes", "perfect for", "whether you're", "something for everyone", "dive into", "elevate", "curated", "a celebration of", "join us", "nestled", "boasts", "lineup of".
-- No exclamation marks, no emoji, no Title Case. Don't just restate the event title.
-- Be concrete. If you lack a specific reason, lead with the single most interesting real detail.
+Voice: a friend with good taste telling you about it, in one text. Plain, specific, a little dry. Never a brochure, never a hype man. Trust the concrete detail to do the selling — don't announce that it's great, show why.
+
+Good — write like these:
+- honey soundsystem runs the city's longest-standing queer house night, and the room shows up for it.
+- a real wrestling ring dropped into a warehouse rave: djs between matches, body slams for the main event.
+- hundreds of costumed adults racing plastic big wheels down the crookedest block in town.
+- robert hood plays open-to-close at public works, which almost never happens outside detroit.
+- free big band in the park, the kind of sunday the bandshell was built for.
+
+Bad — never write like these; this is the exact sound to avoid:
+- get ready to immerse yourself in an unforgettable night of vibes you won't want to miss.
+- it's not just a party, it's a whole experience for everyone.
+- whether you're a techno head or just curious, this one has something for you.
+- a vibrant celebration of community and culture in the heart of the city.
+
+Rules:
+- one sentence, max 18 words. lowercase, like a text. no exclamation marks, no emoji, no hashtags, no Title Case.
+- don't restate the event title. don't use the word "actually".
+- if you don't have a specific hook, lead with the single most concrete real detail — never fall back on hype.
 
 Event: ${title}
 Venue: ${venueName ?? "unknown"}
@@ -207,23 +226,36 @@ Date: ${dateStr}
 Category: ${category ?? "n/a"}
 ${description ? `Details: ${description.slice(0, 500)}` : ""}
 
-Reply with ONLY the sentence — no quotes, no label.`,
-        },
-      ],
-    });
-    let text = ((msg.content[0] as Anthropic.TextBlock).text ?? "").trim();
-    text = text.replace(/^["'“”]+|["'“”]+$/g, "").trim(); // strip wrapping quotes
-    // Reject empties, multi-line answers (not a one-liner), or runaway length.
-    if (!text || text.length < 15 || text.length > 180 || /[\r\n]/.test(text)) return null;
-    // Reject the AI tells (the "actually" twist, backhanded comparisons) even when
-    // the model slips past the prompt — better no blurb than an obvious one; the
-    // next run retries with fresh sampling.
-    if (blurbHasAiTell(text)) return null;
-    return text;
-  } catch (e) {
-    console.error(`    [ai-blurb] error: ${(e as Error).message}`);
-    return null;
+Reply with ONLY the sentence — no quotes, no label.`;
+
+  // Retry loop: the model still slips an "actually" / hype tell past the prompt
+  // often enough that a single shot can't be trusted. Without this, a rejected
+  // blurb returns null and the caller keeps the OLD (tell-carrying) blurb, so
+  // the corny line never heals. Re-sample with a nudge of extra temperature each
+  // time so we get a genuinely different line, not the same reject reworded.
+  const temps = [0.7, 0.9, 1.0];
+  for (const temperature of temps) {
+    try {
+      const msg = await client.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 90,
+        temperature,
+        messages: [{ role: "user", content: prompt }],
+      });
+      let text = ((msg.content[0] as Anthropic.TextBlock).text ?? "").trim();
+      text = text.replace(/^["'“”]+|["'“”]+$/g, "").trim(); // strip wrapping quotes
+      // Reject empties, multi-line answers (not a one-liner), or runaway length.
+      if (!text || text.length < 15 || text.length > 180 || /[\r\n]/.test(text)) continue;
+      // Reject the AI tells even when the model slips past the prompt, and try
+      // again with fresh sampling — better a regenerate than an obvious blurb.
+      if (blurbHasAiTell(text)) continue;
+      return text;
+    } catch (e) {
+      console.error(`    [ai-blurb] error: ${(e as Error).message}`);
+      return null; // API failure (not a bad blurb) — don't burn the remaining retries
+    }
   }
+  return null; // every attempt tripped a tell/length check
 }
 
 // ─── Web image search ───────────────────────────────────────────────────────

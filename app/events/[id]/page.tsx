@@ -72,7 +72,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const event = await getEvent(id);
-  if (!event) return {};
+  // Non-published events aren't public — don't emit share/OG metadata for them.
+  if (!event || event.status !== "PUBLISHED") return {};
 
   const dateLabel = formatDateLongSF(event.startDate);
   const venueDisplayName = event.venueName ?? extractLocationFromTitle(event.title);
@@ -123,6 +124,13 @@ export default async function EventDetailPage({
   // This event was merged into a canonical duplicate — send visitors there.
   if (event.status === "ARCHIVED" && event.mergedIntoId) {
     permanentRedirect(`/events/${event.mergedIntoId}`);
+  }
+
+  // Only PUBLISHED events are public. Staff (editors/admins) can still preview any
+  // status to review submissions, rejects, and holds; everyone else gets a 404 so
+  // rejected/pending/trashed events aren't reachable by direct link.
+  if (event.status !== "PUBLISHED" && !isEditor) {
+    notFound();
   }
 
   const similar = await getSimilarEvents(event);

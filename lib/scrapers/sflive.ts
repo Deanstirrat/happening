@@ -130,6 +130,20 @@ export class SfliveScraper extends BaseScraper {
     // Only include events within the upcoming window
     if (startDate < now || startDate > windowEnd) return null;
 
+    // Drop online-only events. sflive's structured `vibemap_event_is_online` flag
+    // is never set (False across the entire feed) and the description is generic
+    // venue boilerplate, so neither is usable. The reliable signal is an explicit
+    // "Online"/"Virtual" tag in vibemap_event_tags: these events geocode to a real
+    // physical venue (e.g. Gray Area's "Online Intensive Course …" at 2665 Mission)
+    // and would otherwise publish as in-person. Match whole tags only — a substring
+    // check would misfire on gallery paths like "/online-shows/".
+    const eventTagsRaw: string = m.vibemap_event_tags ?? "";
+    const isOnlineTagged = eventTagsRaw
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .some((t) => t === "online" || t === "virtual");
+    if (isOnlineTagged) return null;
+
     const endRaw: string = m.vibemap_event_end_date ?? "";
     let endDate = endRaw ? parseSfliveDate(endRaw) ?? undefined : undefined;
 

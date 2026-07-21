@@ -20,7 +20,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { EventCategory } from "@prisma/client";
 import { prisma } from "./prisma";
 import { decodeHtmlEntities } from "./decodeEntities";
-import { resolveFallbackImage } from "./eventImage";
 import {
   fetchPageMeta,
   pickStoredDescription,
@@ -463,22 +462,20 @@ export async function enrichEvent(event: EnrichEventRow): Promise<EnrichResult> 
     }
   }
 
-  // 3c. Still nothing real → keep the event featured and fall back to a
-  //     category/venue placeholder so the rail always renders something (#191).
-  //     A featured event is never un-featured just for missing an image — the
-  //     curator's underground/Instagram-sourced picks are exactly the ones that
-  //     fail the image cascade, and dropping them defeats the point.
+  // 3c. Still nothing real → keep the event featured, but do NOT persist a
+  //     placeholder into imageUrl. The rail already renders a venue/category
+  //     tile at display time (resolveFallbackImage in EventCard / the event
+  //     page, #191), so storing one here is redundant — and worse, a stored
+  //     `/category-images/*` value hides the event from the image-recovery jobs,
+  //     which only match null or raw CDN URLs. That's exactly how an
+  //     Instagram flyer that briefly failed to upload gets frozen as a category
+  //     tile forever. Clear any stale placeholder so the event stays
+  //     recoverable; a featured event is never un-featured just for a missing
+  //     image — the curator's underground/Instagram-sourced picks are the ones
+  //     that fail the cascade, and dropping them defeats the point.
   if (!haveUsableImage) {
-    const fallback = resolveFallbackImage({
-      venueName: event.venueName,
-      sourceSlug: event.sourceSlug,
-      category: event.category,
-    });
-    // Write the placeholder only if it improves on what's stored; a null
-    // fallback (no venue photo, no category tile) leaves imageUrl as-is and the
-    // UI renders a gradient. Either way the event stays featured.
-    if (fallback && fallback !== event.imageUrl) {
-      updates.imageUrl = fallback;
+    if (event.imageUrl && isDefaultImage(event.imageUrl)) {
+      updates.imageUrl = null;
     }
     result.usedFallbackImage = true;
   }

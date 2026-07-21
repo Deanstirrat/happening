@@ -38,6 +38,14 @@ const EXTRACT_CONCURRENCY = Math.max(
   Number(process.env.INSTAGRAM_EXTRACT_CONCURRENCY ?? "8")
 );
 
+// Retry budgets for the flaky Instagram CDN → Blob path. The CDN 429s/times out
+// on repeat datacenter fetches, so a couple of retries recover most transient
+// misses that used to permanently drop a flyer.
+const IMAGE_FETCH_ATTEMPTS = 3;
+const BLOB_PUT_ATTEMPTS = 3;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 // Minimum number of heuristic signals a caption must hit to be worth sending to Claude.
 const MIN_EVENT_SIGNALS = 2;
 // Full month names AND 3-letter abbreviations (the \b after short abbreviations only works
@@ -133,12 +141,13 @@ export class InstagramScraper extends BaseScraper {
         // Co-authored posts may have a different ownerUsername than the account
         // we queried. Fall back to a venue-tier placeholder so the post still
         // gets processed — Claude will extract the real venue name from the flyer.
-        const account = accountMap.get(post.ownerUsername?.toLowerCase() ?? "") ?? {
+        const known = accountMap.get(post.ownerUsername?.toLowerCase() ?? "");
+        const account = known ?? {
           handle: post.ownerUsername ?? "unknown",
           venueName: post.ownerUsername ?? "Unknown Venue",
           tier: "venue" as const,
         };
-        return this.processPost(post, account);
+        return this.processPost(post, account, Boolean(known));
       },
       { concurrency: EXTRACT_CONCURRENCY }
     );
@@ -218,35 +227,38 @@ export class InstagramScraper extends BaseScraper {
    */
   private async processPost(
     post: ApifyPost,
-    account: InstagramAccount
+    account: InstagramAccount,
+    isKnownAccount: boolean
   ): Promise<ScrapedEvent | null> {
     const caption = post.caption ?? "";
     const { shortCode } = post;
     const sourceUrl = `https://www.instagram.com/p/${shortCode}/`;
 
     try {
-      // Venue tier → prefer vision (the flyer is authoritative; a caption can
-      // be confidently wrong). Fall back to caption if no usable image.
-      // Otherwise → caption-first with vision escalation: run haiku on the
-      // caption, then escalate to sonnet vision only when a key field is
-      // missing (no date OR no time) and an image exists. The missing detail
-      // — most often the start time — is frequently printed on the flyer
-      // graphic, invisible to a caption-only read.
+      // Caption-first for every tier: run the cheap haiku pass on the caption,
+      // then escalate to sonnet vision only when a key field (no date OR no
+      // time) is missing and an image exists. The missing detail — most often
+      // the start time — is frequently printed on the flyer graphic, invisible
+      // to a caption-only read; but the image is the expensive path, so we only
+      // reach for it when the caption alone can't carry the event.
       const imageUrl = this.bestImageUrl(post);
-      let extracted;
-      if (account.tier === "venue" && imageUrl) {
-        const img = await this.fetchImageAsBase64(imageUrl);
-        extracted = img
-          ? await extractEventFromImage(img.base64, img.mediaType, caption)
-          : await extractEventFromCaption(caption);
-      } else {
-        extracted = await extractEventFromCaption(caption);
-        const missingKeyField = !extracted.dateRaw || !extracted.timeRaw;
-        if (missingKeyField && imageUrl) {
-          const img = await this.fetchImageAsBase64(imageUrl);
-          if (img) {
-            extracted = await extractEventFromImage(img.base64, img.mediaType, caption);
-          }
+      let extracted = await extractEventFromCaption(caption);
+      // The caption is the only source we trust to override a known venue's
+      // home location (see resolveVenue). Capture its venue read now, before a
+      // vision escalation can clobber `extracted` with the flyer's — where the
+      // party name (e.g. "Throttle") routinely masquerades as the venue.
+      const captionVenue = extracted.venueName;
+      const missingKeyField = !extracted.dateRaw || !extracted.timeRaw;
+      // Bytes fetched here for vision are reused for the Blob upload below, so
+      // the same CDN image is never fetched twice. Instagram rate-limits repeat
+      // datacenter fetches, and when vision runs it was the second fetch (the
+      // Blob upload) that used to silently drop the flyer. Held as raw bytes +
+      // MIME type: vision needs base64, Blob needs the buffer.
+      let imageBytes: { body: Buffer; contentType: string } | null = null;
+      if (missingKeyField && imageUrl) {
+        imageBytes = await this.fetchImageBytes(imageUrl);
+        if (imageBytes) {
+          extracted = await extractEventFromImage(imageBytes.body.toString("base64"), imageBytes.contentType, caption);
         }
       }
 
@@ -269,9 +281,19 @@ export class InstagramScraper extends BaseScraper {
       // Discard events that are already over (>1 day in the past).
       if (startDate.getTime() < Date.now() - 86_400_000) return null;
 
-      const storedImageUrl = imageUrl
-        ? (await this.uploadImageToBlob(imageUrl, shortCode)) ?? undefined
-        : undefined;
+      // Persist the flyer to Blob. Reuse the bytes already fetched for vision
+      // when we have them; otherwise download now (the caption carried every
+      // field, so vision never ran). On Blob failure keep the raw CDN URL rather
+      // than dropping the image — it still renders (briefly) via the image proxy
+      // and, matching `cdninstagram.com`, stays visible to the backfill job that
+      // re-hosts a permanent copy.
+      let storedImageUrl: string | undefined;
+      if (imageUrl) {
+        const blobUrl = imageBytes
+          ? await this.uploadBytesToBlob(imageBytes.body, imageBytes.contentType, shortCode)
+          : await this.uploadImageToBlob(imageUrl, shortCode);
+        storedImageUrl = blobUrl ?? imageUrl;
+      }
 
       return {
         externalId: shortCode,
@@ -279,7 +301,7 @@ export class InstagramScraper extends BaseScraper {
         description: extracted.description ?? undefined,
         startDate,
         allDay: noTimeProvided || undefined,
-        venueName: extracted.venueName ?? account.venueName,
+        venueName: this.resolveVenue(account, isKnownAccount, captionVenue, extracted.venueName),
         venueAddress: extracted.venueAddress ?? undefined,
         sourceUrl,
         imageUrl: storedImageUrl,
@@ -291,6 +313,48 @@ export class InstagramScraper extends BaseScraper {
       console.error(`[instagram] Failed to process post ${shortCode}:`, (err as Error).message);
       return null;
     }
+  }
+
+  /**
+   * Resolve the venue for a post.
+   *
+   * A known venue-tier account IS a physical place — the posting handle maps
+   * deterministically to its home venue (1015sf → "1015 Folsom"). That beats
+   * anything vision reads off the flyer, which routinely surfaces the party or
+   * promoter name ("Throttle") as if it were the venue. The lone exception is
+   * an explicit caption mention of a *different* place (an off-site / pop-up
+   * show), which we honor.
+   *
+   * Promoter-tier and unknown accounts have no fixed home venue — their
+   * configured name is a promoter, not a place — so the extracted venue
+   * (caption or flyer) wins, with that name only as a last-resort fallback.
+   */
+  private resolveVenue(
+    account: InstagramAccount,
+    isKnownAccount: boolean,
+    captionVenue: string | null,
+    extractedVenue: string | null
+  ): string {
+    if (isKnownAccount && account.tier === "venue") {
+      const explicitlyElsewhere =
+        !!captionVenue && !this.venuesMatch(captionVenue, account.venueName);
+      return explicitlyElsewhere ? captionVenue : account.venueName;
+    }
+    return extractedVenue ?? account.venueName;
+  }
+
+  /**
+   * Loose venue-name equality: case- and punctuation-insensitive, and
+   * substring-aware so "1015" matches "1015 Folsom". Bias is toward calling
+   * two names the same, which keeps the deterministic home venue rather than
+   * treating a partial caption echo as an off-site move.
+   */
+  private venuesMatch(a: string, b: string): boolean {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const na = norm(a);
+    const nb = norm(b);
+    if (!na || !nb) return false;
+    return na === nb || na.includes(nb) || nb.includes(na);
   }
 
   /**
@@ -313,56 +377,84 @@ export class InstagramScraper extends BaseScraper {
   }
 
   /**
-   * Download an Instagram CDN image and upload it to Vercel Blob for permanent storage.
-   * Falls back to null if Blob is not configured, the upload fails, or the URL
+   * Fetch an image URL and return its raw bytes + MIME type, retrying transient
+   * failures (429 / 5xx / timeouts). Instagram's CDN rate-limits repeat fetches
+   * from datacenter IPs, so a single miss shouldn't cost us the flyer. Returns
+   * null for non-image content (e.g. video/mp4 for reels) or after retries fail.
+   */
+  private async fetchImageBytes(
+    url: string
+  ): Promise<{ body: Buffer; contentType: string } | null> {
+    for (let attempt = 1; attempt <= IMAGE_FETCH_ATTEMPTS; attempt++) {
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) {
+          const retriable = res.status === 429 || res.status >= 500;
+          if (retriable && attempt < IMAGE_FETCH_ATTEMPTS) {
+            await sleep(attempt * 500);
+            continue;
+          }
+          return null;
+        }
+        const contentType = (res.headers.get("content-type") ?? "image/jpeg")
+          .split(";")[0]
+          .trim();
+        if (!contentType.startsWith("image/")) return null;
+        return { body: Buffer.from(await res.arrayBuffer()), contentType };
+      } catch (err) {
+        if (attempt >= IMAGE_FETCH_ATTEMPTS) {
+          console.warn(`[instagram] Image fetch failed after ${attempt} attempts:`, (err as Error).message);
+          return null;
+        }
+        await sleep(attempt * 500);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Upload already-downloaded image bytes to Vercel Blob for permanent storage,
+   * retrying transient put failures. Returns null if Blob is not configured or
+   * all attempts fail.
+   */
+  private async uploadBytesToBlob(
+    body: Buffer,
+    contentType: string,
+    shortCode: string
+  ): Promise<string | null> {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+    const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
+    for (let attempt = 1; attempt <= BLOB_PUT_ATTEMPTS; attempt++) {
+      try {
+        const blob = await put(`event-images/instagram-${shortCode}.${ext}`, body, {
+          access: "public",
+          contentType,
+        });
+        return blob.url;
+      } catch (err) {
+        if (attempt >= BLOB_PUT_ATTEMPTS) {
+          console.warn(`[instagram] Failed to upload image for ${shortCode} to Blob:`, (err as Error).message);
+          return null;
+        }
+        await sleep(attempt * 500);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Download an Instagram CDN image and upload it to Vercel Blob. Used on the
+   * caption-only path where the flyer bytes weren't already fetched for vision.
+   * Returns null if Blob is not configured, the download fails, or the URL
    * resolves to a non-image content type (e.g. video/mp4 for reels).
    */
   private async uploadImageToBlob(url: string, shortCode: string): Promise<string | null> {
     if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
-    try {
-      const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!res.ok) return null;
-      const contentType = res.headers.get("content-type") ?? "image/jpeg";
-      if (!contentType.startsWith("image/")) {
-        console.warn(`[instagram] Skipping non-image content (${contentType}) for ${shortCode}`);
-        return null;
-      }
-      const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
-      const blob = await put(`event-images/instagram-${shortCode}.${ext}`, res.body!, {
-        access: "public",
-        contentType,
-      });
-      return blob.url;
-    } catch (err) {
-      console.warn(`[instagram] Failed to upload image for ${shortCode} to Blob:`, (err as Error).message);
-      return null;
-    }
-  }
-
-  /**
-   * Download an image URL and return it base64-encoded with its MIME type,
-   * suitable for passing directly to extractEventFromImage(). Returns null for
-   * non-image content types (e.g. video/mp4) so callers fall back to caption.
-   */
-  private async fetchImageAsBase64(
-    url: string
-  ): Promise<{ base64: string; mediaType: string } | null> {
-    try {
-      const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!res.ok) return null;
-      const contentType = res.headers.get("content-type") ?? "image/jpeg";
-      if (!contentType.startsWith("image/")) return null;
-      const mediaType = contentType.split(";")[0].trim();
-      const buffer = await res.arrayBuffer();
-      return { base64: Buffer.from(buffer).toString("base64"), mediaType };
-    } catch {
-      return null;
-    }
+    const fetched = await this.fetchImageBytes(url);
+    if (!fetched) return null;
+    return this.uploadBytesToBlob(fetched.body, fetched.contentType, shortCode);
   }
 }

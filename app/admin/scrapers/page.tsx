@@ -57,8 +57,16 @@ export default async function ScrapersPage() {
     prisma.event.groupBy({
       by: ["sourceId"],
       // Only PUBLISHED events count as "upcoming" — matches what users see and
-      // the health classifier's dark-source detection.
-      where: { startDate: { gte: now }, status: "PUBLISHED" },
+      // the health classifier's dark-source detection. "Upcoming" means
+      // not-yet-ended, so multi-day events (e.g. gallery exhibitions) still count
+      // while their endDate is in the future.
+      where: {
+        status: "PUBLISHED",
+        OR: [
+          { endDate: { gte: now } },
+          { endDate: null, startDate: { gte: now } },
+        ],
+      },
       _count: { id: true },
     }),
     prisma.event.groupBy({

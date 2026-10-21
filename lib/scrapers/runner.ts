@@ -345,6 +345,7 @@ async function scrapeSource(
     venueName: string | null;
     description: string | null;
     startDate: Date;
+    endDate: Date | null;
     allDay: boolean;
   };
 
@@ -360,7 +361,7 @@ async function scrapeSource(
     const dayEnd = new Date(dayStart.getTime() + 86400000);
     const rows = await prisma.event.findMany({
       where: { startDate: { gte: dayStart, lt: dayEnd } },
-      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true, startDate: true, allDay: true },
+      select: { id: true, title: true, sourceUrl: true, imageUrl: true, venueName: true, description: true, startDate: true, endDate: true, allDay: true },
     });
     dayEventsCache.set(key, rows);
   }
@@ -435,6 +436,7 @@ async function scrapeSource(
       title: string;
       venueName: string | null;
       startDate: Date;
+      endDate: Date | null;
       allDay: boolean;
     };
 
@@ -445,6 +447,14 @@ async function scrapeSource(
       }
       if (!existing.description && event.description) {
         enrichments.description = event.description;
+      }
+      // Backfill a closing date when the source now provides one and the stored
+      // row lacks it. Multi-day events (e.g. gallery exhibitions) stay visible
+      // while endDate is in the future; a row first seen before the source
+      // exposed a range would otherwise age out on its opening day. endDate isn't
+      // part of the dedupe hash, so this never risks a key collision.
+      if (!existing.endDate && event.endDate) {
+        enrichments.endDate = event.endDate;
       }
       // Refresh the external popularity signal (e.g. RA "interested" count).
       // Only sources that provide it set event.externalInterest, so this never
@@ -510,7 +520,7 @@ async function scrapeSource(
           sourceUrl: event.sourceUrl,
           startDate: { gte: sfDayStartDate, lt: sfDayEndDate },
         },
-        select: { id: true, sourceUrl: true, imageUrl: true, description: true, title: true, venueName: true, startDate: true, allDay: true },
+        select: { id: true, sourceUrl: true, imageUrl: true, description: true, title: true, venueName: true, startDate: true, endDate: true, allDay: true },
       });
       if (urlMatch) {
         console.log(`[${slug}] Source URL duplicate: "${event.title}" (${event.sourceUrl})`);
@@ -744,6 +754,7 @@ async function scrapeSource(
           venueName: event.venueName ?? null,
           description: event.description ?? null,
           startDate: event.startDate,
+          endDate: event.endDate ?? null,
           allDay: event.allDay ?? false,
         });
       }

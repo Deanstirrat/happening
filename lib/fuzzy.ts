@@ -46,24 +46,64 @@ export function isFuzzyMatch(a: Set<string>, b: Set<string>): boolean {
   return jaccard >= FUZZY_THRESHOLD || containment >= CONTAINMENT_THRESHOLD;
 }
 
+// Spelling/format variants that name the same venue word. Folded to one spelling
+// before tokenizing so "Theatre"/"Theater" or "Centre"/"Center" don't split an
+// otherwise-identical venue into a non-match (e.g. "The UC Theatre" from one
+// source vs "UC Theater, Berkeley" from another).
+const VENUE_SPELLING: Record<string, string> = {
+  theatre: "theater",
+  theatres: "theaters",
+  centre: "center",
+  centres: "centers",
+};
+
+// Leading articles carry no venue identity ("The Chapel" === "Chapel").
+const VENUE_ARTICLES = new Set(["the", "a", "an"]);
+
+// City/region labels a source appends to an otherwise-clean venue name
+// ("UC Theater, Berkeley", "The Chapel San Francisco", "Public Works SF"). Only
+// stripped when TRAILING, so a venue that genuinely leads with a place name
+// ("Berkeley Repertory Theatre", "San Francisco Symphony") keeps it.
+const VENUE_TRAILING_REGION = new Set([
+  "sf", "san", "francisco", "ca", "california",
+  "berkeley", "oakland", "emeryville", "alameda",
+]);
+
+/**
+ * Tokenize a venue name into its identity tokens: lowercase, punctuation-split,
+ * spelling-folded, with leading articles and a trailing city/region label
+ * stripped. Falls back to the unstripped token set if stripping would empty it.
+ */
+export function canonicalVenueTokens(s: string): Set<string> {
+  const raw = s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 0)
+    .map((t) => VENUE_SPELLING[t] ?? t);
+  if (raw.length === 0) return new Set();
+
+  let tokens = [...raw];
+  while (tokens.length > 1 && VENUE_ARTICLES.has(tokens[0])) tokens.shift();
+  while (tokens.length > 1 && VENUE_TRAILING_REGION.has(tokens[tokens.length - 1])) tokens.pop();
+
+  // If stripping removed everything meaningful, keep the folded raw tokens so a
+  // venue literally named for a region still matches itself.
+  if (tokens.length === 0) tokens = raw;
+  return new Set(tokens);
+}
+
 /**
  * Returns true if two venue name strings refer to the same venue.
  * Uses token-based matching: matches if one token set is fully contained in
  * the other, or if Jaccard similarity ≥ 0.5 with at least 1 shared token.
- * Handles cases like "Public Works" vs "Public Works SF".
+ * Handles cases like "Public Works" vs "Public Works SF" and spelling/city
+ * drift like "The UC Theatre" vs "UC Theater, Berkeley".
  */
 export function isVenueFuzzyMatch(a: string, b: string): boolean {
-  const tokenizeVenue = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
-      .split(/\s+/)
-      .filter((t) => t.length > 0);
-  const tokA = tokenizeVenue(a);
-  const tokB = tokenizeVenue(b);
-  if (tokA.length === 0 || tokB.length === 0) return false;
-  const setA = new Set(tokA);
-  const setB = new Set(tokB);
+  const setA = canonicalVenueTokens(a);
+  const setB = canonicalVenueTokens(b);
+  if (setA.size === 0 || setB.size === 0) return false;
   let intersection = 0;
   for (const t of setA) {
     if (setB.has(t)) intersection++;

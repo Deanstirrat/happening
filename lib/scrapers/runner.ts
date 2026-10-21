@@ -9,6 +9,7 @@ import { sfDayKey, sfDayStart } from "@/lib/sfDate";
 import { isTooFarFromSf } from "@/lib/geo";
 import { parseMeta, pickStoredDescription } from "@/lib/enrichDescription";
 import { isPlaceholderVenue, isServiceAreaTBA } from "@/lib/venues";
+import { isSpecificSourceUrl, isGenericVenue, isTimeUnknown } from "@/lib/merge/signals";
 import { SCRAPE_RUN_HISTORY } from "./health";
 import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue, isSpamEvent } from "@/lib/ingestFilters";
 
@@ -20,38 +21,8 @@ import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAre
 // addresses that the distance filter already handles (issue #157).
 const OUT_OF_AREA_VENUE_FILTER_SOURCES = new Set(["foopee", "bandsintown", "19hz", "folkyeah"]);
 
-// Source URLs that point to list pages rather than individual events — skip sourceUrl dedup for these
-const GENERIC_SOURCE_URL_PATTERNS = [
-  "foopee.com/punk/the-list/",
-  "19hz.info/eventlisting_BayArea.php",
-  "badslava.com/san-francisco-trivia-nights.php",
-  "noevalleytownsquare.com/events",
-  "assemblepuzzlery.com/pages/events",
-];
-const isSpecificSourceUrl = (url: string) =>
-  !GENERIC_SOURCE_URL_PATTERNS.some((p) => url.includes(p));
-
-// True when an event has no reliable start time. Either it's flagged allDay, or
-// its time is exactly the noon-SF placeholder that several scrapers assign when a
-// source provides only a date (see lib/createEvent.ts, instagram.ts). Such a time
-// is meaningless for matching, so dedup must not treat it as a real start time.
-// The noon-sentinel check also covers events stored before allDay was set.
-const isTimeUnknown = (startDate: Date, allDay: boolean): boolean => {
-  if (allDay) return true;
-  const noonSf = sfDayStart(sfDayKey(startDate)).getTime() + 12 * 60 * 60 * 1000;
-  return startDate.getTime() === noonSf;
-};
-
-const GENERIC_VENUE_NAMES = new Set([
-  "locationprovidedafterbooking",
-  "locationtobeprovided",
-  "onlineevent",
-  "virtualevent",
-  "tba",
-  "tbd",
-]);
-const isGenericVenue = (s: string) =>
-  GENERIC_VENUE_NAMES.has(s.toLowerCase().replace(/[^a-z0-9]/g, ""));
+// Dedup signals (isSpecificSourceUrl / isGenericVenue / isTimeUnknown) live in
+// lib/merge/signals.ts so the nightly merge pre-pass uses the exact same rules.
 
 // Import all scrapers
 import { FoopeeScraper } from "./foopee";

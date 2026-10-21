@@ -22,11 +22,23 @@ const navItems = [
 ];
 
 // Pages that map to the "reports" nav item
-const reportsKeys = new Set(["reports", "feature-requests", "bug-reports", "event-reports"]);
+const reportsKeys = new Set([
+  "reports",
+  "feature-requests",
+  "corrections",
+  "bug-reports",
+  "event-reports",
+]);
 
 export default async function AdminNav({ current }: Props) {
-  const [pendingCount, ungeocodedRows, newRequestCount, eventReportCount, bugReportCount] =
-    await Promise.all([
+  const [
+    pendingCount,
+    ungeocodedRows,
+    newRequestCount,
+    correctionCount,
+    eventReportCount,
+    bugReportCount,
+  ] = await Promise.all([
       prisma.event.count({ where: { status: "PENDING" } }),
       // Future events live without coordinates — surfaced for venue-mapping triage.
       // Match the Ungeocoded page's own filter (PUBLISHED|PENDING) so the badge
@@ -43,7 +55,8 @@ export default async function AdminNav({ current }: Props) {
         select: { venueName: true },
       }),
       prisma.featuredRequest.count({ where: { status: "NEW" } }),
-      // Badges count only unresolved reports (issue #104).
+      // Badges count only unresolved reports (issue #104 / #215).
+      prisma.eventCorrection.count({ where: { status: { not: "RESOLVED" } } }),
       prisma.eventReport.count({ where: { status: { not: "RESOLVED" } } }),
       prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
     ]);
@@ -54,7 +67,7 @@ export default async function AdminNav({ current }: Props) {
   const badges: Record<string, number> = {
     submissions: pendingCount,
     ungeocoded: ungeocodedCount,
-    reports: newRequestCount + eventReportCount + bugReportCount,
+    reports: newRequestCount + correctionCount + eventReportCount + bugReportCount,
   };
 
   return (

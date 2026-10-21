@@ -9,18 +9,71 @@ import FeatureRequestActions from "../feature-requests/FeatureRequestActions";
 import { getAdminUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import ReportList, { type ReportItem } from "./ReportList";
+import CorrectionList, { type CorrectionItem, type CorrectionDiff } from "./CorrectionList";
+import { formatDateTimeSF } from "@/lib/sfDate";
 
 interface Props {
   searchParams: Promise<{ tab?: string }>;
 }
 
-type Tab = "feature-requests" | "event-reports" | "bug-reports";
+type Tab = "feature-requests" | "corrections" | "event-reports" | "bug-reports";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "feature-requests", label: "feature requests" },
+  { key: "corrections", label: "corrections" },
   { key: "event-reports", label: "event reports" },
   { key: "bug-reports", label: "bug reports" },
 ];
+
+const CORRECTION_FIELD_LABELS: Record<string, string> = {
+  startDate: "Start",
+  endDate: "End",
+  allDay: "All day",
+  venueName: "Venue",
+  price: "Price",
+  imageUrl: "Artwork",
+  description: "Description",
+  tags: "Tags",
+};
+
+// The linked-event fields a correction can touch, for rendering the current →
+// suggested diff. Dates are formatted in SF time to match the rest of admin.
+type CorrectionEvent = {
+  id: string;
+  title: string;
+  startDate: Date;
+  endDate: Date | null;
+  allDay: boolean;
+  venueName: string | null;
+  price: string | null;
+  imageUrl: string | null;
+  description: string | null;
+  tags: string[];
+};
+
+function formatCorrectionValue(field: string, value: unknown): string {
+  if (value == null || value === "") return "";
+  if (field === "startDate" || field === "endDate") {
+    const d = value instanceof Date ? value : new Date(String(value));
+    return Number.isNaN(d.getTime()) ? String(value) : formatDateTimeSF(d);
+  }
+  if (field === "allDay") return value ? "yes" : "no";
+  if (field === "tags") return Array.isArray(value) ? value.join(", ") : String(value);
+  return String(value);
+}
+
+function buildCorrectionDiffs(
+  edits: Record<string, unknown>,
+  event: CorrectionEvent | undefined
+): CorrectionDiff[] {
+  return Object.entries(edits).map(([field, suggested]) => ({
+    label: CORRECTION_FIELD_LABELS[field] ?? field,
+    current: event
+      ? formatCorrectionValue(field, (event as Record<string, unknown>)[field])
+      : "",
+    suggested: formatCorrectionValue(field, suggested),
+  }));
+}
 
 const REQUEST_STATUS_LABELS = {
   NEW: "new",
@@ -42,16 +95,22 @@ export default async function ReportsPage({ searchParams }: Props) {
   const { tab } = await searchParams;
 
   const activeTab: Tab =
-    tab === "event-reports" || tab === "bug-reports" || tab === "feature-requests"
+    tab === "event-reports" ||
+    tab === "bug-reports" ||
+    tab === "feature-requests" ||
+    tab === "corrections"
       ? tab
       : "feature-requests";
 
   // Unresolved = NEW or IN_PROGRESS (and NEW for feature requests). Badges reflect
   // only unresolved items; the active tab loads full rows, inactive tabs just count.
-  const [featureRequests, eventReports, bugReports] = await Promise.all([
+  const [featureRequests, corrections, eventReports, bugReports] = await Promise.all([
     activeTab === "feature-requests"
       ? prisma.featuredRequest.findMany({ orderBy: { createdAt: "desc" } })
       : prisma.featuredRequest.count({ where: { status: "NEW" } }),
+    activeTab === "corrections"
+      ? prisma.eventCorrection.findMany({ orderBy: [{ status: "asc" }, { createdAt: "desc" }] })
+      : prisma.eventCorrection.count({ where: { status: { not: "RESOLVED" } } }),
     activeTab === "event-reports"
       ? prisma.eventReport.findMany({
           orderBy: [{ status: "asc" }, { createdAt: "desc" }],
@@ -63,12 +122,40 @@ export default async function ReportsPage({ searchParams }: Props) {
       : prisma.bugReport.count({ where: { status: { not: "RESOLVED" } } }),
   ]);
 
+  // When the corrections tab is active, resolve each correction's linked event so
+  // the diff can show current → suggested. One batched query over the linked ids.
+  type CorrectionRow = Awaited<ReturnType<typeof prisma.eventCorrection.findMany>>[number];
+  const correctionRows = activeTab === "corrections" ? (corrections as CorrectionRow[]) : [];
+  const correctionEventMap = new Map<string, CorrectionEvent>();
+  if (correctionRows.length > 0) {
+    const events = await prisma.event.findMany({
+      where: { id: { in: [...new Set(correctionRows.map((c) => c.eventId))] } },
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        endDate: true,
+        allDay: true,
+        venueName: true,
+        price: true,
+        imageUrl: true,
+        description: true,
+        tags: true,
+      },
+    });
+    for (const e of events) correctionEventMap.set(e.id, e);
+  }
+
   const featureRequestsCount =
     activeTab === "feature-requests"
       ? (featureRequests as Awaited<ReturnType<typeof prisma.featuredRequest.findMany>>).filter(
           (r) => r.status === "NEW"
         ).length
       : (featureRequests as number);
+  const correctionsCount =
+    activeTab === "corrections"
+      ? correctionRows.filter((r) => r.status !== "RESOLVED").length
+      : (corrections as number);
   const eventReportsCount =
     activeTab === "event-reports"
       ? (eventReports as Awaited<ReturnType<typeof prisma.eventReport.findMany>>).filter(
@@ -84,6 +171,7 @@ export default async function ReportsPage({ searchParams }: Props) {
 
   const tabBadges: Record<Tab, number> = {
     "feature-requests": featureRequestsCount,
+    "corrections": correctionsCount,
     "event-reports": eventReportsCount,
     "bug-reports": bugReportsCount,
   };
@@ -185,6 +273,33 @@ export default async function ReportsPage({ searchParams }: Props) {
                 ))}
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* Corrections */}
+      {activeTab === "corrections" && (() => {
+        const items: CorrectionItem[] = correctionRows.map((c) => ({
+          id: c.id,
+          status: c.status,
+          createdAtLabel: fmtDate(c.createdAt),
+          eventId: c.eventId,
+          eventTitle: correctionEventMap.get(c.eventId)?.title ?? "(event removed)",
+          isOrganizer: c.isOrganizer,
+          comment: c.comment,
+          email: c.email,
+          diffs: buildCorrectionDiffs(
+            (c.suggestedEdits as Record<string, unknown>) ?? {},
+            correctionEventMap.get(c.eventId)
+          ),
+        }));
+        return (
+          <div className="flex flex-col gap-4">
+            <p className="font-body text-on-surface-variant text-sm">
+              {correctionRows.length} correction{correctionRows.length !== 1 ? "s" : ""} ·{" "}
+              {correctionsCount} unresolved
+            </p>
+            <CorrectionList items={items} />
           </div>
         );
       })()}

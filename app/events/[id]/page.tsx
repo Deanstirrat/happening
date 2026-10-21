@@ -541,7 +541,18 @@ export default async function EventDetailPage({
       <footer className="mt-20 pt-8 flex items-center justify-between text-on-surface-variant text-xs font-body">
         <span className="font-headline font-bold text-sm text-on-surface">happening</span>
         <div className="flex items-center gap-4">
-          <ReportButton eventId={event.id} />
+          <ReportButton
+            eventId={event.id}
+            event={{
+              startDate: event.startDate.toISOString(),
+              endDate: event.endDate?.toISOString() ?? null,
+              allDay: event.allDay,
+              venueName: event.venueName,
+              price: event.price,
+              imageUrl: event.imageUrl,
+              description: event.description,
+            }}
+          />
           <span>
             via{" "}
             <a

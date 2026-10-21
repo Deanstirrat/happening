@@ -1,8 +1,7 @@
-import { EventbriteScraper } from "./eventbrite";
+import { EventbriteOrganizerScraper } from "./eventbriteOrganizer";
 
-export class SpotlightComedyScraper extends EventbriteScraper {
+// https://www.eventbrite.com/o/spotlight-comedy-62788201173/
+export class SpotlightComedyScraper extends EventbriteOrganizerScraper {
   readonly sourceSlug: string = "spotlightcomedy";
-  protected override readonly BASE_URLS = [
-    "https://www.eventbrite.com/o/spotlight-comedy-62788201173/",
-  ];
+  protected override readonly organizerId = "62788201173";
 }

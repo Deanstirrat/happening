@@ -8,7 +8,7 @@ import MapViewWrapper from "@/components/map/MapViewWrapper";
 import { addDays } from "date-fns";
 import type { EventSummary } from "@/lib/types";
 import { Prisma } from "@prisma/client";
-import { sfDayStart, sfDayEnd, sfDayKey } from "@/lib/sfDate";
+import { sfDayStart, sfDayEnd, sfDayKey, matchesTimeOfDay } from "@/lib/sfDate";
 
 interface SearchParams {
   startDate?: string;
@@ -17,6 +17,7 @@ interface SearchParams {
   neighborhood?: string | string[];
   source?: string | string[];
   isFree?: string;
+  timeOfDay?: string;
 }
 
 async function getSources() {
@@ -91,7 +92,14 @@ async function getMapEvents(params: SearchParams): Promise<EventSummary[]> {
     },
   });
 
-  return events.map(({ _count, externalInterest, ...e }) => ({
+  // Time-of-day depends on the SF-local hour, which a single SQL range can't
+  // express cleanly, so filter post-query — mirroring the list route
+  // (app/api/events/route.ts). startDate is still a Date here, before ISO mapping.
+  const filtered = params.timeOfDay
+    ? events.filter((e) => matchesTimeOfDay(e.startDate, params.timeOfDay!))
+    : events;
+
+  return filtered.map(({ _count, externalInterest, ...e }) => ({
     ...e,
     startDate: e.startDate.toISOString(),
     endDate: e.endDate?.toISOString() ?? null,

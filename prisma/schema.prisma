@@ -100,6 +100,7 @@ model Event {
   interactions     EventInteraction[]
   interests        EventInterest[]
   reports          EventReport[]
+  corrections      EventCorrection[]
 
   @@index([startDate])
   @@index([neighborhood])
@@ -246,6 +247,29 @@ model EventReport {
   @@index([eventId])
   @@index([status])
   @@map("event_reports")
+}
+
+/// Organizer-submitted correction for an auto-ingested event (issue #215).
+/// Unlike EventReport (free-text "something's off"), this carries structured
+/// suggestedEdits an admin can apply to the event in one click. Backs the
+/// "suggest a fix" section of the event-page report modal. suggestedEdits holds
+/// only the changed fields, keyed like Event columns (startDate, endDate, allDay,
+/// venueName, price, imageUrl, description, tags). Shares the ReportStatus triage
+/// enum with bug/event reports so the admin reports nav badge can fold it in.
+model EventCorrection {
+  id             String       @id @default(cuid())
+  eventId        String
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  suggestedEdits Json
+  comment        String?
+  email          String?
+  isOrganizer    Boolean      @default(false)
+  status         ReportStatus @default(NEW)
+  createdAt      DateTime     @default(now())
+
+  @@index([eventId])
+  @@index([status])
+  @@map("event_corrections")
 }
 
 enum FeaturedRequestStatus {

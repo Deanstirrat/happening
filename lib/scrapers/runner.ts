@@ -11,6 +11,7 @@ import { parseMeta, pickStoredDescription } from "@/lib/enrichDescription";
 import { isPlaceholderVenue, isServiceAreaTBA } from "@/lib/venues";
 import { SCRAPE_RUN_HISTORY } from "./health";
 import { isVirtualEvent, isBabyOrSeniorLibraryEvent, isCanceledEvent, isOutOfAreaVenue, isSpamEvent } from "@/lib/ingestFilters";
+import { implausibleDateReason } from "@/lib/eventDateGuard";
 
 // Name-only music sources that scrape the whole Bay Area. Their out-of-area
 // venues carry no street address (just "Venue, City"), so they never geocode and
@@ -685,12 +686,23 @@ async function scrapeSource(
     // Placeholders we can't place (generic "Bay Area", out-of-area cities, bare
     // "TBA") stay held PENDING and surface only in the admin submissions tab.
     const isPlaceholder = isPlaceholderVenue(event.venueName);
-    const holdPending = isPlaceholder && !isServiceAreaTBA(event.venueName);
-    if (holdPending) {
+    const placeholderHold = isPlaceholder && !isServiceAreaTBA(event.venueName);
+    if (placeholderHold) {
       console.log(`[${slug}] Unplaceable placeholder — holding PENDING: "${event.title}" (${event.venueName})`);
     } else if (isPlaceholder) {
       console.log(`[${slug}] Location-TBA (local) — publishing off-map: "${event.title}" (${event.venueName})`);
     }
+
+    // Date plausibility guard (#215): a scraper that mis-parses a date (most
+    // often the wrong year) would otherwise publish a live, wrong listing. Hold
+    // such events PENDING for admin review rather than publishing them wrong —
+    // they surface in the admin Submissions tab, same as placeholder holds.
+    const dateHoldReason = implausibleDateReason(event.startDate);
+    if (dateHoldReason) {
+      console.log(`[${slug}] Implausible date (${dateHoldReason}) — holding PENDING: "${event.title}" (${event.startDate.toISOString()})`);
+    }
+
+    const holdPending = placeholderHold || dateHoldReason != null;
 
     // Link to the normalized Venue table when the venue is known. Same matching
     // as geocodeEvent (pass slug so SFPL branch labels resolve for sfpl only).

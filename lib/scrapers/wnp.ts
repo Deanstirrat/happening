@@ -1,8 +1,8 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { sfDateFromLocal } from "@/lib/sfDate";
+import { fetchRenderedHtml } from "./browserFetch";
 
 const EVENTS_URL = "https://wnpsf.org/";
 
@@ -41,24 +41,20 @@ function parseCardDate(text: string): { month: number; day: number; hours: numbe
  * (blurb paragraph + a venue/address paragraph) and a `<footer>` link to the
  * ticket page (Eventbrite, or a partner cinema's site). Venues vary — history
  * walks, film screenings — so coordinates are left to the ingest geocoder.
+ *
+ * The host sits behind a bot filter that resets the connection on plain HTTP
+ * clients (axios gets an HTTP/2 stream reset / empty reply even with a browser
+ * UA), so we render the page in a headless browser and parse the resulting HTML.
  */
 export class WnpScraper extends BaseScraper {
   readonly sourceSlug = "wnp";
 
   async scrape(): Promise<ScrapedEvent[]> {
-    let html: string;
-    try {
-      const { data } = await axios.get<string>(EVENTS_URL, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        timeout: 20_000,
-      });
-      html = data;
-    } catch (err: any) {
-      console.error("[wnp] fetch failed:", err.message);
+    const html = await fetchRenderedHtml(EVENTS_URL, {
+      waitSelector: '#our-events li[data-item="card-event"]',
+    });
+    if (!html) {
+      console.error("[wnp] fetch failed");
       return [];
     }
 

@@ -1,14 +1,18 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { sfDateFromLocal } from "@/lib/sfDate";
+import { fetchRenderedHtml } from "./browserFetch";
 
 /**
  * Thee Stork Club — theestorkclub.com/calendar/
  *
  * As of mid-2026 the calendar is a SeeTickets embedded widget.
  * Event cards use .seetickets-list-event-container; dates are "Mon Jun 1" (no year).
+ *
+ * The host sits behind a bot filter that resets the connection on plain HTTP
+ * clients (axios gets an HTTP/2 stream reset / empty reply even with a browser
+ * UA), so we render the page in a headless browser and parse the resulting HTML.
  */
 
 const CALENDAR_URL = "https://theestorkclub.com/calendar/";
@@ -49,19 +53,11 @@ export class StorkClubScraper extends BaseScraper {
   readonly sourceSlug = "storkclub";
 
   async scrape(): Promise<ScrapedEvent[]> {
-    let html: string;
-    try {
-      const { data } = await axios.get<string>(CALENDAR_URL, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        timeout: 15_000,
-      });
-      html = data;
-    } catch (err: any) {
-      console.error("[storkclub] failed to fetch calendar:", err.message);
+    const html = await fetchRenderedHtml(CALENDAR_URL, {
+      waitSelector: ".seetickets-list-event-container",
+    });
+    if (!html) {
+      console.error("[storkclub] failed to fetch calendar");
       return [];
     }
 

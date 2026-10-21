@@ -1,8 +1,8 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { sfDateFromLocal } from "@/lib/sfDate";
+import { fetchRenderedPages } from "./browserFetch";
 
 /**
  * Green Apple Books — greenapplebooks.com/events
@@ -13,6 +13,9 @@ import { sfDateFromLocal } from "@/lib/sfDate";
  * Date format: "Monday, May 5"  (year from URL)
  * Time format: "2:00 PM - 3:30 PM" or "6:00pm - 7:30pm"
  * Venue: parsed from "Place:" paragraph; defaults to the main store.
+ *
+ * The site returns 403 to plain HTTP clients (bot filter) even with a browser
+ * UA, so we render each month page in a headless browser and parse the HTML.
  */
 
 const BASE_URL = "https://greenapplebooks.com";
@@ -94,29 +97,27 @@ export class GreenAppleBooksScraper extends BaseScraper {
 
     const now = new Date();
 
-    for (let offset = 0; offset <= MONTHS_AHEAD; offset++) {
+    // Build the month URLs (current + 2 ahead) and fetch them all in one browser.
+    const months = Array.from({ length: MONTHS_AHEAD + 1 }, (_, offset) => {
       const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
       const year = d.getFullYear();
       const month = d.getMonth() + 1;
-      const monthStr = month.toString().padStart(2, "0");
-      const url = `${BASE_URL}/events/${year}/${monthStr}`;
+      const url = `${BASE_URL}/events/${year}/${month.toString().padStart(2, "0")}`;
+      return { url, year, month };
+    });
 
-      let html: string;
-      try {
-        const { data } = await axios.get<string>(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml",
-          },
-          timeout: 15_000,
-        });
-        html = data;
-      } catch (err: any) {
-        console.error(`[greenapplebooks] failed to fetch ${url}:`, err.message);
+    const pages = await fetchRenderedPages(
+      months.map((m) => m.url),
+      { waitSelector: 'a[href^="/event/"]' }
+    );
+    const htmlByUrl = new Map(pages.map((p) => [p.url, p.html]));
+
+    for (const { url, year, month } of months) {
+      const html = htmlByUrl.get(url);
+      if (!html) {
+        console.error(`[greenapplebooks] failed to fetch ${url}`);
         continue;
       }
-
       const $ = cheerio.load(html);
       this.parsePage($, year, month, nowMs, seen, events);
     }

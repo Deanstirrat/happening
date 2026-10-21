@@ -36,8 +36,17 @@ async function loadHealthInputs(now: Date): Promise<SourceHealthInput[]> {
       by: ["sourceId"],
       // Mirror the user-facing event queries: only PUBLISHED events count as
       // "upcoming". A source left with only ARCHIVED/REJECTED future rows shows
-      // users 0 events and should read as dark.
-      where: { startDate: { gte: now }, status: "PUBLISHED" },
+      // users 0 events and should read as dark. "Upcoming" means not-yet-ended —
+      // multi-day events (e.g. gallery exhibitions) stay current while their
+      // endDate is in the future, so a source showing only ongoing shows isn't
+      // dark.
+      where: {
+        status: "PUBLISHED",
+        OR: [
+          { endDate: { gte: now } },
+          { endDate: null, startDate: { gte: now } },
+        ],
+      },
       _count: { id: true },
     }),
   ]);

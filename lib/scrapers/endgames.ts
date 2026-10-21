@@ -44,11 +44,19 @@ function parseShowtime(text: string): { hours: number; minutes: number } | null 
  * Endgames Improv — endgamesimprov.com/shows/
  *
  * SF improv comedy theater. Its WordPress shows page server-renders one
- * `div.date_head` ("Friday, Jun 12") per date, each followed by a `<table>` per
- * show containing `td.show_time` ("7pm"), `td.show_pic img` (poster) and
- * `td.show_desc` (an `a.show_title` linking to the show's Eventbrite page, a
- * `<b><i>@ Venue - Address</i></b>` line, and the blurb). Each show becomes one
- * event; the Eventbrite ticket URL is the sourceUrl for dedup.
+ * `div.ssn-date-head` ("Friday, Jun 12") per date, each followed by one
+ * `div.ssn-row` per show containing:
+ *   - `div.ssn-time` ("8" + "PM" spans, or "7:30" + "PM")
+ *   - `img.ssn-pic` (poster)
+ *   - `div.ssn-desc` with the show title as either `a.ssn-title` (linking to the
+ *     show's Eventbrite page) or a bare `span.ssn-title`, a
+ *     `div.ssn-venue > b > i` "@ Venue - Address" line, the blurb, and an
+ *     optional `a.ssn-title.ssn-ticket-link` "Ticket Link".
+ * Each show becomes one event; the Eventbrite ticket URL is the sourceUrl for
+ * dedup.
+ *
+ * (The page was previously a `<table>`-per-show layout with `td.show_time` /
+ * `a.show_title`; it was redesigned to the flexbox `ssn-*` markup above.)
  */
 export class EndgamesScraper extends BaseScraper {
   readonly sourceSlug = "endgames";
@@ -73,14 +81,14 @@ export class EndgamesScraper extends BaseScraper {
     const $ = cheerio.load(html);
     const events: ScrapedEvent[] = [];
 
-    // The date headers and the per-show tables are siblings rendered in document
+    // The date headers and the per-show rows are siblings rendered in document
     // order, so walk them together and carry the most recent date forward.
     let current: { year: number; month: number; day: number } | null = null;
 
-    $("div.date_head, table").each((_i, el) => {
+    $("div.ssn-date-head, div.ssn-row").each((_i, el) => {
       const $el = $(el);
 
-      if ($el.hasClass("date_head")) {
+      if ($el.hasClass("ssn-date-head")) {
         const parsed = parseDateHead($el.text());
         current = parsed
           ? { year: this.resolveYear(parsed.month, parsed.day), ...parsed }
@@ -88,18 +96,25 @@ export class EndgamesScraper extends BaseScraper {
         return;
       }
 
-      // Only the show tables carry a show_time cell; skip layout tables.
-      const $time = $el.find("td.show_time").first();
-      if ($time.length === 0 || !current) return;
+      if (!current) return;
 
-      const parsedTime = parseShowtime($time.text());
+      // "8" + "PM" → "8PM"; "7:30" + "PM" → "7:30PM".
+      const parsedTime = parseShowtime($el.find(".ssn-time").first().text());
       if (!parsedTime) return;
 
-      const $titleLink = $el.find("td.show_desc a.show_title").first();
-      const title = $titleLink.text().trim();
+      // Title is the first .ssn-title that isn't the "Ticket Link" anchor; it may
+      // be an <a> (links to Eventbrite) or a bare <span> (e.g. free grad shows).
+      const $title = $el
+        .find(".ssn-desc .ssn-title")
+        .filter((_j, t) => !$(t).hasClass("ssn-ticket-link"))
+        .first();
+      const title = $title.text().trim();
       if (!title) return;
 
-      const href = $titleLink.attr("href");
+      // Prefer the title's own link; fall back to the "Ticket Link" anchor.
+      const href =
+        $title.attr("href") ??
+        $el.find(".ssn-desc a.ssn-ticket-link").first().attr("href");
       const sourceUrl = href
         ? href.startsWith("http")
           ? href
@@ -117,7 +132,7 @@ export class EndgamesScraper extends BaseScraper {
 
       // "@ ETC Prime - 2965 Mission St" → name / address.
       const venueLine = $el
-        .find("td.show_desc i")
+        .find(".ssn-venue i")
         .first()
         .text()
         .replace(/^\s*@\s*/, "")
@@ -137,13 +152,11 @@ export class EndgamesScraper extends BaseScraper {
         longitude = undefined;
       }
 
-      const $img = $el.find("td.show_pic img").first();
-      const imageUrl = $img.attr("src") || undefined;
+      const imageUrl = $el.find("img.ssn-pic").first().attr("src") || undefined;
 
-      // Strip the title link, the "Ticket Link" anchor and the venue line to
-      // leave the blurb.
-      const $desc = $el.find("td.show_desc").first().clone();
-      $desc.find("a, b").remove();
+      // Strip the title/ticket anchors and the venue line to leave the blurb.
+      const $desc = $el.find(".ssn-desc").first().clone();
+      $desc.find("a, .ssn-title, .ssn-venue").remove();
       const description = $desc.text().replace(/\s+/g, " ").trim() || undefined;
 
       events.push({

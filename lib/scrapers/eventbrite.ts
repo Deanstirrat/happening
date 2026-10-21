@@ -490,18 +490,18 @@ const BAY_AREA_TERMS = [
   "san leandro", "richmond", " ca ", ", ca", ", ca,", "94",
 ];
 
-function isLikelyBayArea(addr: string): boolean {
+export function isLikelyBayArea(addr: string): boolean {
   const lower = addr.toLowerCase();
   return BAY_AREA_TERMS.some((t) => lower.includes(t));
 }
 
-function parseEbLocal(raw: string): Date | null {
+export function parseEbLocal(raw: string): Date | null {
   const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
   if (!m) return null;
   return sfDateFromLocal(+m[1], +m[2], +m[3], +(m[4] ?? 0), +(m[5] ?? 0));
 }
 
-function parseEbSeparateDateTime(dateStr: string, timeStr: string): Date | null {
+export function parseEbSeparateDateTime(dateStr: string, timeStr: string): Date | null {
   const dm = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!dm) return null;
   const tm = timeStr.match(/^(\d{1,2}):(\d{2})/);

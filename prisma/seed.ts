@@ -24,7 +24,10 @@ const sources = [
     url: "https://sfdesignweek.org/events/",
     scrapeType: ScrapeType.CHEERIO,
     category: SourceCategory.AGGREGATOR,
-    enabled: true,
+    // Annual June festival — its events page is empty ~9 months a year, which
+    // would trip the "dark" health alert every offseason. Left disabled; flip
+    // enabled (admin Scrapers toggle) when the next edition is announced.
+    enabled: false,
   },
   {
     slug: "foopee",

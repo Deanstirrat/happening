@@ -16,6 +16,11 @@ const BASE_URL = "https://minnesotastreetproject.com";
 const VENUE_LAT = 37.754254;
 const VENUE_LNG = -122.38939;
 
+const ABBR_MONTH: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
 /** Parse a visible time like "4PM", "4:30PM", "11AM" → 24h components. */
 function parseTime(text: string): { hours: number; minutes: number } | null {
   const m = text.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
@@ -25,6 +30,25 @@ function parseTime(text: string): { hours: number; minutes: number } | null {
   if (m[3].toUpperCase() === "PM" && hours !== 12) hours += 12;
   if (m[3].toUpperCase() === "AM" && hours === 12) hours = 0;
   return { hours, minutes };
+}
+
+/**
+ * Parse the closing date from an exhibition's date-range label. The range omits
+ * the end month when it falls in the start month:
+ *   "Sep 10–Oct 31, 2026" → Oct 31, 2026
+ *   "Oct 3–24, 2026"      → Oct 24, 2026
+ *   "Oct 2–Dec 19, 2026"  → Dec 19, 2026
+ */
+function parseExhibitionRangeEnd(
+  text: string
+): { year: number; month: number; day: number } | null {
+  const m = text.match(
+    /([A-Za-z]{3,})\.?\s+\d{1,2}\s*[–—-]\s*(?:([A-Za-z]{3,})\.?\s+)?(\d{1,2}),?\s*(\d{4})/
+  );
+  if (!m) return null;
+  const month = ABBR_MONTH[(m[2] ?? m[1]).toLowerCase().slice(0, 3)];
+  if (!month) return null;
+  return { year: parseInt(m[4], 10), month, day: parseInt(m[3], 10) };
 }
 
 /**
@@ -84,6 +108,23 @@ export class MinnesotaStreetScraper extends BaseScraper {
         : sfDateFromLocal(year, month, day, 12, 0);
       if (isNaN(startDate.getTime())) return;
 
+      // Exhibitions run for weeks. We anchor startDate on the opening date (above)
+      // but also carry the closing date as endDate, so the event stays visible
+      // for the whole run — the listing, map, and health checks treat an event as
+      // current while endDate is in the future (endDate ?? startDate). Without
+      // this, a weeks-long show would drop off the day after it opened.
+      let endDate: Date | undefined;
+      if (isExhibition) {
+        const end = parseExhibitionRangeEnd(timeText);
+        if (end) {
+          const close = sfDateFromLocal(end.year, end.month, end.day, 23, 59);
+          if (!isNaN(close.getTime())) {
+            if (close.getTime() < Date.now()) return; // already closed — skip
+            endDate = close;
+          }
+        }
+      }
+
       const href = $el.find("a[href]").first().attr("href") ?? "";
       const sourceUrl = href
         ? href.startsWith("http")
@@ -126,6 +167,7 @@ export class MinnesotaStreetScraper extends BaseScraper {
       events.push({
         title,
         startDate,
+        endDate,
         allDay: isExhibition,
         venueName,
         venueAddress,

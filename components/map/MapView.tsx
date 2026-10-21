@@ -82,12 +82,22 @@ export default function MapView({ events }: { events: EventSummary[] }) {
       // to dismiss the selected-event popup.
       map.on("click", () => setSelectedEvent(null));
 
-      // CartoDB Dark Matter — native dark tiles, no CSS filter needed
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd",
+      // Esri "World Dark Gray Canvas" — keyless dark basemap. CARTO's keyless
+      // basemaps now 403 with an "API KEY REQUIRED" watermark tile (#212). Esri
+      // splits the canvas into a Base layer and a Reference (labels) layer, so
+      // we stack both. Native tiles stop at z16, so maxNativeZoom pins fetches
+      // there and maxZoom lets Leaflet upscale rather than request blank tiles.
+      const esriBaseUrl =
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+      const esriRefUrl =
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}";
+      L.tileLayer(esriBaseUrl, {
+        attribution:
+          'Tiles © <a href="https://www.esri.com/">Esri</a> — Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxNativeZoom: 16,
         maxZoom: 20,
       }).addTo(map);
+      L.tileLayer(esriRefUrl, { maxNativeZoom: 16, maxZoom: 20 }).addTo(map);
 
       // Load SF neighborhoods GeoJSON
       fetch("/sf-neighborhoods.geojson")

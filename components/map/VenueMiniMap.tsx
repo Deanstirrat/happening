@@ -31,10 +31,17 @@ export default function VenueMiniMap({
       map.on("focus", () => map.scrollWheelZoom.enable());
       map.on("blur", () => map.scrollWheelZoom.disable());
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        subdomains: "abcd",
-        maxZoom: 20,
-      }).addTo(map);
+      // Esri "World Dark Gray Canvas" — keyless dark basemap (CARTO's keyless
+      // tiles now 403 with an "API KEY REQUIRED" watermark, #212). Base +
+      // labels; native tiles stop at z16, so upscale beyond that.
+      L.tileLayer(
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        { maxNativeZoom: 16, maxZoom: 20 }
+      ).addTo(map);
+      L.tileLayer(
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+        { maxNativeZoom: 16, maxZoom: 20 }
+      ).addTo(map);
 
       const icon = L.divIcon({
         html: `<div style="

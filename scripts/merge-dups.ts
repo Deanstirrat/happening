@@ -7,8 +7,13 @@ dotenv.config({ path: ".env.local", override: true });
  * Pipeline:
  *   1. Load upcoming non-archived events (+ interaction counts).
  *   2. Block into candidate pairs per SF day (lib/merge/blocking).
- *   3. Adjudicate each pair with Claude Haiku — "same event?" (lib/merge/adjudicate).
- *   4. Union-find the confirmed pairs into clusters.
+ *   2b. Deterministic pre-pass (lib/merge/deterministic): auto-merge the
+ *       unambiguous pairs — identical source URL, fuzzy venue + same time, or a
+ *       strong title match — with NO LLM call. Runs over every blocked pair
+ *       regardless of scrapedAt age, so it also catches stale duplicates the
+ *       incremental LLM gate below skips.
+ *   3. Adjudicate the REMAINING (ambiguous) pairs with Claude Haiku (lib/merge/adjudicate).
+ *   4. Union-find the confirmed pairs (deterministic + LLM) into clusters.
  *   5. For each cluster: pick a survivor, compute best-of-each fields, synthesize
  *      a superior title/description, write the survivor, repoint interactions/
  *      reports, and ARCHIVE the losers pointing at the survivor.
@@ -34,6 +39,7 @@ import {
   type MergeableEvent,
 } from "../lib/merge/mergeFields";
 import { adjudicatePair, synthesizeCluster, ADJUDICATE_MODEL } from "../lib/merge/adjudicate";
+import { classifyDeterministicDuplicate } from "../lib/merge/deterministic";
 import { pairKey } from "../lib/merge/executeMerge";
 import { MERGE_CONFIDENCE } from "../lib/merge/thresholds";
 import { mapPool } from "../lib/aiConcurrency";
@@ -179,10 +185,27 @@ async function main() {
     );
   }
 
-  // Incremental gate: skip pairs where both events predate the last run.
-  let candidatePairs = pairs;
+  // 2b. Deterministic pre-pass. Auto-merge the unambiguous duplicates with no
+  // LLM call. This runs over ALL blocked pairs — not gated on scrapedAt — because
+  // a high-confidence programmatic match is free, and this is exactly what rescues
+  // stale pairs (two long-standing rows the incremental LLM gate would skip forever).
+  const deterministic: { pair: (typeof pairs)[number]; rule: string }[] = [];
+  const ambiguous: typeof pairs = [];
+  for (const pair of pairs) {
+    const verdict = classifyDeterministicDuplicate(pair.a, pair.b);
+    if (verdict) deterministic.push({ pair, rule: verdict.rule });
+    else ambiguous.push(pair);
+  }
+  console.log(
+    `Deterministic pre-pass: ${deterministic.length} pairs auto-merged (no LLM), ${ambiguous.length} remain for adjudication`
+  );
+
+  // Incremental gate (LLM tier only): skip ambiguous pairs where both events
+  // predate the last run — those were already judged, so re-judging is wasted
+  // spend. The deterministic tier above is never subject to this gate.
+  let candidatePairs = ambiguous;
   if (REPROCESS_ALL) {
-    console.log(`Reprocessing ALL ${candidatePairs.length} candidate pairs (--all)`);
+    console.log(`Reprocessing ALL ${candidatePairs.length} ambiguous pairs (--all)`);
   } else {
     const cutoff = Date.now() - NEW_SINCE_HOURS * 3600_000;
     const before = candidatePairs.length;
@@ -243,7 +266,7 @@ async function main() {
   // transient API failure must never be cached as a false "not a duplicate".
   // Re-judging replaces the prior row (delete-then-insert by pairKey).
   if (!DRY_RUN) {
-    const rows = verdicts
+    const llmRows = verdicts
       .filter((v) => !ERROR_REASONS.has(v.result.reason))
       .map((v) => ({
         pairKey: pairKey(v.pair.a.id, v.pair.b.id),
@@ -252,21 +275,32 @@ async function main() {
         reason: v.result.reason,
         model: ADJUDICATE_MODEL,
       }));
+    // Record the deterministic merges too, so the admin dedup UI and future runs
+    // see them as settled (confidence 1.0, model "deterministic:<rule>").
+    const detRows = deterministic.map(({ pair, rule }) => ({
+      pairKey: pairKey(pair.a.id, pair.b.id),
+      same: true,
+      confidence: 1,
+      reason: `deterministic: ${rule}`,
+      model: "deterministic",
+    }));
+    const rows = [...detRows, ...llmRows];
     const keys = rows.map((r) => r.pairKey);
     await prisma.$transaction([
       prisma.duplicateVerdict.deleteMany({ where: { pairKey: { in: keys } } }),
       prisma.duplicateVerdict.createMany({ data: rows }),
     ]);
     console.log(
-      `Persisted ${rows.length} verdicts (skipped ${verdicts.length - rows.length} errored)\n`
+      `Persisted ${rows.length} verdicts (${detRows.length} deterministic, ${llmRows.length} llm; skipped ${verdicts.length - llmRows.length} errored)\n`
     );
   }
 
-  const confirmed = verdicts.filter(
+  const llmConfirmed = verdicts.filter(
     (v) => v.result.same && v.result.confidence >= MERGE_CONFIDENCE
   );
   console.log(
-    `Confirmed ${confirmed.length} duplicate pairs (of ${candidatePairs.length} adjudicated)\n`
+    `Confirmed ${deterministic.length + llmConfirmed.length} duplicate pairs ` +
+      `(${deterministic.length} deterministic + ${llmConfirmed.length} llm of ${candidatePairs.length} adjudicated)\n`
   );
 
   // 4. Union-find the confirmed pairs into clusters.
@@ -279,7 +313,8 @@ async function main() {
     parent.set(find(a), find(b));
   };
   for (const e of events) parent.set(e.id, e.id);
-  for (const { pair } of confirmed) union(pair.a.id, pair.b.id);
+  for (const { pair } of deterministic) union(pair.a.id, pair.b.id);
+  for (const { pair } of llmConfirmed) union(pair.a.id, pair.b.id);
 
   const clusters = new Map<string, LoadedEvent[]>();
   for (const e of events) {

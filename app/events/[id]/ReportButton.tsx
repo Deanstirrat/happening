@@ -109,9 +109,9 @@ export default function ReportButton({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-body"
+        className="flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container px-3.5 py-2 text-on-surface-variant hover:text-primary hover:border-primary transition-colors text-xs font-body font-semibold"
       >
-        <Flag size={11} />
+        <Flag size={13} />
         report an issue
       </button>
     );

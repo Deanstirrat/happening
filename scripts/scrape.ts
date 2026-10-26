@@ -70,9 +70,9 @@ async function main() {
   }
 
   // Retry any scrapers that failed or timed out
+  const stillFailed: string[] = [];
   if (failed.length > 0) {
     console.log(`\n🔄 Retrying ${failed.length} failed scraper(s): ${failed.join(", ")}\n`);
-    const stillFailed: string[] = [];
     for (const slug of failed) {
       const result = await runWithTimeout(slug);
       if (result === null) {
@@ -82,14 +82,23 @@ async function main() {
         totalInserted += result.inserted;
       }
     }
-    if (stillFailed.length > 0) {
-      console.error(`\n❌ Scrapers still failing after retry: ${stillFailed.join(", ")}\n`);
-      console.log(`\n✅ Done — ${totalInserted}/${totalScraped} new events inserted\n`);
-      process.exit(1);
-    }
+  }
+
+  if (stillFailed.length > 0) {
+    console.error(`\n⚠️  Scrapers still failing after retry: ${stillFailed.join(", ")}\n`);
   }
 
   console.log(`\n✅ Done — ${totalInserted}/${totalScraped} new events inserted\n`);
+
+  // Exit non-zero only when *every* scraper that ran failed — a real outage
+  // worth a crash alert. A single slow or flaky source must not crash the whole
+  // cron run and mask the events the other sources successfully inserted.
+  const ran = slugs.filter((s) => SCRAPERS[s]);
+  const allFailed = ran.length > 0 && stillFailed.length === ran.length;
+  if (allFailed) {
+    console.error(`\n❌ All ${ran.length} scraper(s) failed — exiting non-zero\n`);
+    process.exit(1);
+  }
   process.exit(0);
 }
 

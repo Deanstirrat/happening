@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 import { BaseScraper } from "./base";
 import type { ScrapedEvent } from "./base";
 import { sfDateFromLocal, sfDayKey } from "@/lib/sfDate";
+import { parseMeta, pickStoredDescription } from "@/lib/enrichDescription";
 
 function parseSfliveDate(raw: string): Date | null {
   // raw: "2026-03-27 20:00:00" (no timezone — treat as SF local time)
@@ -83,14 +84,20 @@ export class SfliveScraper extends BaseScraper {
       page++;
     } while (page <= totalPages);
 
-    // Fill in missing images by scraping event pages in concurrent batches
-    const needsImage = collected.filter((c) => !c.event.imageUrl);
-    for (let i = 0; i < needsImage.length; i += this.IMAGE_CONCURRENCY) {
-      const batch = needsImage.slice(i, i + this.IMAGE_CONCURRENCY);
+    // Fetch each event page once to fill in a storable description (the WP API
+    // never supplies one) plus a fallback image where the API didn't. Doing both
+    // in a single fetch here means the runner's meta backfill skips these events
+    // instead of re-fetching all ~2.7k pages a second time for the description —
+    // that second pass blew past the 30-min per-scraper timeout and crashed the
+    // cron.
+    const needsMeta = collected.filter((c) => !c.event.imageUrl || !c.event.description);
+    for (let i = 0; i < needsMeta.length; i += this.IMAGE_CONCURRENCY) {
+      const batch = needsMeta.slice(i, i + this.IMAGE_CONCURRENCY);
       await Promise.all(
         batch.map(async (c) => {
-          const url = await this.fetchPageImage(c.pageLink);
-          if (url) c.event.imageUrl = url;
+          const { imageUrl, description } = await this.fetchPageMeta(c.pageLink);
+          if (imageUrl && !c.event.imageUrl) c.event.imageUrl = imageUrl;
+          if (description && !c.event.description) c.event.description = description;
         })
       );
     }
@@ -211,8 +218,12 @@ export class SfliveScraper extends BaseScraper {
     };
   }
 
-  /** Fetch an sflive.art event page and extract the image from Yoast JSON-LD. */
-  private async fetchPageImage(url: string): Promise<string | undefined> {
+  /**
+   * Fetch an sflive.art event page once and extract both the image (from the
+   * Yoast JSON-LD schema block) and a storable description (via the shared meta
+   * picker, same as the runner's backfill — JSON-LD Event copy → og/meta).
+   */
+  private async fetchPageMeta(url: string): Promise<{ imageUrl?: string; description?: string }> {
     try {
       const { data: html } = await axios.get(url, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; happening-sf/1.0)" },
@@ -236,9 +247,10 @@ export class SfliveScraper extends BaseScraper {
           // ignore parse errors
         }
       });
-      return imageUrl;
+      const description = pickStoredDescription(parseMeta(html));
+      return { imageUrl, description };
     } catch {
-      return undefined;
+      return {};
     }
   }
 }
